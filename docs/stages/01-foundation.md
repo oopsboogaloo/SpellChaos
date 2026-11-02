@@ -1,6 +1,6 @@
 # First build increment — foundation
 
-Status: initial foundation implemented; Stage 1 not yet fully complete.
+Status: foundation increment verified locally; awaiting GitHub CI on the final commit.
 
 The owner approved the plan and authorized routine decisions using best judgment.
 This branch records the first tested implementation increment for review.
@@ -13,22 +13,24 @@ This branch records the first tested implementation increment for review.
 - Immutable LockTurn command, revision checks, duplicate acknowledgements and
   conflict rejection.
 - Filtered player-view boundary, explicit injected-clock scheduling helpers.
-- Canonical JSON serialization and fresh-state continuation tests.
+- Canonical JSON serialization, versioned state fingerprints and fresh-state continuation tests.
+- Frozen schema-1 fixture, import-boundary check and React/Vite browser shell.
+- Chromium smoke tests and browser/Node serialized-state equivalence.
 - GitHub Actions typecheck, test and build workflow.
 - Initial requirements inventory derived from the condensed specification.
 
 ## Verification
 
-Local `pnpm check` and `pnpm build` pass. Eleven tests include 1,000 seeded
-generated RNG cases. This is foundation coverage, not game-rule coverage.
+Local `pnpm check`, `pnpm build` and `pnpm test:browser` pass. Thirteen
+headless tests include 1,000 seeded generated RNG cases; two Chromium tests
+verify shell interaction and engine equivalence. This is foundation coverage,
+not game-rule coverage.
 GitHub run results are reported separately from local verification.
 
 ## Outstanding
 
 - Full original-text source archive and source-complete requirements inventory.
-- Stable digest API, browser engine-equivalence checks and minimal browser shell.
 - Atomic resolution stepping, implemented alongside the later phase resolver.
-- Frozen save fixtures and import-boundary enforcement.
 - All gameplay, content and presentation stages.
 
 ## Recorded process decision

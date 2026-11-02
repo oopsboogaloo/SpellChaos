@@ -17,9 +17,13 @@ Use Node 24.19.0 and pnpm 11.25.0.
 pnpm install --frozen-lockfile
 pnpm check
 pnpm build
+pnpm exec playwright install chromium
+pnpm test:browser
+pnpm dev
 ```
 
-The current increment is a headless TypeScript foundation, not a playable game.
+The current increment is a TypeScript foundation and development browser shell,
+not a playable game.
 The engine has no dependency on browser input, rendering or wall-clock time.
 The only command implemented so far is `LockTurn`; `ready` marks the boundary
 where the future phase resolver will start. No gameplay rules are simulated yet.
