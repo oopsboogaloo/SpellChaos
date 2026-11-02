@@ -1,5 +1,7 @@
 # Spell Chaos — technical and interaction design
-Version 0.1 · 2 November 2026 · **DRAFT — awaiting owner review**
+Version 0.1 · 2 November 2026 · **APPROVED by owner**
+
+Approval: “Proposals are all good, proceed to plan.” All architecture, interface, verification proposals and decisions D01–D22 are accepted. Historical proposal wording below records the reviewed version; it no longer denotes pending approval. Implementation still requires approval of PLAN.md. The owner authorised planning now; full-source archival remains a pre-code gate in Stage 0.
 
 ## Review boundary and authority
 This document proposes architecture, user experience and resolutions for remaining edge cases. It is not an implementation plan or permission to begin coding. Workflow: approve/revise this design → prepare and review a staged implementation plan → execute approved stages, committing code and verification evidence to GitHub.
