@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createMatch, applyCommand } from '../../../packages/engine/src/index.js';
 import { encodeSnapshot, restoreSnapshot } from '../../../packages/persistence/src/snapshot.js';
 import './style.css';
+import { GeometryPreview } from './GeometryPreview.js';
 
 function App() {
   const [state, setState] = useState(() => createMatch('demo', ['human', 'ai'], 1));
@@ -20,6 +21,7 @@ function App() {
       <button onClick={() => setState(restoreSnapshot(encodeSnapshot(state)))}>Save and restore demo</button>
       <button onClick={() => setState(createMatch('demo', ['human', 'ai'], 1))}>Reset</button>
     </section>
+    <GeometryPreview />
   </main>;
 }
 createRoot(document.getElementById('root')!).render(<App />);

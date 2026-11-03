@@ -1,0 +1,120 @@
+{
+  "stage": 2,
+  "scope": "spatial primitives, not full combat eligibility or action execution",
+  "source": "Specification v0.9: Map, MVP projectiles/swarms/interface; approved design sections4 and11",
+  "checks": [
+    {
+      "id": "GEO-001",
+      "requirement": "Hex conversion, metric and board bounds",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "roundtrips odd-row offsets, including negative rows",
+        "has unit centre spacing and cube-distance symmetry/triangle inequality",
+        "validates geometry boundaries and inputs"
+      ]
+    },
+    {
+      "id": "GEO-002",
+      "requirement": "Size 1\u201310 compact footprints and minimum occupied range",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "Size %i has the exact compact footprint",
+        "measures nearest occupied range, rather than centre distance"
+      ]
+    },
+    {
+      "id": "GEO-003",
+      "requirement": "Opposite footprint sectors without facing",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "recognizes opposite sectors without facing"
+      ]
+    },
+    {
+      "id": "GEO-004",
+      "requirement": "Boundary side and deterministic line tracing",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "traces a straight ray and stores the boundary side choice",
+        "produces connected rays reversible by exchanging sides",
+        "retains ray side, occupants and wall decisions through scenario serialization"
+      ]
+    },
+    {
+      "id": "GEO-005",
+      "requirement": "Edge walls, crystal sight and arc exception",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "canonicalizes interior and boundary edges and rejects non-neighbours",
+        "crystal permits sight but blocks projectiles; ordinary walls block both",
+        "applies %s wall movement geometry independently of damage",
+        "rejects new solid walls through occupied footprints, duplicates and wholly outside edges"
+      ]
+    },
+    {
+      "id": "GEO-006",
+      "requirement": "Legal footprints and blocked movement",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "rejects clipped large footprints, overlaps and wall straddling",
+        "stops at last legal position without rerouting or swapping",
+        "finds deterministic nearest legal cells and reports no-space cases"
+      ]
+    },
+    {
+      "id": "GEO-007",
+      "requirement": "Transit versus endpoints and belief exceptions",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "allows flying and incorporeal transit but requires legal resting footprints",
+        "lets Nimble transit allies and mindless creatures ignore illusion blockers"
+      ]
+    },
+    {
+      "id": "GEO-008",
+      "requirement": "Swarm spatial overlap and restraint eligibility",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "supports swarm overlap, same-height coverage and immediate size-dependent release"
+      ]
+    },
+    {
+      "id": "GEO-009",
+      "requirement": "Area deduplication and mount footprint",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "counts large area victims once and permits grounded-only selection",
+        "allows rider/mount sharing but not unrelated occupants"
+      ]
+    },
+    {
+      "id": "GEO-010",
+      "requirement": "Projectile origin, interception and target height",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "intercepts allies before targets, while creatures do not block sight",
+        "starts at origin boundary and respects target height and rider selection"
+      ]
+    },
+    {
+      "id": "GEO-011",
+      "requirement": "Two-hex inset seeded starts for 2\u20138 players",
+      "status": "implemented",
+      "testFile": "tests/geometry.test.ts",
+      "testNames": [
+        "places %i wizards evenly on the inset perimeter",
+        "rejects invalid player counts and too-small boards"
+      ]
+    }
+  ]
+}
