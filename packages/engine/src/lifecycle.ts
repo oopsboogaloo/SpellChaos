@@ -1,3 +1,4 @@
+import { invalidateCasts } from './casting.js';
 import type { GameState } from '../../domain/src/state.js';
 import { emit,type Event } from './events.js';
 import { active } from './status.js';
@@ -19,14 +20,14 @@ export function cleanupDeaths(s:GameState,events:Event[]):void {
    if(c.kind==='wizard'){
     const p=s.players.find(p=>p.wizardId===c.id)!;p.eliminated=true;p.locked=true;
     for(const servant of s.creatures.filter(x=>x.id!==c.id && x.controller===p.id)){
-     if(servant.kind==='summon'){servant.controller=null;s.guards=s.guards.filter(g=>g.creatureId!==servant.id);s.reactions=s.reactions.filter(r=>r.attackerId!==servant.id);}
+     if(servant.kind==='summon'){servant.controller=null;servant.bindingLevel=null;s.guards=s.guards.filter(g=>g.creatureId!==servant.id);s.reactions=s.reactions.filter(r=>r.attackerId!==servant.id);}
      else {servant.hp=-servant.maxHp;servant.alive=false;}
      s.reservations=s.reservations.filter(r=>r.creatureId!==servant.id);
     }
    }
   }
  }
- releaseBrokenHolds(s);
+ releaseBrokenHolds(s);invalidateCasts(s,events);
 }
 export function ongoingDamage(s:GameState,events:Event[]):void {
  const snapshot=structuredClone(s.creatures.filter(c=>c.alive));

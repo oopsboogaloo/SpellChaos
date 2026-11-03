@@ -1,3 +1,5 @@
+import { stateSchema as combatSchema } from '../../domain/src/legacy-v3.js';
+import { startingBook } from '../../engine/src/spellbooks.js';
 import { stateSchema as legacySchema } from '../../domain/src/legacy-v1.js';
 import { stateSchema, VERSION, type GameState } from '../../domain/src/state.js';
 import { stateSchema as ordersSchema } from '../../domain/src/legacy-v2.js';
@@ -14,10 +16,10 @@ export function migrateFoundationSnapshot(text: string): GameState {
   next.turn = old.turn; next.phase = old.phase; next.revision = old.revision; next.eventSequence = old.revision;
   next.players.forEach((p,i) => { p.locked = old.players[i]!.locked; p.participated = p.locked; });
   next.accepted = old.accepted;
-  return stateSchema.parse(next);
+  return fillBooks(stateSchema.parse(next));
 }
 
-/** Explicit v2 -> v3 upgrade. Frozen v2 fixtures remain readable only through this API. */
+/** Explicit v2 -> current upgrade. Frozen v2 fixtures remain readable only through this API. */
 export function migrateOrdersSnapshot(text: string): GameState {
   const old = ordersSchema.parse(JSON.parse(text));
   const next = {
@@ -25,7 +27,21 @@ export function migrateOrdersSnapshot(text: string): GameState {
     creatures: old.creatures.map(c => createCreature(c.id,c.controller,c.centre,{...c,...(!c.alive?{hp:-5*c.size}:{})})),
     walls: old.walls.map(w => {const hp=5+3*(['wood','stone','iron','crystal','thorns','fire','energy','death'].indexOf(w.material)+1);return {...w,hp,maxHp:hp,burning:null};}),
     cursor: {...old.cursor,lastRestingCentre:null},
+    balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
     guards:[],holds:[],reactions:[],pendingAttack:null,spentActions:[],moved:[],corpses:[],deadHandled:[],endStep:0,
   };
-  return stateSchema.parse(next);
+  return fillBooks(stateSchema.parse(next));
+}
+
+function fillBooks(s:GameState):GameState {
+ for(const c of s.creatures.filter(c=>c.kind==='wizard')){const draw=startingBook(s.random.setup);s.random.setup=draw.state;c.spellbook=draw.book;}
+ return stateSchema.parse(s);
+}
+/** Explicit upgrade; legacy combat snapshots and their validators are immutable. */
+export function migrateCombatSnapshot(text:string):GameState {
+ const old=combatSchema.parse(JSON.parse(text));
+ return fillBooks(stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+  balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
+  creatures:old.creatures.map(c=>createCreature(c.id,c.controller,c.centre,c)),
+ }));
 }

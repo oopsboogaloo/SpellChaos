@@ -1,0 +1,511 @@
+{
+  "stage": 5,
+  "source": "Specification v0.9 mana, casting, control, MVP projectiles/familiars and serialization; approved D10, D15, D19, D20",
+  "scope": "Casting engine and three approved familiar profiles; full roster and illusion/environment effects remain later stages",
+  "checks": [
+    {
+      "id": "CAST-001",
+      "requirement": "uses approved costs, chances and ranges at level %i",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "uses approved costs, chances and ranges at level %i"
+      ]
+    },
+    {
+      "id": "CAST-002",
+      "requirement": "keeps fractional alignment modifiers and clamps probability",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "keeps fractional alignment modifiers and clamps probability"
+      ]
+    },
+    {
+      "id": "CAST-003",
+      "requirement": "uniformly samples only valid ten-family subsets plus guaranteed extras",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "uniformly samples only valid ten-family subsets plus guaranteed extras"
+      ]
+    },
+    {
+      "id": "CAST-004",
+      "requirement": "awards unknown families on the third turn, or capped mana when exhausted",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "awards unknown families on the third turn, or capped mana when exhausted"
+      ]
+    },
+    {
+      "id": "CAST-005",
+      "requirement": "regenerates creature mana separately and grants at most one nearby real familiar bonus",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "regenerates creature mana separately and grants at most one nearby real familiar bonus"
+      ]
+    },
+    {
+      "id": "CAST-006",
+      "requirement": "reserves drafts, replaces them, clears without payment and spends only on start",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "reserves drafts, replaces them, clears without payment and spends only on start"
+      ]
+    },
+    {
+      "id": "CAST-007",
+      "requirement": "rejects unknown spells, levels, unsupported content, bad variants and overspending",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "rejects unknown spells, levels, unsupported content, bad variants and overspending"
+      ]
+    },
+    {
+      "id": "CAST-008",
+      "requirement": "reserves both Double Action slots without overspending",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "reserves both Double Action slots without overspending"
+      ]
+    },
+    {
+      "id": "CAST-009",
+      "requirement": "rejects movement and extra slots through a Slow cast, but allows movement before late casting",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "rejects movement and extra slots through a Slow cast, but allows movement before late casting"
+      ]
+    },
+    {
+      "id": "CAST-010",
+      "requirement": "enforces creature spell caps independently of summon level and excludes illusion casters",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "enforces creature spell caps independently of summon level and excludes illusion casters"
+      ]
+    },
+    {
+      "id": "CAST-011",
+      "requirement": "calculates Instant, Quick, Slow and two/three-turn ritual completion positions",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "calculates Instant, Quick, Slow and two/three-turn ritual completion positions"
+      ]
+    },
+    {
+      "id": "CAST-012",
+      "requirement": "Quick summons resolve after every ordinary/Slowed action and act only next turn",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Quick summons resolve after every ordinary/Slowed action and act only next turn"
+      ]
+    },
+    {
+      "id": "CAST-013",
+      "requirement": "Slow early casts complete late at caster initiative, including with one normal action",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Slow early casts complete late at caster initiative, including with one normal action"
+      ]
+    },
+    {
+      "id": "CAST-014",
+      "requirement": "restores a late Slow cast in the next turn and consumes the completion slot",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "restores a late Slow cast in the next turn and consumes the completion slot"
+      ]
+    },
+    {
+      "id": "CAST-015",
+      "requirement": "runs a scripted three-turn ritual without Double Action acceleration or movement",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "runs a scripted three-turn ritual without Double Action acceleration or movement"
+      ]
+    },
+    {
+      "id": "CAST-016",
+      "requirement": "interrupts once on forced movement, retaining full paid mana and half alignment shift",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "interrupts once on forced movement, retaining full paid mana and half alignment shift"
+      ]
+    },
+    {
+      "id": "CAST-017",
+      "requirement": "checks concentration once using total multiattack damage, never on zero damage",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "checks concentration once using total multiattack damage, never on zero damage"
+      ]
+    },
+    {
+      "id": "CAST-018",
+      "requirement": "incapacitation interrupts without rolling and wizard death invalidates casts",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "incapacitation interrupts without rolling and wizard death invalidates casts"
+      ]
+    },
+    {
+      "id": "CAST-019",
+      "requirement": "cancels an ongoing cast through an idempotent owned command with no refund",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "cancels an ongoing cast through an idempotent owned command with no refund"
+      ]
+    },
+    {
+      "id": "CAST-020",
+      "requirement": "selects the nearest eligible origin without distance limit, preferring wizard then oldest familiar",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "selects the nearest eligible origin without distance limit, preferring wizard then oldest familiar"
+      ]
+    },
+    {
+      "id": "CAST-021",
+      "requirement": "locks the familiar through a Slow cast and interrupts on binding loss or death",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "locks the familiar through a Slow cast and interrupts on binding loss or death"
+      ]
+    },
+    {
+      "id": "CAST-022",
+      "requirement": "launches intercepted missiles from the familiar while charging the wizard",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "launches intercepted missiles from the familiar while charging the wizard"
+      ]
+    },
+    {
+      "id": "CAST-023",
+      "requirement": "Healing Bolt restores L+3 and removes Bleeding, bypassing interception",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Healing Bolt restores L+3 and removes Bleeding, bypassing interception"
+      ]
+    },
+    {
+      "id": "CAST-024",
+      "requirement": "Teleport has no Guard trigger and checks the entire destination footprint",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Teleport has no Guard trigger and checks the entire destination footprint"
+      ]
+    },
+    {
+      "id": "CAST-025",
+      "requirement": "Bind and Release apply Int resistance, enforce binding levels and cancel old orders",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Bind and Release apply Int resistance, enforce binding levels and cancel old orders"
+      ]
+    },
+    {
+      "id": "CAST-026",
+      "requirement": "a resisted Bind still shifts balance as successful casting",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "a resisted Bind still shifts balance as successful casting"
+      ]
+    },
+    {
+      "id": "CAST-027",
+      "requirement": "blocked summon placement consumes full paid mana and half alignment without relocating",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "blocked summon placement consumes full paid mana and half alignment without relocating"
+      ]
+    },
+    {
+      "id": "CAST-028",
+      "requirement": "Summon Only costs rounded half, creates an unbound familiar, and uses only one casting roll",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Summon Only costs rounded half, creates an unbound familiar, and uses only one casting roll"
+      ]
+    },
+    {
+      "id": "CAST-029",
+      "requirement": "Disbelief costs two mana, consumes no dice and does nothing to real targets",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Disbelief costs two mana, consumes no dice and does nothing to real targets"
+      ]
+    },
+    {
+      "id": "CAST-030",
+      "requirement": "matches uninterrupted resolution after restore at every spell boundary across seeds",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "matches uninterrupted resolution after restore at every spell boundary across seeds"
+      ]
+    },
+    {
+      "id": "CAST-031",
+      "requirement": "keeps opponents spellbooks, mana, reservations and full cast records private",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "keeps opponents spellbooks, mana, reservations and full cast records private"
+      ]
+    },
+    {
+      "id": "CAST-032",
+      "requirement": "explicitly migrates legacy combat saves without silently changing their version",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "explicitly migrates legacy combat saves without silently changing their version"
+      ]
+    },
+    {
+      "id": "CAST-033",
+      "requirement": "Magic Attack rolls independently against Int and spreads once across teams without chaining",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Magic Attack rolls independently against Int and spreads once across teams without chaining"
+      ]
+    },
+    {
+      "id": "CAST-034",
+      "requirement": "solid crystal walls block Magic Attack family spread while original targeting uses sight",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "solid crystal walls block Magic Attack family spread while original targeting uses sight"
+      ]
+    },
+    {
+      "id": "CAST-035",
+      "requirement": "Fire Bolt ignites flammable creatures only after positive damage",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Fire Bolt ignites flammable creatures only after positive damage"
+      ]
+    },
+    {
+      "id": "CAST-036",
+      "requirement": "invalid targets before casting starts cost no mana, but invalid completion costs full mana",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "invalid targets before casting starts cost no mana, but invalid completion costs full mana"
+      ]
+    },
+    {
+      "id": "CAST-037",
+      "requirement": "evaluates casting probability against balance at completion and shifts once on failure",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "evaluates casting probability against balance at completion and shifts once on failure"
+      ]
+    },
+    {
+      "id": "CAST-038",
+      "requirement": "each Quick completion observes earlier alignment changes and keeps deterministic phase order",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "each Quick completion observes earlier alignment changes and keeps deterministic phase order"
+      ]
+    },
+    {
+      "id": "CAST-039",
+      "requirement": "new early summons block movement before they receive any action",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "new early summons block movement before they receive any action"
+      ]
+    },
+    {
+      "id": "CAST-040",
+      "requirement": "familiar origin loss never silently switches to another eligible familiar",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "familiar origin loss never silently switches to another eligible familiar"
+      ]
+    },
+    {
+      "id": "CAST-041",
+      "requirement": "a locked familiar cannot move during a long cast or grant remote origin while incapacitated",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "a locked familiar cannot move during a long cast or grant remote origin while incapacitated"
+      ]
+    },
+    {
+      "id": "CAST-042",
+      "requirement": "wizard death interrupts its cast once and unbinds its real summoned familiar",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "wizard death interrupts its cast once and unbinds its real summoned familiar"
+      ]
+    },
+    {
+      "id": "CAST-043",
+      "requirement": "malformed schedules, origin references and reservation ledgers fail before replacing a save",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "malformed schedules, origin references and reservation ledgers fail before replacing a save"
+      ]
+    },
+    {
+      "id": "CAST-044",
+      "requirement": "a familiar bonus needs a living nearby familiar, not multiple active bonuses",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "a familiar bonus needs a living nearby familiar, not multiple active bonuses"
+      ]
+    },
+    {
+      "id": "CAST-045",
+      "requirement": "plans normal movement from an early Teleport destination and records actual movement",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "plans normal movement from an early Teleport destination and records actual movement"
+      ]
+    },
+    {
+      "id": "CAST-046",
+      "requirement": "Teleport preserves restraint and Fear restrictions rather than granting an unstated escape",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Teleport preserves restraint and Fear restrictions rather than granting an unstated escape"
+      ]
+    },
+    {
+      "id": "CAST-047",
+      "requirement": "Healing Bolt rejects %s targets during planning",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "Healing Bolt rejects %s targets during planning"
+      ]
+    },
+    {
+      "id": "CAST-048",
+      "requirement": "cannot complete a long cast before its scheduled turn and phase",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "cannot complete a long cast before its scheduled turn and phase"
+      ]
+    },
+    {
+      "id": "CAST-049",
+      "requirement": "upgrading an existing friendly binding preserves its already-planned orders",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "upgrading an existing friendly binding preserves its already-planned orders"
+      ]
+    },
+    {
+      "id": "CAST-050",
+      "requirement": "permanent planning, Quick, Slow and ritual fixtures encode identically and continue after restore",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "permanent planning, Quick, Slow and ritual fixtures encode identically and continue after restore"
+      ]
+    },
+    {
+      "id": "CAST-051",
+      "requirement": "a Double Action caster may Defend late after early completion, but cannot take Total Defence",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "a Double Action caster may Defend late after early completion, but cannot take Total Defence"
+      ]
+    },
+    {
+      "id": "CAST-052",
+      "requirement": "early long-cast completion consumes Subdued movement eligibility",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "early long-cast completion consumes Subdued movement eligibility"
+      ]
+    },
+    {
+      "id": "CAST-053",
+      "requirement": "allocates summoned creature IDs without colliding with existing scenario or migrated IDs",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "allocates summoned creature IDs without colliding with existing scenario or migrated IDs"
+      ]
+    },
+    {
+      "id": "CAST-054",
+      "requirement": "uses the approved level-one profile for %s without substituting higher levels",
+      "status": "implemented",
+      "testFile": "tests/casting.test.ts",
+      "testNames": [
+        "uses the approved level-one profile for %s without substituting higher levels"
+      ]
+    },
+    {
+      "id": "CAST-BROWSER-1",
+      "requirement": "steps a remote Slow cast and restores it between turns on a phone viewport",
+      "status": "implemented",
+      "testFile": "tests/browser/casting.spec.ts",
+      "testNames": [
+        "steps a remote Slow cast and restores it between turns on a phone viewport"
+      ]
+    },
+    {
+      "id": "CAST-BROWSER-2",
+      "requirement": "Node and Chromium agree on two turns of remote casting with save/restore at every step",
+      "status": "implemented",
+      "testFile": "tests/browser/casting.spec.ts",
+      "testNames": [
+        "Node and Chromium agree on two turns of remote casting with save/restore at every step"
+      ]
+    }
+  ]
+}

@@ -1,3 +1,6 @@
+import { startCast, completeCast, invalidateCasts, concentration, castingLocksMovement, slotOccupied } from './casting.js';
+import { awardAndRegenerate } from './spellbooks.js';
+import { compareEntries } from './queue.js';
 import { active, restrained, slowed, subdued, fearAllowsStep } from './status.js';
 import { beginAttack, stepAttack, resolveCombatAction, enqueueGuards } from './combat.js';
 import { ongoingDamage, cleanupDeaths, recover, expireConditions } from './lifecycle.js';
@@ -25,6 +28,7 @@ function initialize(state: GameState, events: Event[]): void {
   emit(state, events, { type: 'PhaseStarted' });
 }
 function finishPhase(state: GameState, events: Event[]): void {
+  state.quickQueue=null;
   emit(state, events, { type: 'PhaseEnded' });
   if (checkVictory(state, events)) return;
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
@@ -33,6 +37,7 @@ function finishPhase(state: GameState, events: Event[]): void {
   else { state.phase = 'end'; state.endStep = 0; }
 }
 function finishTurn(state: GameState, events: Event[]): void {
+  awardAndRegenerate(state); state.castOccupied=[]; state.quickQueue=null;
   state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
@@ -44,7 +49,7 @@ export function advanceAtomicStep(state: GameState): Transition {
   const next = structuredClone(state), events: Event[] = [];
   if (next.phase === 'end') {
     switch(next.endStep) {
-      case 0: ongoingDamage(next,events); break;
+      case 0: ongoingDamage(next,events); concentration(next,next.creatures.map(c=>({targetId:c.id,amount:events.filter(e=>e.type==='DamageApplied'&&e.creatureId===c.id).reduce((n,e)=>n+(e.amount??0),0)})),events); break;
       case 1: cleanupDeaths(next,events); checkVictory(next,events); break;
       case 2: recover(next,events); break;
       case 3: expireConditions(next); cleanupDeaths(next,events); checkVictory(next,events); break;
@@ -59,7 +64,13 @@ export function advanceAtomicStep(state: GameState): Transition {
     const attacker = next.creatures.find(c=>c.id===reaction.attackerId)!;
     beginAttack(next,attacker,{type:'Attack',attackId:reaction.attackId,targetIds:[reaction.targetId],ground:null,side:'left'},'guard');
   } else if (!next.cursor.initialized) initialize(next, events);
-  else if (next.cursor.index === next.cursor.entries.length) finishPhase(next, events);
+  else if (next.cursor.index === next.cursor.entries.length) {
+    if(next.phase!=='movement' && next.quickQueue===null){
+      next.quickQueue=next.cursor.entries.filter(e=>next.casts.some(c=>c.casterId===e.creatureId&&c.timing==='quick'&&c.dueTurn===next.turn&&c.duePhase===next.phase)).map(e=>({...e,quick:true})).sort((a,b)=>compareEntries(a,b,false)).map(e=>e.creatureId);
+    }else if(next.quickQueue?.length){
+      const casterId=next.quickQueue.shift()!;const cast=next.casts.find(c=>c.casterId===casterId&&c.timing==='quick');if(cast)completeCast(next,cast.id,events);
+    }else finishPhase(next, events);
+  }
   else {
     const entry = next.cursor.entries[next.cursor.index]!;
     const c = next.creatures.find(c => c.id === entry.creatureId)!;
@@ -69,7 +80,7 @@ export function advanceAtomicStep(state: GameState): Transition {
         const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre}; emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
       next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null; };
-    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (restrained(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
+    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (restrained(next,c) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
       emit(next, events, { type: 'ActorSkipped', creatureId: c.id }); advanceActor();
     } else if (next.phase === 'movement') {
       if (next.cursor.activePath === null) {
@@ -90,14 +101,20 @@ export function advanceAtomicStep(state: GameState): Transition {
         }
       }
     } else {
+      const phase=next.phase as 'early'|'late';
+      const completing=next.casts.find(cast=>cast.casterId===c.id&&cast.timing!=='quick'&&cast.dueTurn===next.turn&&cast.duePhase===phase);
+      if(completing){completeCast(next,completing.id,events);advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
+      if(slotOccupied(next,c,phase)){advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
       if(subdued(c) && (next.moved.includes(c.id) || next.spentActions.includes(c.id))) { advanceActor(); return {state:next,events,acknowledgedRevision:next.revision}; }
       const action = next.phase === 'early' ? order.early : order.late;
       if (action === 'Dash') next.dashed.push(c.id);
       if(action) next.spentActions.push(c.id);
-      resolveCombatAction(next,c,action,events);
+      if(action&&typeof action==='object'&&action.type==='Cast') startCast(next,c,action,events);
+      else resolveCombatAction(next,c,action,events);
       if (action) emit(next, events, { type: 'ActionResolved', creatureId: c.id, action: typeof action === 'string' ? action : action.type });
       if(!next.pendingAttack) advanceActor();
     }
   }
+  invalidateCasts(next,events);
   return { state: next, events, acknowledgedRevision: next.revision };
 }
