@@ -9,7 +9,7 @@ function scenario(): GameState {
 }
 export function TurnPreview() {
   const [state,setState]=useState(scenario),[saved,setSaved]=useState<string|null>(null),[log,setLog]=useState<string[]>([]);
-  const resolving=['early','movement','late'].includes(state.phase);
+  const resolving=['early','movement','late','end'].includes(state.phase);
   function plan() {
     setState(applyCommand(state,{matchId:state.matchId,playerId:'human',turn:state.turn,commandId:`edit-${state.revision}`,expectedRevision:state.revision,type:'SetOrder',
       order:{creatureId:'wizard-0',path:[1,2,3,4].map(i=>({q:state.creatures[0]!.centre.q+i,r:state.creatures[0]!.centre.r})),early:'Dash',late:null}}).state);

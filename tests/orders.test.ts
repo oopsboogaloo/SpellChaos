@@ -1,3 +1,4 @@
+import { migrateOrdersSnapshot } from '../packages/persistence/src/migration.js';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
@@ -28,7 +29,7 @@ function start(s: GameState): GameState {
 }
 function run(s: GameState, pauseRestore = false): { state: GameState; events: Event[] } {
   const events: Event[] = [];
-  for (let steps = 0; ['early','movement','late'].includes(s.phase); steps++) {
+  for (let steps = 0; ['early','movement','late','end'].includes(s.phase); steps++) {
     if (steps > 1000) throw new Error('TEST_STEP_LIMIT');
     if (pauseRestore) s = restoreSnapshot(encodeSnapshot(s));
     const r = advanceAtomicStep(s); s = r.state; events.push(...r.events);
@@ -167,11 +168,12 @@ describe('phase queue and atomic movement', () => {
     const badAction=JSON.parse(encodeSnapshot(s));badAction.orders[0].early='Attack';
     expect(()=>restoreSnapshot(JSON.stringify(badAction))).toThrow();
   });
-  it('loads permanent planning and mid-movement fixtures without changing their encoding', () => {
+  it('explicitly migrates permanent planning and mid-movement fixtures', () => {
     for (const file of ['orders-v2-planning.json','orders-v2-movement.json']) {
       const text=readFileSync(`tests/fixtures/${file}`,'utf8').trim();
-      const restored=restoreSnapshot(text);
-      expect(encodeSnapshot(restored)).toBe(text);
+      expect(()=>restoreSnapshot(text)).toThrow();
+      const restored=migrateOrdersSnapshot(text);
+      expect(restoreSnapshot(encodeSnapshot(restored))).toEqual(restored);
       if(restored.phase==='movement') {
         expect(restored.cursor.pathIndex).toBe(1);
         expect(run(restored,true).state.creatures[0]!.centre).toEqual(h(9,5));
