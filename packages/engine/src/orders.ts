@@ -1,3 +1,5 @@
+import { wallStepCost } from './walls.js';
+import { weedStepCost } from './tangleweed.js';
 import { validateCast, reservedMana, castingLocksMovement } from './casting.js';
 import { castingTime, completionAt } from '../../content/src/spells.js';
 import { active, incapacitated, slowed, subdued, restrained, fearAllowsStep } from './status.js';
@@ -8,7 +10,7 @@ import { stepLegality, placement, type ArenaGeometry } from '../../geometry/src/
 export function effectiveMove(c: Creature): number { return c.move === 0 ? 0 : slowed(c) ? Math.max(1, Math.floor(c.move / 2)) : c.move; }
 export function movementAllowance(c: Creature, order: Order): number {
   if (c.restrained || incapacitated(c) || !c.alive || order.early === 'TotalDefence' || order.late === 'TotalDefence') return 0;
-  return effectiveMove(c) * (order.early === 'Dash' ? 2 : 1);
+  return effectiveMove(c) * (order.early === 'Dash' ? 2 : 1) + (c.kind==='illusion'?2:0);
 }
 export function defaultOrder(creatureId: string): Order { return { creatureId, path: [], early: 'TotalDefence', late: null }; }
 export function arenaOf(state: GameState): ArenaGeometry {
@@ -23,7 +25,8 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (actions.includes('TotalDefence') && (actions.length !== 1 || order.path.length !== 0)) throw new Error('TOTAL_DEFENCE_WHOLE_TURN');
   if (actions.length > (c.doubleAction && !subdued(c) ? 2 : 1)) throw new Error('ACTION_BUDGET');
   if (subdued(c) && order.path.length && actions.length) throw new Error('SUBDUED_BUDGET');
-  if (order.path.length > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
+  const pathStart=order.early&&typeof order.early==='object'&&order.early.type==='Cast'&&order.early.spell==='Teleport'?order.early.ground!:c.centre;
+  if (order.path.reduce((n,h,i)=>n+Math.max(weedStepCost(state,c,h),wallStepCost(state,c,i?order.path[i-1]!:pathStart,h)),0) > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
   if (order.path.length && restrained(state,c)) throw new Error('RESTRAINED');
   if(order.path.length && castingLocksMovement(state,c,true))throw new Error('CASTING_IMMOBILE');
   const existing=state.casts.find(cast=>cast.casterId===c.id);

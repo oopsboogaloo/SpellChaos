@@ -1,3 +1,6 @@
+import { structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
+import { escapeWeed,damageWeed } from './tangleweed.js';
+import { sight,darkRay,visibleTo } from './visibility.js';
 import { concentration } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
@@ -15,7 +18,11 @@ import { buildQueue } from './queue.js';
 type CombatAction = Exclude<Order['early'],string|null|{type:'Cast'}>;
 const pair=(a:Creature,b:Creature)=>nearestPair(footprint(a.centre,a.size),footprint(b.centre,b.size));
 const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.controller!==b.controller);
+const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm';
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
+ if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
+ const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
+ if(targetIds.some(id=>{const t=s.creatures.find(c=>c.id===id);return t&&!visibleTo(s,t,c.controller!);}))throw new Error('UNKNOWN_TARGET');
  if(a.type==='Attack' || a.type==='Guard'){
   const attack=c.attacks.find(x=>x.id===a.attackId); if(!attack)throw new Error('UNKNOWN_ATTACK');
   if(a.type==='Guard'){
@@ -24,6 +31,7 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
    if(a.targetId!==null&&!s.creatures.some(x=>x.id===a.targetId))throw new Error('UNKNOWN_TARGET');
   }else{
    if(!validAttackTargets(attack,a))throw new Error('INVALID_ATTACK_TARGETS');
+   if(a.structure&&!structureCells(s,a.structure).length)throw new Error('UNKNOWN_STRUCTURE');
    if(a.ground&&!inside(a.ground,s.board))throw new Error('INVALID_GROUND_TARGET');
    if(a.targetIds.some(id=>id===c.id||!s.creatures.some(x=>x.id===id)))throw new Error('UNKNOWN_TARGET');
   }
@@ -35,18 +43,19 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
 function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):boolean {
  const p=pair(a,b);
  return b.alive && p.distance<=attack.range && p.distance>=attack.minRange &&
-  (attack.mode!=='melee'||a.height===b.height) && clearSight(p.from,p.to,side,s.walls) &&
-  (attack.mode!=='melee'||clearProjectile(p.from,p.to,side,s.walls));
+  (!melee(attack)||a.height===b.height) && (sight(s,a,p.from,p.to,side)||(p.distance<=1&&clearSight(p.from,p.to,side,s.walls))) &&
+  (!melee(attack)||clearProjectile(p.from,p.to,side,s.walls));
 }
-export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition):[boolean,boolean]{
+export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):[boolean,boolean]{
  const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
  const advantage=allies.some(x=>a.packTactics||(pair(a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
- const threatened=attack.mode!=='melee' && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(a,x).distance===1);
+ const threatened=!melee(attack) && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(a,x).distance===1);
  const defended=s.defending.some(d=>d.creatureId===b.id && (s.phase==='movement' ? false : d.phases.includes(s.phase as 'early'|'late')));
- return [advantage,defended||threatened||has(a,'Fear')];
+ const p=pair(a,b),obscured=!a.ignoresDarknessDisadvantage&&(a.darknessSightRange===0||p.distance>a.darknessSightRange)&&darkRay(s,p.from,p.to,side);
+ return [advantage,defended||threatened||has(a,'Fear')||obscured];
 }
 export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard'):void {
- s.pendingAttack={attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
+ s.pendingAttack={actionId:`attack-${s.nextEntityId++}`,attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
 }
 /** One hit/victim per atomic step; aggregate damage survives snapshots for concentration. */
 export function stepAttack(s:GameState,events:Event[]):boolean {
@@ -57,20 +66,33 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  }
  const strike=attack.shots[p.shotIndex]!;
  let target:Creature|undefined;
- if(attack.mode==='area'){
+ if(p.action.structure){
+  p.shotIndex++;
+  const result=strikeStructure(s,a,p.action.structure,attack,p.action.side,strike.components,events,a.id);
+  if(result.kind==='invalid'){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
+  if(result.kind==='terrain')return false;
+  target=s.creatures.find(c=>c.id===result.id);
+ }else if(attack.mode==='swarm'&&p.source==='action'){
+  if(p.areaVictims===null)p.areaVictims=s.creatures.filter(c=>enemies(a,c)&&inReach(s,a,c,attack,p.action.side)).map(c=>c.id).sort();
+  if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
+  const id=p.areaVictims[p.victimIndex++];target=s.creatures.find(c=>c.id===id);
+  if(target&&(!enemies(a,target)||!inReach(s,a,target,attack,p.action.side)))target=undefined;
+ }else if(attack.mode==='area'){
   const ground=p.action.ground!;const origin=nearestPair(footprint(a.centre,a.size),[ground]);
   if(origin.distance<attack.minRange||origin.distance>attack.range||!clearProjectile(origin.from,ground,p.action.side,s.walls,true)){
    emit(s,events,{type:'AttackInvalid',creatureId:a.id});p.shotIndex++;p.areaVictims=null;return false;
   }
-  if(p.areaVictims===null)p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));
+  if(p.areaVictims===null){p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));damageWeed(s,disk(ground,attack.radius),strike.components,events,a.id);damageAreaWalls(s,disk(ground,attack.radius),strike.components,events,a.id);}
   if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
   const targetId=p.areaVictims[p.victimIndex++];
   target=s.creatures.find(c=>c.id===targetId);
  }else if(p.action.ground){
   const ground=p.action.ground,origin=nearestPair(footprint(a.centre,a.size),[ground]);p.shotIndex++;
-  if(origin.distance>=attack.minRange && origin.distance<=attack.range && clearSight(origin.from,ground,p.action.side,s.walls)){
+  if(origin.distance>=attack.minRange && origin.distance<=attack.range && sight(s,a,origin.from,ground,p.action.side)){
    const trace=traceProjectile(arenaOf(s),a,ground,'ground',p.action.side);
    target=s.creatures.find(c=>c.id===trace.hit);
+   if(trace.blockedBy){damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);return false;}
+   if(!target&&!trace.blockedBy&&damageWeed(s,[ground],strike.components,events,a.id))return false;
   }
  }else{
   target=s.creatures.find(c=>c.id===(p.action.targetIds[p.shotIndex]??p.action.targetIds[0]));p.shotIndex++;
@@ -78,16 +100,17 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(target&&attack.mode==='projectile'){
    const trace=traceProjectile(arenaOf(s),a,pair(a,target).to,target.height,p.action.side,target.id);
    target=s.creatures.find(c=>c.id===trace.hit);
+   if(trace.blockedBy){damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);return false;}
   }
  }
  if(!target?.alive){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
- const [advantage,disadvantage]=hitModifiers(s,a,target,attack);
+ const [advantage,disadvantage]=hitModifiers(s,a,target,attack,p.action.side);
  const area=attack.mode==='area';
  const hit=area || !active(target) || roll(s,hitChance(strike.skill,target.dex),advantage,disadvantage);
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
- const damage=applyDamage(s,target,strike.components,events,{area,critical,half});
+ const damage=applyDamage(s,target,strike.components,events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});
@@ -100,11 +123,13 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
 }
 export function resolveCombatAction(s:GameState,c:Creature,action:Order['early'],events:Event[]):void {
  if(action==='Escape'){
+  escapeWeed(s,c);
   s.holds=s.holds.filter(h=>h.targetId!==c.id||!roll(s,escapeChance(c.size,s.creatures.find(x=>x.id===h.grapplerId)!.size)));
   c.conditions=c.conditions.filter(e=>e.kind!=='Restrained'||roll(s,effectChance(e.potency,e.resistance==='physical'?2*c.size:c.intelligence)));
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
+ if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
  if(action.type==='Attack'){beginAttack(s,c,action,'action');return;}
  if(action.type==='Guard'){
   s.guards=s.guards.filter(g=>g.creatureId!==c.id);
@@ -116,6 +141,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
  const reach=action.type==='Grapple'?Math.max(1,...c.attacks.filter(a=>a.mode==='melee').map(a=>a.range)):1;
  if(!target?.alive || pair(c,target).distance>reach || c.height!==target.height || !clearProjectile(pair(c,target).from,pair(c,target).to,'left',s.walls)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
  if(action.type==='Grapple'){
+  if(c.kind==='illusion'&&target.intelligence===0)return;
   const limb=Array.from({length:c.grappleLimbs},(_,i)=>i).find(i=>!s.holds.some(h=>h.grapplerId===c.id&&h.limb===i));
   if(limb===undefined||target.id===c.id||target.size>c.size||(target.size===c.size&&!c.grappleEqualSize))return;
   const skill=c.attacks.find(a=>a.mode==='melee')?.shots[0]?.skill??c.dex;
@@ -136,7 +162,7 @@ export function enqueueGuards(s:GameState,mover:Creature,from:Creature['centre']
  const queue=buildQueue(candidates.map(g=>{const c=s.creatures.find(c=>c.id===g.creatureId)!;const wizard=s.creatures.find(w=>w.kind==='wizard'&&w.controller===c.controller);return {creatureId:c.id,dex:c.dex,move:c.move,size:c.size,slowed:c.slowed||has(c,'Slowed'),quick:false,wizardDistance:wizard?pair(c,wizard).distance:0};}),s.random.resolution,false);
  s.random.resolution=queue.randomState;
  for(const entry of queue.entries){const g=candidates.find(g=>g.creatureId===entry.creatureId)!;const c=s.creatures.find(c=>c.id===g.creatureId)!;
-  g.attacked.push(mover.id);if(c.attacks.find(a=>a.id===g.attackId)!.mode!=='melee')g.spent=true;
+  g.attacked.push(mover.id);if(!melee(c.attacks.find(a=>a.id===g.attackId)!))g.spent=true;
   s.reactions.push({attackerId:g.creatureId,targetId:mover.id,attackId:g.attackId});
  }
 }

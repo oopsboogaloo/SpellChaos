@@ -13,7 +13,7 @@ import { beginAttack,stepAttack } from '../packages/engine/src/combat.js';
 import { addCondition,applyDamage } from '../packages/engine/src/damage.js';
 import { cleanupDeaths } from '../packages/engine/src/lifecycle.js';
 import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snapshot.js';
-import { migrateCombatSnapshot } from '../packages/persistence/src/migration.js';
+import { migrateCombatSnapshot,migrateCastingSnapshot } from '../packages/persistence/src/migration.js';
 import { projectView } from '../packages/views/src/index.js';
 const h=(q:number,r:number)=>({q,r});
 function fresh(seed=5):GameState {const s=createMatch('casting',['a','b'],seed);s.creatures[0]!.centre=h(5,5);s.creatures[1]!.centre=h(10,5);for(const c of s.creatures)c.spellbook=[...spellFamilies];return s;}
@@ -73,7 +73,7 @@ describe('reservation and command validation',()=>{
   const s=fresh();s.creatures[0]!.mana=5;
   expect(()=>submit(s,'wizard-0',cast('Fire Bolt',{level:2}))).toThrow('INSUFFICIENT_MANA');
   expect(()=>submit(s,'wizard-0',cast('Fire Bolt',{variant:'unbound'}))).toThrow('INVALID_SPELL_TARGET_OR_VARIANT');
-  expect(()=>submit(s,'wizard-0',cast('Wall'))).toThrow('CONTENT_NOT_AVAILABLE');
+  expect(()=>submit(s,'wizard-0',cast('Summon Goblin',{targetId:null,ground:h(7,5)}))).toThrow('CONTENT_NOT_AVAILABLE');
   expect(()=>submit(s,'wizard-0',{...summon(),level:8})).toThrow('CONTENT_NOT_AVAILABLE');
   expect(()=>castActionSchema.parse({...cast(),level:9})).toThrow();s.creatures[0]!.spellbook=[];expect(()=>submit(s,'wizard-0',cast())).toThrow('SPELL_NOT_KNOWN');
  });
@@ -217,7 +217,7 @@ describe('casting portability and privacy',()=>{
  });
  it('explicitly migrates legacy combat saves without silently changing their version',()=>{
   const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(4);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(10);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
 
@@ -292,7 +292,7 @@ it('Teleport preserves restraint and Fear restrictions rather than granting an u
  s.creatures[0]!.restrained=false;addCondition(s,s.creatures[0]!,'Fear','wizard-1',3,2);expect(()=>submit(s,'wizard-0',cast('Teleport',{targetId:null,ground:h(7,5)}))).toThrow('INVALID_TELEPORT_DESTINATION');
 });
 it.each(['undead','illusion'] as const)('Healing Bolt rejects %s targets during planning',kind=>{
- const s=fresh();if(kind==='undead')s.creatures[1]!.undead=true;else s.creatures[1]!.kind='illusion';
+ const s=fresh();if(kind==='undead')s.creatures[1]!.undead=true;else {s.creatures[1]!.kind='illusion';s.creatures[1]!.knownIllusionBy=['a'];}
  expect(()=>submit(s,'wizard-0',cast('Healing Bolt'))).toThrow('INVALID_SPELL_TARGET');
 });
 it('cannot complete a long cast before its scheduled turn and phase',()=>{
@@ -303,9 +303,9 @@ it('upgrading an existing friendly binding preserves its already-planned orders'
  let s=fresh();s.creatures.push(createCreature('target','a',h(7,5),{intelligence:0,bindingLevel:1}));s=submit(s,'target',null,[h(8,5)]);direct(s,cast('Bind',{targetId:'target',level:8}));s.phase='late';s.random.resolution=1;completeCast(s,s.casts[0]!.id,[]);
  expect(s.creatures[2]!.bindingLevel).toBe(8);expect(s.orders.find(o=>o.creatureId==='target')!.path).toEqual([h(8,5)]);
 });
-it('permanent planning, Quick, Slow and ritual fixtures encode identically and continue after restore',()=>{
+it('permanent planning, Quick, Slow and ritual fixtures migrate explicitly and continue after restore',()=>{
  for(const name of ['planning','slow','ritual','quick']){
-  const text=readFileSync(`tests/fixtures/casting-v4-${name}.json`,'utf8').trim();const s=restoreSnapshot(text);expect(encodeSnapshot(s)).toBe(text);
+  const text=readFileSync(`tests/fixtures/casting-v4-${name}.json`,'utf8').trim();expect(()=>restoreSnapshot(text)).toThrow();const s=migrateCastingSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   const ready=s.phase==='planning'?start(s):s;expect(run(ready,true)).toEqual(run(ready));
  }
 });

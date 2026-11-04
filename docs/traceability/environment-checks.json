@@ -1,0 +1,1524 @@
+{
+  "stage": 6,
+  "status": "mechanics-implemented-review-pending",
+  "scope": "Stage 6 engine mechanics: reanimation, swarms, illusions, Darkness, Tangleweed, Wall materials/hazards and structural targeting; full roster and release acceptance are later stages",
+  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22; MVP swarms, D07; MVP illusions, D16; Wall and MVP abilities walls/interface; R19\u2013R30 in stage report",
+  "checks": [
+    {
+      "id": "REANIMATE-001",
+      "requirement": "uses Slow casting, level %i cost and binding, and one casting roll",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "uses Slow casting, level %i cost and binding, and one casting roll"
+      ]
+    },
+    {
+      "id": "REANIMATE-002",
+      "requirement": "retains body attacks and wings while stripping poison, mana, familiar, regeneration and escape traits",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "retains body attacks and wings while stripping poison, mana, familiar, regeneration and escape traits"
+      ]
+    },
+    {
+      "id": "REANIMATE-003",
+      "requirement": "skeletons retain Move and Dex after cumulative fire/acid reaches half original HP",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "skeletons retain Move and Dex after cumulative fire/acid reaches half original HP"
+      ]
+    },
+    {
+      "id": "REANIMATE-004",
+      "requirement": "uses explicit body attack selection and does not turn dragonet Spark into an undead power",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "uses explicit body attack selection and does not turn dragonet Spark into an undead power"
+      ]
+    },
+    {
+      "id": "REANIMATE-005",
+      "requirement": "preserves zero movement and rounds positive half statistics down to at least one",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "preserves zero movement and rounds positive half statistics down to at least one"
+      ]
+    },
+    {
+      "id": "REANIMATE-006",
+      "requirement": "does not refresh restoration eligibility on the original or descendant corpse",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "does not refresh restoration eligibility on the original or descendant corpse"
+      ]
+    },
+    {
+      "id": "REANIMATE-007",
+      "requirement": "rejects excluded corpse categories %j",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects excluded corpse categories %j"
+      ]
+    },
+    {
+      "id": "REANIMATE-008",
+      "requirement": "rejects living creatures, unknown corpses, ground targets and corpses above spell level",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects living creatures, unknown corpses, ground targets and corpses above spell level"
+      ]
+    },
+    {
+      "id": "REANIMATE-009",
+      "requirement": "cannot raise eliminated wizards, including with level 8",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "cannot raise eliminated wizards, including with level 8"
+      ]
+    },
+    {
+      "id": "REANIMATE-010",
+      "requirement": "checks whole-footprint placement at planning and completion without relocation",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "checks whole-footprint placement at planning and completion without relocation"
+      ]
+    },
+    {
+      "id": "REANIMATE-011",
+      "requirement": "keeps the opportunity after interruption or a failed casting roll",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "keeps the opportunity after interruption or a failed casting roll"
+      ]
+    },
+    {
+      "id": "REANIMATE-012",
+      "requirement": "allows only the first successful competing cast to consume a corpse",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "allows only the first successful competing cast to consume a corpse"
+      ]
+    },
+    {
+      "id": "REANIMATE-013",
+      "requirement": "uses a real familiar origin and collapses servants on controller death",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "uses a real familiar origin and collapses servants on controller death"
+      ]
+    },
+    {
+      "id": "REANIMATE-014",
+      "requirement": "preserves the published v5 %s fixture and its continuation",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "preserves the published v5 %s fixture and its continuation"
+      ]
+    },
+    {
+      "id": "REANIMATE-015",
+      "requirement": "rejects negative or non-finite corpse exposure without changing skeletal state",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects negative or non-finite corpse exposure without changing skeletal state"
+      ]
+    },
+    {
+      "id": "REANIMATE-016",
+      "requirement": "restores every atomic boundary including late-to-next-turn casting, across seeds",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "restores every atomic boundary including late-to-next-turn casting, across seeds"
+      ]
+    },
+    {
+      "id": "REANIMATE-017",
+      "requirement": "explicitly migrates the frozen v4 fixture without altering RNG or corpse data",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "explicitly migrates the frozen v4 fixture without altering RNG or corpse data"
+      ]
+    },
+    {
+      "id": "REANIMATE-018",
+      "requirement": "rejects malformed body attack references and pending corpse references transactionally",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects malformed body attack references and pending corpse references transactionally"
+      ]
+    },
+    {
+      "id": "REANIMATE-019",
+      "requirement": "exposes corpse targeting information without exact HP, exposure or hidden spell orders",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "exposes corpse targeting information without exact HP, exposure or hidden spell orders"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-001",
+      "requirement": "distinguishes adjoining edges from opposite edges of the same hex",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "distinguishes adjoining edges from opposite edges of the same hex"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-002",
+      "requirement": "identifies a corner equally from each of the three incident segments",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "identifies a corner equally from each of the three incident segments"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-003",
+      "requirement": "builds a closed radius-%i perimeter with no internal edges",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "builds a closed radius-%i perimeter with no internal edges"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-004",
+      "requirement": "rejects empty, duplicate, disconnected and over-budget layouts",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "rejects empty, duplicate, disconnected and over-budget layouts"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-005",
+      "requirement": "validates footprints, existing segments and board boundary corners",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "validates footprints, existing segments and board boundary corners"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-006",
+      "requirement": "is independent of endpoint orientation, input order and translated coordinates",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "is independent of endpoint orientation, input order and translated coordinates"
+      ]
+    },
+    {
+      "id": "SWARM-001",
+      "requirement": "at %i/24 HP has Size %i with fixed maximum HP",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "at %i/24 HP has Size %i with fixed maximum HP"
+      ]
+    },
+    {
+      "id": "SWARM-002",
+      "requirement": "clamps small swarms to Size 1 and preserves the exact half/quarter boundaries",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "clamps small swarms to Size 1 and preserves the exact half/quarter boundaries"
+      ]
+    },
+    {
+      "id": "SWARM-003",
+      "requirement": "releases coverage immediately after shrinking and reapplies it after healing",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "releases coverage immediately after shrinking and reapplies it after healing"
+      ]
+    },
+    {
+      "id": "SWARM-004",
+      "requirement": "restraint includes allies, constructs and smaller swarms but only at the same height",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restraint includes allies, constructs and smaller swarms but only at the same height"
+      ]
+    },
+    {
+      "id": "SWARM-005",
+      "requirement": "derives release after movement, death and height changes without stale condition records",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "derives release after movement, death and height changes without stale condition records"
+      ]
+    },
+    {
+      "id": "SWARM-006",
+      "requirement": "cannot heal a dispersed swarm during the atomic interval before death cleanup",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "cannot heal a dispersed swarm during the atomic interval before death cleanup"
+      ]
+    },
+    {
+      "id": "SWARM-007",
+      "requirement": "Escape cannot remove occupancy restraint, but leaving the footprint can",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "Escape cannot remove occupancy restraint, but leaving the footprint can"
+      ]
+    },
+    {
+      "id": "SWARM-008",
+      "requirement": "ignores illusory coverage for Int 0 while preserving real swarm restraint",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "ignores illusory coverage for Int 0 while preserving real swarm restraint"
+      ]
+    },
+    {
+      "id": "SWARM-009",
+      "requirement": "regrows only as far as legal walls permit and retries at the next turn start",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "regrows only as far as legal walls permit and retries at the next turn start"
+      ]
+    },
+    {
+      "id": "SWARM-010",
+      "requirement": "does not regrow on damage or through the board edge, and overlaps creatures on legal growth",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "does not regrow on damage or through the board edge, and overlaps creatures on legal growth"
+      ]
+    },
+    {
+      "id": "SWARM-011",
+      "requirement": "flying growth crosses ordinary walls but cannot straddle Energy",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "flying growth crosses ordinary walls but cannot straddle Energy"
+      ]
+    },
+    {
+      "id": "SWARM-012",
+      "requirement": "prevents planning movement while covered and exposes current restraint in the permitted view",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "prevents planning movement while covered and exposes current restraint in the permitted view"
+      ]
+    },
+    {
+      "id": "SWARM-013",
+      "requirement": "rolls once per covered or adjacent enemy without friendly fire or cross-height attacks",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "rolls once per covered or adjacent enemy without friendly fire or cross-height attacks"
+      ]
+    },
+    {
+      "id": "SWARM-014",
+      "requirement": "uses ordinary hit and critical rolls per victim and does not count as ranged fire while threatened",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "uses ordinary hit and critical rolls per victim and does not count as ranged fire while threatened"
+      ]
+    },
+    {
+      "id": "SWARM-015",
+      "requirement": "a swarm attack has no manual victim selection and terminates when there are no victims",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "a swarm attack has no manual victim selection and terminates when there are no victims"
+      ]
+    },
+    {
+      "id": "SWARM-016",
+      "requirement": "snapshots candidate victims but rechecks range and allegiance before each hit",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "snapshots candidate victims but rechecks range and allegiance before each hit"
+      ]
+    },
+    {
+      "id": "SWARM-017",
+      "requirement": "Guard attacks only the entering enemy and can react once to each different enemy",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "Guard attacks only the entering enemy and can react once to each different enemy"
+      ]
+    },
+    {
+      "id": "SWARM-018",
+      "requirement": "restores a swarm Guard reaction during an actual movement phase without attacking bystanders",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restores a swarm Guard reaction during an actual movement phase without attacking bystanders"
+      ]
+    },
+    {
+      "id": "SWARM-019",
+      "requirement": "uses the listed swarm poison and never injects it after zero damage",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "uses the listed swarm poison and never injects it after zero damage"
+      ]
+    },
+    {
+      "id": "SWARM-020",
+      "requirement": "applies %s area=%s multiplier %s exactly once",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "applies %s area=%s multiplier %s exactly once"
+      ]
+    },
+    {
+      "id": "SWARM-021",
+      "requirement": "preserves Grove major fire vulnerability without stacking another swarm bonus",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "preserves Grove major fire vulnerability without stacking another swarm bonus"
+      ]
+    },
+    {
+      "id": "SWARM-022",
+      "requirement": "rounds separate mixed damage components after their individual swarm defences",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "rounds separate mixed damage components after their individual swarm defences"
+      ]
+    },
+    {
+      "id": "SWARM-023",
+      "requirement": "overlaps creatures, siege constructs and swarms but cannot cross solid walls on the ground",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "overlaps creatures, siege constructs and swarms but cannot cross solid walls on the ground"
+      ]
+    },
+    {
+      "id": "SWARM-024",
+      "requirement": "intercepts direct projectiles using its current footprint",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "intercepts direct projectiles using its current footprint"
+      ]
+    },
+    {
+      "id": "SWARM-025",
+      "requirement": "fixed maximum HP and bounded Size survive generated damage/healing sequences",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "fixed maximum HP and bounded Size survive generated damage/healing sequences"
+      ]
+    },
+    {
+      "id": "SWARM-026",
+      "requirement": "restores the immutable v6 %s fixture and continues identically",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restores the immutable v6 %s fixture and continues identically"
+      ]
+    },
+    {
+      "id": "SWARM-027",
+      "requirement": "loads the approved %s level %i profile",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "loads the approved %s level %i profile"
+      ]
+    },
+    {
+      "id": "SWARM-028",
+      "requirement": "summons a bound swarm with the original size and next-turn readiness",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "summons a bound swarm with the original size and next-turn readiness"
+      ]
+    },
+    {
+      "id": "SWARM-029",
+      "requirement": "requires an empty summoning footprint even though swarms can overlap after creation",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "requires an empty summoning footprint even though swarms can overlap after creation"
+      ]
+    },
+    {
+      "id": "SWARM-030",
+      "requirement": "matches restored resolution at every per-victim attack boundary over generated seeds",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "matches restored resolution at every per-victim attack boundary over generated seeds"
+      ]
+    },
+    {
+      "id": "SWARM-031",
+      "requirement": "restores a partially damaged swarm with blocked growth and derived coverage",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restores a partially damaged swarm with blocked growth and derived coverage"
+      ]
+    },
+    {
+      "id": "SWARM-032",
+      "requirement": "rejects corrupted original size, maximum HP and duplicate pending victims transactionally",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "rejects corrupted original size, maximum HP and duplicate pending victims transactionally"
+      ]
+    },
+    {
+      "id": "SWARM-033",
+      "requirement": "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness"
+      ]
+    },
+    {
+      "id": "ILLUSION-001",
+      "requirement": "has half rounded mana and guaranteed success at level %i",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "has half rounded mana and guaranteed success at level %i"
+      ]
+    },
+    {
+      "id": "ILLUSION-002",
+      "requirement": "summons an illusion without a roll, shifts balance once and keeps the claimed familiar profile",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "summons an illusion without a roll, shifts balance once and keeps the claimed familiar profile"
+      ]
+    },
+    {
+      "id": "ILLUSION-003",
+      "requirement": "adds at most two movement steps per turn, including Dash, without changing public Move",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "adds at most two movement steps per turn, including Dash, without changing public Move"
+      ]
+    },
+    {
+      "id": "ILLUSION-004",
+      "requirement": "cannot cast, supply familiar origins, regenerate mana or grant a familiar mana bonus",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "cannot cast, supply familiar origins, regenerate mana or grant a familiar mana bonus"
+      ]
+    },
+    {
+      "id": "ILLUSION-005",
+      "requirement": "blocks ordinary movement through belief but allows Int 0 passage",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "blocks ordinary movement through belief but allows Int 0 passage"
+      ]
+    },
+    {
+      "id": "ILLUSION-006",
+      "requirement": "Disbelief removes an illusion, restores surviving damage, costs two mana and rolls no dice",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "Disbelief removes an illusion, restores surviving damage, costs two mana and rolls no dice"
+      ]
+    },
+    {
+      "id": "ILLUSION-007",
+      "requirement": "ends an illusion on its original caster death even after release or transfer",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "ends an illusion on its original caster death even after release or transfer"
+      ]
+    },
+    {
+      "id": "ILLUSION-008",
+      "requirement": "restores only the removing source and preserves real damage and other illusions",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "restores only the removing source and preserves real damage and other illusions"
+      ]
+    },
+    {
+      "id": "ILLUSION-009",
+      "requirement": "heals oldest reversible damage before real damage and cannot double-restore healed loss",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "heals oldest reversible damage before real damage and cannot double-restore healed loss"
+      ]
+    },
+    {
+      "id": "ILLUSION-010",
+      "requirement": "caps reversal at maximum HP even for trusted scenarios with separately adjusted HP",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "caps reversal at maximum HP even for trusted scenarios with separately adjusted HP"
+      ]
+    },
+    {
+      "id": "ILLUSION-011",
+      "requirement": "restores damage-incapacitated survivors but never revives shock deaths",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "restores damage-incapacitated survivors but never revives shock deaths"
+      ]
+    },
+    {
+      "id": "ILLUSION-012",
+      "requirement": "freezes simultaneous deaths independently of ID ordering %s/%s",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "freezes simultaneous deaths independently of ID ordering %s/%s"
+      ]
+    },
+    {
+      "id": "ILLUSION-013",
+      "requirement": "keeps mutual illusion kills permanent while reversing both sources on surviving creatures",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "keeps mutual illusion kills permanent while reversing both sources on surviving creatures"
+      ]
+    },
+    {
+      "id": "ILLUSION-014",
+      "requirement": "allows illusions to damage other illusions and restoration to regrow a surviving swarm legally",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "allows illusions to damage other illusions and restoration to regrow a surviving swarm legally"
+      ]
+    },
+    {
+      "id": "ILLUSION-015",
+      "requirement": "records post-defence amounts and action provenance for each hit of a multiattack",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "records post-defence amounts and action provenance for each hit of a multiattack"
+      ]
+    },
+    {
+      "id": "ILLUSION-016",
+      "requirement": "preserves real poison when overlapping illusory poison is removed and never doubles ticks",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "preserves real poison when overlapping illusory poison is removed and never doubles ticks"
+      ]
+    },
+    {
+      "id": "ILLUSION-017",
+      "requirement": "refreshes only the matching illusion condition and reverses its ongoing damage",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "refreshes only the matching illusion condition and reverses its ongoing damage"
+      ]
+    },
+    {
+      "id": "ILLUSION-018",
+      "requirement": "removes illusory bleeding, restraint and grapples while retaining real holds and conditions",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "removes illusory bleeding, restraint and grapples while retaining real holds and conditions"
+      ]
+    },
+    {
+      "id": "ILLUSION-019",
+      "requirement": "blocks all illusory damage and secondary restraints against Int 0 creatures",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "blocks all illusory damage and secondary restraints against Int 0 creatures"
+      ]
+    },
+    {
+      "id": "ILLUSION-020",
+      "requirement": "cannot burn real corpses or structures, but illusory fire still suppresses current-turn regeneration",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "cannot burn real corpses or structures, but illusory fire still suppresses current-turn regeneration"
+      ]
+    },
+    {
+      "id": "ILLUSION-021",
+      "requirement": "regenerates only its own HP and cannot heal or perform real-resource aid actions",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "regenerates only its own HP and cannot heal or perform real-resource aid actions"
+      ]
+    },
+    {
+      "id": "ILLUSION-022",
+      "requirement": "considers every remaining Fear source after an illusory Fear is removed",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "considers every remaining Fear source after an illusory Fear is removed"
+      ]
+    },
+    {
+      "id": "ILLUSION-023",
+      "requirement": "preserves the immutable v7 %s fixture and exact continuation",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "preserves the immutable v7 %s fixture and exact continuation"
+      ]
+    },
+    {
+      "id": "ILLUSION-024",
+      "requirement": "preserves permanent wizard elimination after illusion reversal and rejects tampered resurrection",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "preserves permanent wizard elimination after illusion reversal and rejects tampered resurrection"
+      ]
+    },
+    {
+      "id": "ILLUSION-025",
+      "requirement": "projects the same apparent stats, species and events until a player learns the truth",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "projects the same apparent stats, species and events until a player learns the truth"
+      ]
+    },
+    {
+      "id": "ILLUSION-026",
+      "requirement": "does not reveal an enemy illusion by rejecting Healing Bolt before casting",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "does not reveal an enemy illusion by rejecting Healing Bolt before casting"
+      ]
+    },
+    {
+      "id": "ILLUSION-027",
+      "requirement": "restores multi-hit provenance and Disbelief identically at every boundary over generated seeds",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "restores multi-hit provenance and Disbelief identically at every boundary over generated seeds"
+      ]
+    },
+    {
+      "id": "ILLUSION-028",
+      "requirement": "rejects missing sources, invalid remaining loss and leaked player references without replacing a save",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "rejects missing sources, invalid remaining loss and leaked player references without replacing a save"
+      ]
+    },
+    {
+      "id": "DARKNESS-001",
+      "requirement": "rejects creature targeting, off-board ground and invalid variants",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "rejects creature targeting, off-board ground and invalid variants"
+      ]
+    },
+    {
+      "id": "DARKNESS-002",
+      "requirement": "rechecks sight when a queued Quick cast completes and spends its mana",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "rechecks sight when a queued Quick cast completes and spends its mana"
+      ]
+    },
+    {
+      "id": "DARKNESS-003",
+      "requirement": "removes only the dead caster\u2019s clouds, preserving independent overlapping clouds",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "removes only the dead caster\u2019s clouds, preserving independent overlapping clouds"
+      ]
+    },
+    {
+      "id": "DARKNESS-004",
+      "requirement": "allows a border centre and overlapping areas without extra disadvantage",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "allows a border centre and overlapping areas without extra disadvantage"
+      ]
+    },
+    {
+      "id": "DARKNESS-005",
+      "requirement": "blocks rays into, through and out of a cloud but not a clear ray",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "blocks rays into, through and out of a cloud but not a clear ray"
+      ]
+    },
+    {
+      "id": "DARKNESS-006",
+      "requirement": "keeps owners visible, hides enemy occupants, and permits adjacent inspection",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "keeps owners visible, hides enemy occupants, and permits adjacent inspection"
+      ]
+    },
+    {
+      "id": "DARKNESS-007",
+      "requirement": "does not disclose secret target IDs through spell planning",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "does not disclose secret target IDs through spell planning"
+      ]
+    },
+    {
+      "id": "DARKNESS-008",
+      "requirement": "permits adjacent melee with disadvantage; walls still block and immunity to disadvantage does not grant vision",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "permits adjacent melee with disadvantage; walls still block and immunity to disadvantage does not grant vision"
+      ]
+    },
+    {
+      "id": "DARKNESS-009",
+      "requirement": "respects limited Darkness sight without allowing sight through stone",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "respects limited Darkness sight without allowing sight through stone"
+      ]
+    },
+    {
+      "id": "DARKNESS-010",
+      "requirement": "captures event audiences before expiry and never exports them or sequence numbers",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "captures event audiences before expiry and never exports them or sequence numbers"
+      ]
+    },
+    {
+      "id": "DARKNESS-011",
+      "requirement": "does not reveal a hidden movement origin when the enemy emerges",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "does not reveal a hidden movement origin when the enemy emerges"
+      ]
+    },
+    {
+      "id": "DARKNESS-012",
+      "requirement": "matches uninterrupted play at every atomic boundary for generated seeds and levels",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "matches uninterrupted play at every atomic boundary for generated seeds and levels"
+      ]
+    },
+    {
+      "id": "DARKNESS-013",
+      "requirement": "rejects malformed area references, duplicate IDs and invalid durations transactionally",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "rejects malformed area references, duplicate IDs and invalid durations transactionally"
+      ]
+    },
+    {
+      "id": "DARKNESS-014",
+      "requirement": "explicitly migrates v7 without changing RNG or pending attacks",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "explicitly migrates v7 without changing RNG or pending attacks"
+      ]
+    },
+    {
+      "id": "DARKNESS-015",
+      "requirement": "invalidates a preplanned ranged target but permits an arcing area at remembered ground",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "invalidates a preplanned ranged target but permits an arcing area at remembered ground"
+      ]
+    },
+    {
+      "id": "DARKNESS-016",
+      "requirement": "uses the familiar\u2019s vision and location for remote casting",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "uses the familiar\u2019s vision and location for remote casting"
+      ]
+    },
+    {
+      "id": "DARKNESS-017",
+      "requirement": "handles partially covered large footprints using the nearest boundary ray",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "handles partially covered large footprints using the nearest boundary ray"
+      ]
+    },
+    {
+      "id": "DARKNESS-018",
+      "requirement": "blocks direct projectile fire into dark ground and hidden combat target commands",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "blocks direct projectile fire into dark ground and hidden combat target commands"
+      ]
+    },
+    {
+      "id": "DARKNESS-019",
+      "requirement": "implements level %i cost, radius, Quick timing and duration",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "implements level %i cost, radius, Quick timing and duration"
+      ]
+    },
+    {
+      "id": "DARKNESS-020",
+      "requirement": "retains the immutable v8 %s fixture and resumes every boundary exactly",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "retains the immutable v8 %s fixture and resumes every boundary exactly"
+      ]
+    },
+    {
+      "id": "DARKNESS-021",
+      "requirement": "Magic Attack spread requires sight through Darkness",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "blocks Magic Attack family spread into Darkness"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-001",
+      "requirement": "rejects disconnected, repeated, missing, off-board and wrong-count cells",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "rejects disconnected, repeated, missing, off-board and wrong-count cells"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-002",
+      "requirement": "requires every cell in range and sight of one origin and cannot grow through solid walls",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "requires every cell in range and sight of one origin and cannot grow through solid walls"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-003",
+      "requirement": "fails an already-paid cast when a new wall invalidates placement",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "fails an already-paid cast when a new wall invalidates placement"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-004",
+      "requirement": "accepts occupied hexes and restrains an allied mindless creature on creation",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "accepts occupied hexes and restrains an allied mindless creature on creation"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-005",
+      "requirement": "doubles cost once per large footprint and ignores airborne creatures",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "doubles cost once per large footprint and ignores airborne creatures"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-006",
+      "requirement": "rejects plans exceeding the terrain-adjusted budget",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "rejects plans exceeding the terrain-adjusted budget"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-007",
+      "requirement": "records movement cost and restores a partially traversed path exactly",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "records movement cost and restores a partially traversed path exactly"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-008",
+      "requirement": "attempts at most once per turn across patches and re-entry",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "attempts at most once per turn across patches and re-entry"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-009",
+      "requirement": "chooses the strongest overlapping patch and then a stable ID",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "chooses the strongest overlapping patch and then a stable ID"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-010",
+      "requirement": "escapes weed separately while another restraint remains",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "escapes weed separately while another restraint remains"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-011",
+      "requirement": "forces entry checks but ignores flight and releases a hold when forced out",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "forces entry checks but ignores flight and releases a hold when forced out"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-012",
+      "requirement": "removes holds on expiry and caster death without removing other conditions",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "removes holds on expiry and caster death without removing other conditions"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-013",
+      "requirement": "damages each intersected cell once and releases a destroyed holding cell",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "damages each intersected cell once and releases a destroyed holding cell"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-014",
+      "requirement": "ignores illusion damage and rejects invalid components or unknown sources",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "ignores illusion damage and rejects invalid components or unknown sources"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-015",
+      "requirement": "lets Fire Bolt hit ground weed, but an intervening creature intercepts it",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "lets Fire Bolt hit ground weed, but an intervening creature intercepts it"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-016",
+      "requirement": "damages weed with an arcing area only once per shot across saved victim steps",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "damages weed with an arcing area only once per shot across saved victim steps"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-017",
+      "requirement": "rejects malformed terrain, hold and movement references without changing the original",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "rejects malformed terrain, hold and movement references without changing the original"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-018",
+      "requirement": "migrates v8 cloud state and v2 movement cost explicitly",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "migrates v8 cloud state and v2 movement cost explicitly"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-019",
+      "requirement": "restores every atomic boundary for generated casts and seeds",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "restores every atomic boundary for generated casts and seeds"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-020",
+      "requirement": "does not retry old standing contacts when a new patch is cast elsewhere",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "does not retry old standing contacts when a new patch is cast elsewhere"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-021",
+      "requirement": "checks a new summon\u2019s contact without granting it an action",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "checks a new summon\u2019s contact without granting it an action"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-022",
+      "requirement": "teleporting into weed checks restraint without a Guard reaction",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "teleporting into weed checks restraint without a Guard reaction"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-023",
+      "requirement": "preserves spent movement even if the remaining terrain is destroyed mid-path",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "preserves spent movement even if the remaining terrain is destroyed mid-path"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-024",
+      "requirement": "implements level %i connected placement, Slow timing, HP, cost and expiry",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "implements level %i connected placement, Slow timing, HP, cost and expiry"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-025",
+      "requirement": "preserves the immutable v9 %s fixture and continues identically",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "preserves the immutable v9 %s fixture and continues identically"
+      ]
+    },
+    {
+      "id": "WALL-001",
+      "requirement": "rejects missing, disconnected, repeated, excessive and non-adjacent edge layouts",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects missing, disconnected, repeated, excessive and non-adjacent edge layouts"
+      ]
+    },
+    {
+      "id": "WALL-002",
+      "requirement": "places a connected closed network and rejects duplicate occupied edges",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "places a connected closed network and rejects duplicate occupied edges"
+      ]
+    },
+    {
+      "id": "WALL-003",
+      "requirement": "rejects a solid wall through a large footprint and rechecks before completion",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects a solid wall through a large footprint and rechecks before completion"
+      ]
+    },
+    {
+      "id": "WALL-004",
+      "requirement": "requires range and sight to every segment from the selected origin",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "requires range and sight to every segment from the selected origin"
+      ]
+    },
+    {
+      "id": "WALL-005",
+      "requirement": "ends only the deceased caster\u2019s walls and hides caster identity in player views",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "ends only the deceased caster\u2019s walls and hides caster identity in player views"
+      ]
+    },
+    {
+      "id": "WALL-006",
+      "requirement": "crystal passes sight but stops projectiles; Energy blocks flyers and incorporeal bodies",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "crystal passes sight but stops projectiles; Energy blocks flyers and incorporeal bodies"
+      ]
+    },
+    {
+      "id": "WALL-007",
+      "requirement": "counts multiple segments of one network only once for a large footprint",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "counts multiple segments of one network only once for a large footprint"
+      ]
+    },
+    {
+      "id": "WALL-008",
+      "requirement": "separate networks trigger independently and normal defences apply",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "separate networks trigger independently and normal defences apply"
+      ]
+    },
+    {
+      "id": "WALL-009",
+      "requirement": "heals incapacitated undead at Death walls while flyers ignore hazards",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "heals incapacitated undead at Death walls while flyers ignore hazards"
+      ]
+    },
+    {
+      "id": "WALL-010",
+      "requirement": "combines thorns and weed as double movement, not quadruple movement",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "combines thorns and weed as double movement, not quadruple movement"
+      ]
+    },
+    {
+      "id": "WALL-011",
+      "requirement": "forced adjacent movement triggers hazards and cannot cross solid edges; teleport skips hazards",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "forced adjacent movement triggers hazards and cannot cross solid edges; teleport skips hazards"
+      ]
+    },
+    {
+      "id": "WALL-012",
+      "requirement": "melee hits stationary walls without hit or critical rolls",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "melee hits stationary walls without hit or critical rolls"
+      ]
+    },
+    {
+      "id": "WALL-013",
+      "requirement": "rejects missing structures and ambiguous attack target shapes",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects missing structures and ambiguous attack target shapes"
+      ]
+    },
+    {
+      "id": "WALL-014",
+      "requirement": "wastes an attack if its selected segment was destroyed before resolution",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "wastes an attack if its selected segment was destroyed before resolution"
+      ]
+    },
+    {
+      "id": "WALL-015",
+      "requirement": "intercepted creatures use normal attack damage and critical rolls",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "intercepted creatures use normal attack damage and critical rolls"
+      ]
+    },
+    {
+      "id": "WALL-016",
+      "requirement": "Fire Bolt targets wood, ignites it for two future turn ends, and Extinguish removes burning",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "Fire Bolt targets wood, ignites it for two future turn ends, and Extinguish removes burning"
+      ]
+    },
+    {
+      "id": "WALL-017",
+      "requirement": "Fire Bolt is intercepted by creatures and iron ignores ordinary fire",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "Fire Bolt is intercepted by creatures and iron ignores ordinary fire"
+      ]
+    },
+    {
+      "id": "WALL-018",
+      "requirement": "illusion attacks cannot damage or ignite structures",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "illusion attacks cannot damage or ignite structures"
+      ]
+    },
+    {
+      "id": "WALL-019",
+      "requirement": "direct weed targeting damages only the chosen overlapping patch",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "direct weed targeting damages only the chosen overlapping patch"
+      ]
+    },
+    {
+      "id": "WALL-020",
+      "requirement": "area damage hits each segment once even when both adjacent hexes are covered",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "area damage hits each segment once even when both adjacent hexes are covered"
+      ]
+    },
+    {
+      "id": "WALL-021",
+      "requirement": "blocks structural melee by air and Darkness sight beyond adjacency",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "blocks structural melee by air and Darkness sight beyond adjacency"
+      ]
+    },
+    {
+      "id": "WALL-022",
+      "requirement": "retains destruction tombstones so a pending Extinguish order remains portable",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "retains destruction tombstones so a pending Extinguish order remains portable"
+      ]
+    },
+    {
+      "id": "WALL-023",
+      "requirement": "rejects invalid owners, crossing records and damage without replacing a save",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects invalid owners, crossing records and damage without replacing a save"
+      ]
+    },
+    {
+      "id": "WALL-024",
+      "requirement": "explicitly migrates v9 while retaining weed holds and paid movement",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "explicitly migrates v9 while retaining weed holds and paid movement"
+      ]
+    },
+    {
+      "id": "WALL-025",
+      "requirement": "replays all material casts identically through every saved boundary across seeds",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "replays all material casts identically through every saved boundary across seeds"
+      ]
+    },
+    {
+      "id": "WALL-026",
+      "requirement": "restores area attacks between victims without damaging a wall twice",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "restores area attacks between victims without damaging a wall twice"
+      ]
+    },
+    {
+      "id": "WALL-027",
+      "requirement": "resolves a lethal wall crossing before enqueuing Guard reactions",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "resolves a lethal wall crossing before enqueuing Guard reactions"
+      ]
+    },
+    {
+      "id": "WALL-028",
+      "requirement": "remembers network crossings through re-entry and clears the limit next turn",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "remembers network crossings through re-entry and clears the limit next turn"
+      ]
+    },
+    {
+      "id": "WALL-029",
+      "requirement": "refreshes wood burning without multiplying its tick damage",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "refreshes wood burning without multiplying its tick damage"
+      ]
+    },
+    {
+      "id": "WALL-030",
+      "requirement": "refreshing a burning creature also retains its already-due tick",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "refreshing a burning creature also retains its already-due tick"
+      ]
+    },
+    {
+      "id": "WALL-031",
+      "requirement": "implements material, HP, Slow completion and balance at level %i",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "implements material, HP, Slow completion and balance at level %i"
+      ]
+    },
+    {
+      "id": "WALL-032",
+      "requirement": "uses level-specific half alignment on interruption at level %i",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "uses level-specific half alignment on interruption at level %i"
+      ]
+    },
+    {
+      "id": "WALL-033",
+      "requirement": "%s applies typed damage once per network per turn",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "%s applies typed damage once per network per turn"
+      ]
+    },
+    {
+      "id": "WALL-034",
+      "requirement": "preserves the v10 %s fixture and identical continuation",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "preserves the v10 %s fixture and identical continuation"
+      ]
+    },
+    {
+      "id": "WALL-035",
+      "requirement": "hits an intervening crystal wall with a projectile but blocks melee through it",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "hits an intervening crystal wall with a projectile but blocks melee through it"
+      ]
+    }
+  ],
+  "browserChecks": [
+    "tests/browser/reanimation.spec.ts",
+    "tests/browser/swarms.spec.ts",
+    "tests/browser/illusions.spec.ts",
+    "tests/browser/darkness.spec.ts",
+    "tests/browser/tangleweed.spec.ts",
+    "tests/browser/walls.spec.ts"
+  ],
+  "remaining": [],
+  "releaseBlockers": [
+    "Verbatim source archive and full-source acceptance reconciliation",
+    "Later MVP stages 7\u201312"
+  ]
+}
