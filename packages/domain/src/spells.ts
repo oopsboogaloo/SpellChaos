@@ -1,3 +1,5 @@
+import { structureTargetSchema } from './structures.js';
+import { connectedWallEdges } from '../../geometry/src/wall-layout.js';
 import { z } from 'zod';
 import { distance } from '../../geometry/src/hex.js';
 const id=z.string().min(1).max(128),uint=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -6,16 +8,22 @@ export const summonFamilies=['Cat','Serpent','Goblin','Dragon','Spirit','Plant',
 export const spellFamilies=['Summon Cat','Summon Serpent','Summon Goblin','Summon Dragon','Summon Spirit','Summon Plant','Summon Archer','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport','Wall','Tangleweed','Darkness','Reanimate'] as const;
 export const spellSchema=z.enum(spellFamilies);
 export type SpellFamily=z.infer<typeof spellSchema>;
-export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound','illusion']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right']),hexes:z.array(hex).min(1).max(8).optional()}).superRefine((action,ctx)=>{
+export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound','illusion']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right']),hexes:z.array(hex).min(1).max(8).optional(),edges:z.array(z.strictObject({a:hex,b:hex})).min(1).max(10).optional(),structure:structureTargetSchema.optional()}).superRefine((action,ctx)=>{
+ if(action.spell==='Wall'){
+  const edges=action.edges??[];
+  if(edges.length<1||edges.length>action.level+2||edges.some(e=>distance(e.a,e.b)!==1)||!action.ground||!edges[0]||(distance(action.ground,edges[0].a)!==0&&distance(action.ground,edges[0].b)!==0))ctx.addIssue({code:'custom',message:'INVALID_WALL_LAYOUT'});
+  else if(!connectedWallEdges(edges))ctx.addIssue({code:'custom',message:'DISCONNECTED_WALL_LAYOUT'});
+ }else if(action.edges!==undefined)ctx.addIssue({code:'custom',message:'UNEXPECTED_EDGE_LAYOUT'});
  if(action.spell==='Tangleweed'){
   const cells=action.hexes??[],seen=new Set<number>([0]);
   for(let i=0;i<cells.length;i++)for(let j=0;j<cells.length;j++)if([...seen].some(k=>cells[k]&&distance(cells[k]!,cells[j]!)===1))seen.add(j);
   if(cells.length!==action.level||new Set(cells.map(h=>`${h.q},${h.r}`)).size!==cells.length||seen.size!==cells.length||!action.ground||!cells[0]||distance(action.ground,cells[0])!==0)ctx.addIssue({code:'custom',message:'INVALID_WEED_LAYOUT'});
  }else if(action.hexes!==undefined)ctx.addIssue({code:'custom',message:'UNEXPECTED_HEX_LAYOUT'});
- const groundOnly=action.spell.startsWith('Summon ')||['Teleport','Darkness','Tangleweed'].includes(action.spell);
+ const groundOnly=action.spell.startsWith('Summon ')||['Teleport','Darkness','Tangleweed','Wall'].includes(action.spell);
  const projectile=action.spell==='Magic Bolt'||action.spell==='Fire Bolt';
  const targeted=['Bind','Release','Disbelief','Magic Attack','Healing Bolt','Reanimate'].includes(action.spell);
- if((groundOnly&&(action.ground===null||action.targetId!==null)) || (projectile&&((action.ground===null)===(action.targetId===null))) || (targeted&&(action.targetId===null||action.ground!==null)) || (!action.spell.startsWith('Summon ')&&action.variant!=='bound'))ctx.addIssue({code:'custom',message:'INVALID_SPELL_TARGET_OR_VARIANT'});
+ if(action.structure!==undefined&&!projectile)ctx.addIssue({code:'custom',message:'UNEXPECTED_STRUCTURE_TARGET'});
+ if((groundOnly&&(action.ground===null||action.targetId!==null)) || (projectile&&(Number(action.ground!==null)+Number(action.targetId!==null)+Number(action.structure!==undefined)!==1)) || (targeted&&(action.targetId===null||action.ground!==null)) || (!action.spell.startsWith('Summon ')&&action.variant!=='bound'))ctx.addIssue({code:'custom',message:'INVALID_SPELL_TARGET_OR_VARIANT'});
 });
 export type CastAction=z.infer<typeof castActionSchema>;
 export const timingSchema=z.enum(['instant','quick','slow','ritual2','ritual3']);

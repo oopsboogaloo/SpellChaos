@@ -35,18 +35,18 @@ that verifies save/restore at each step. Combat, Guard, conditions and death now
 resolve headlessly; `node tools/run-combat.mjs` demonstrates them. Spellcasting,
 mana, alignment and control now resolve in the same engine. Run
 `node tools/run-casting.mjs` to verify remote casting across turns. The full
-roster and remaining environment spells are still staged work. Reanimate
+roster and creature-specific abilities are still staged work. Reanimate
 now resolves against eligible corpses at levels 1–8; run
-`node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 remains
-in progress; wall layout geometry is available but Wall casting is not enabled.
+`node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 mechanics are implemented, including all eight Wall materials.
+The game remains a development preview; full roster abilities and the playable UI are later stages.
 Snake Swarm, Greater Snake Swarm and Strangling Grove now support shrinking,
 legal regrowth, coverage restraint and per-enemy attacks. Run
 `node tools/run-swarms.mjs` for a movement/coverage/attack replay.
 
 ## Saves
 
-Current saves use schema 9 / rules `environment-0.5` / content `tangleweed-integration-0.1`.
-Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 swarm schema-6 illusion schema-7 and Darkness schema-8 have explicit migration functions; normal
+Current saves use schema 10 / rules `environment-0.6` / content `wall-integration-0.1`.
+Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 swarm schema-6 illusion schema-7 Darkness schema-8 and Tangleweed schema-9 have explicit migration functions; normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -86,7 +86,7 @@ illusion knowledge are portable state. Schema 6 upgrades explicitly through
 did not enable illusion casting. Schema-6 fixtures and validators remain frozen.
 Player events omit authoritative sequence numbers to avoid revealing private
 notifications through gaps; their array order is the permitted playback order.
-Wall casting, material hazards and direct structural targeting remain Stage 6 work.
+Wall casting, material hazards and direct structural targeting are now implemented.
 
 ### Darkness checkpoint
 
@@ -105,9 +105,26 @@ and the playable browser interface remain later stages.
 All eight Tangleweed levels support connected placement, Slow completion,
 terrain-adjusted movement, physical restraint and Escape, expiry and caster-death
 cleanup. Each hex has its own HP. Ground projectiles/bolts and area attacks can
-destroy weed; illusions cannot. Melee structural targeting remains with the Wall
+destroy weed; illusions cannot. Melee structural targeting is now included in the Wall
 checkpoint. Owners receive the existing permitted view of restrained creatures.
 Run `node tools/run-tangleweed.mjs` after building for the combined replay.
 Schema 8 upgrades explicitly through `migrateDarknessSnapshot`; prior movement
 steps become already-spent movement points. Five immutable schema-9 fixtures
 exercise planning, casting, paid movement, a hold and a pending attack.
+
+### Wall and environment integration checkpoint
+
+Wall supports all eight materials, connected edge layouts, material-specific
+alignment, Slow casting, footprint revalidation, destruction and caster-death
+cleanup. Hazard crossings respect flight, damage defences, undead healing and a
+once-per-network limit. Structural attacks and bolts can select wall segments or
+weed hexes, with normal interception by creatures. Fire Bolt ignites wood;
+refreshing Burning preserves already-due ticks on both wood and creatures.
+
+Run `node tools/run-walls.mjs` after building to replay illusion damage reversal,
+fire crossing, weed movement and a late shot intercepted by a new crystal wall.
+Schema 9 upgrades explicitly through `migrateTangleweedSnapshot`. Five immutable
+schema-10 fixtures cover planning, casting, crossing, interception and resolution.
+Destroyed wall IDs preserve pending orders after their target disappears.
+Stage 6 mechanics are ready for review; the verbatim specification archive and
+full-source acceptance audit remain outstanding, alongside later MVP stages.

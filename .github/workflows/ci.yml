@@ -26,6 +26,7 @@ jobs:
       - run: node tools/run-illusions.mjs
       - run: node tools/run-darkness.mjs
       - run: node tools/run-tangleweed.mjs
+      - run: node tools/run-walls.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
       - uses: actions/upload-artifact@v4

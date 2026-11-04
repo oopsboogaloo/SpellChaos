@@ -1,3 +1,4 @@
+import { wallStepCost,crossWallHazards } from './walls.js';
 import { weedStepCost,contactWeed,pruneWeedHolds } from './tangleweed.js';
 import { regrowSwarms } from './swarms.js';
 import { startCast, completeCast, invalidateCasts, concentration, castingLocksMovement, slotOccupied } from './casting.js';
@@ -40,7 +41,7 @@ function finishPhase(state: GameState, events: Event[]): void {
 }
 function finishTurn(state: GameState, events: Event[]): void {
   awardAndRegenerate(state); state.castOccupied=[]; state.quickQueue=null;
-  state.weedAttempts=[];state.movementSpent=[];
+  state.wallCrossings=[];state.weedAttempts=[];state.movementSpent=[];
   state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
@@ -94,17 +95,17 @@ export function advanceAtomicStep(state: GameState): Transition {
       } else if (next.cursor.pathIndex >= next.cursor.activePath.length) advanceActor();
       else {
         const to = next.cursor.activePath[next.cursor.pathIndex]!;
-        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+weedStepCost(next,c,to)>movementAllowance(c,order) || !stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal) {
+        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+Math.max(weedStepCost(next,c,to),wallStepCost(next,c,c.centre,to))>movementAllowance(c,order) || !stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal) {
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
           if(!next.moved.includes(c.id)) next.moved.push(c.id);
-          const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=weedStepCost(next,c,to);
+          const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=Math.max(weedStepCost(next,c,to),wallStepCost(next,c,c.centre,to));
           if(paid)paid.amount+=cost;else next.movementSpent.push({creatureId:c.id,amount:cost});
           const from = { ...c.centre }; c.centre = { ...to }; next.cursor.pathIndex++;
           if(placement(arenaOf(next),c,c.centre).legal) next.cursor.lastRestingCentre = {...c.centre};
-          enqueueGuards(next,c,from);
           emit(next, events, { type: 'CreatureMoved', creatureId: c.id, from, to: { ...to } });
-          contactWeed(next,c,events);
+          const hazardDamage=crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);
+          contactWeed(next,c,events);if(c.alive)enqueueGuards(next,c,from);
         }
       }
     } else {

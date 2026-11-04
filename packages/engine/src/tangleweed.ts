@@ -47,13 +47,13 @@ export function escapeWeed(s:GameState,c:Creature):void {
   return roll(s,effectChance(w.level,2*c.size));
  });
 }
-export function damageWeed(s:GameState,hexes:readonly Hex[],components:readonly DamageComponent[],events:Event[],sourceId:string):number {
+export function damageWeed(s:GameState,hexes:readonly Hex[],components:readonly DamageComponent[],events:Event[],sourceId:string,patchId?:string):number {
  if(components.some(c=>!Number.isSafeInteger(c.amount)||c.amount<0))throw new Error('INVALID_DAMAGE');
  const source=s.creatures.find(c=>c.id===sourceId);if(!source)throw new Error('UNKNOWN_DAMAGE_SOURCE');
  if(source.kind==='illusion')return 0;
  const amount=components.reduce((n,c)=>n+c.amount,0);if(!amount)return 0;
  let total=0;
- for(const patch of s.tangleweed)for(const cell of patch.cells)if(hexes.some(h=>equal(h,cell.hex))){total+=Math.min(cell.hp,amount);cell.hp=Math.max(0,cell.hp-amount);}
+ for(const patch of s.tangleweed.filter(w=>patchId===undefined||w.id===patchId))for(const cell of patch.cells)if(hexes.some(h=>equal(h,cell.hex))){total+=Math.min(cell.hp,amount);cell.hp=Math.max(0,cell.hp-amount);}
  s.tangleweed=s.tangleweed.map(w=>({...w,cells:w.cells.filter(c=>c.hp>0)})).filter(w=>w.cells.length>0);
  pruneWeedHolds(s);
  // Terrain HP is public; no hidden creature references appear in this event.

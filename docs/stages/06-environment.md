@@ -1,10 +1,11 @@
-# Stage 6 — in progress
+# Stage 6 — mechanics implemented; review pending
 
-Current checkpoint: Reanimate, swarms, illusion provenance/Disbelief, Darkness, Tangleweed and wall-layout geometry. 4 November 2026.
+Current checkpoint: Reanimate, swarms, illusions, Darkness, Tangleweed, all Wall materials and structural targeting. 4 November 2026.
 
 The initial reanimation checkpoint below is historical; the swarm increment and
 later increments and latest verification are recorded below.
-This is a tested implementation increment, **not Stage 6 completion or the playable MVP**.
+The final report at the end supersedes the historical remaining-work lists below.
+Stage 6 mechanics are implemented; this is **not the playable MVP or release acceptance**.
 Base: Stage 5 (`8ada790`); working branch: `build/stage-06-environment`.
 
 ## Implemented behaviour
@@ -351,3 +352,92 @@ Wall casting/material hazards, direct structural targeting and final combined
 Stage 6 acceptance remain. The verbatim source archive is still outstanding;
 this is an engine checkpoint, not the finished MVP or a deployed release.
 All eight headless CLI scenarios also passed against this production build.
+
+### Wall and structural-targeting decisions before implementation
+
+R26: Wall selects 1 to L+2 connected hex-edge segments. One locked origin must
+have range 8 and sight to the nearest on-board side of every segment. The first
+segment supplies the ground anchor. Placement rechecks footprint conflicts and
+existing edges at completion. Each cast is one wall network; each segment has
+5+3L HP. Its selected material determines alignment, including interruption.
+Walls have no duration and disappear when their caster dies.
+
+R27: A grounded footprint crossing one or several segments of a hazard network
+triggers that network once per turn. Thorns deal 3 physical, Fire 6 fire and
+Death 10 necrotic, with normal defences; Death instead heals undead by 10.
+Ordinary wall hazards do not reach airborne creatures; Energy still blocks flight.
+Thorns double the step cost, combining with weed by taking the larger cost rather
+than multiplying. Teleport does not cross edges. Adjacent forced movement crosses
+edges normally; non-adjacent trusted relocation remains an instantaneous effect.
+Crossing effects resolve before Guard reactions, with death/concentration cleanup.
+
+R28: Attacks may explicitly select a wall segment or a weed patch hex. A wall is
+aimed at its nearest adjacent on-board hex, with wall range at least 1. This
+approach and ray side are used consistently by previews and resolution. Melee
+structural attacks require a grounded attacker and clear access; ranged attacks
+use normal creature/wall interception. Magic Bolt and Fire Bolt accept the same
+structural targets. Stationary structures are hit automatically without critical
+rolls; intercepted creatures use the normal attack and critical rolls. Illusory
+attacks may be ordered but cause no structural damage.
+
+R29: Area shots damage each intersected segment once per shot (either adjacent
+hex intersects the area). Ground projectiles also damage their first wall
+interception. Fire Bolt ignites surviving wood for 2 fire damage at the next two
+turn ends, refreshing without stacking; adjacent Extinguish remains available.
+Iron ignores ordinary fire. Destroyed terrain disappears immediately. Direct weed
+selection damages the chosen patch only; an untargeted ground impact affects all
+patches sharing that hex.
+
+R30: Refreshing Burning extends its end to the next two turn ends but retains
+an already-scheduled tick in the current turn. This applies to wood and creatures;
+repeated ignition cannot postpone all damage indefinitely. Destroyed wall IDs are
+retained as tombstones so previously submitted targeting/Extinguish orders remain
+portable while resolving to an invalid target.
+
+
+### Wall and combined environment implementation report
+
+Implemented connected Wall layouts at levels 1–8, edge-specific HP and caster
+ownership, material-specific success/balance/interruption, Slow casting and
+placement revalidation. Solid edges respect footprints; crystal passes sight but
+blocks projectiles, and Energy blocks flight/incorporeal movement. Hazard networks
+apply typed damage or undead healing once per creature per turn. Thorn and weed
+movement penalties combine without multiplying; crossing history and paid movement
+survive snapshots. Hazards resolve before Guard, with no reaction from a lethal
+crossing. Teleport bypasses edge hazards; adjacent forced movement obeys walls.
+
+Ordinary attacks, Magic Bolt and Fire Bolt can target wall segments and weed hexes.
+Projectile interception uses normal creature hit/critical rules; stationary terrain
+uses the documented automatic-hit ruling. Area attacks touch each wall segment once
+per shot. Illusions cannot damage structures. Wood burning, refresh, extinguishing,
+expiry, destruction and caster-death removal are covered. A refresh cannot cancel
+an already-due tick on either wood or a creature.
+
+Schema 10 / rules `environment-0.6` / content `wall-integration-0.1` adds structural
+targets, edge layouts, wall ownership/network metadata, crossing history and
+destruction tombstones. `migrateTangleweedSnapshot` explicitly upgrades schema 9;
+earlier validators and fixture bytes stay frozen. Five new fixtures cover planning,
+casting, hazard crossing, interception and a resolved turn.
+
+The combined production-engine scenario runs 39 atomic steps: an illusion wounds
+a wizard, a fire crossing deals real damage, weed costs extra movement, Disbelief
+reverses only illusion damage, and a new crystal wall intercepts a late projectile.
+Final wizard HP is 4; crystal HP is 11; fingerprint `fnv1a32-v1:7662cfca`.
+Node and Chromium run the same scenario with restoration at every atomic boundary.
+Additional integration tests cover Darkness and wall targeting, multi-victim area
+attacks, Guard/death ordering, hazard re-entry and next-turn reset, and source-specific
+weed destruction. The earlier reanimation, swarm, illusion and Darkness suites remain
+part of the same regression run.
+
+All planned Stage 6 mechanics are now implemented and ready for review. Stage 7
+owns the full 56-profile roster and creature-specific interactions; later stages own
+AI, responsive gameplay, release hardening and deployment. The verbatim source
+archive and full-source acceptance reconciliation remain outstanding release gates;
+this report does not claim those are complete. Implementation PRs remain unmerged.
+
+Verification: `pnpm check` passed 439 tests, Chromium passed 16 tests, the production
+build passed, and all nine headless CLI scenarios passed. The instrumented run of
+438 tests before the final crystal-interception regression measured engine coverage
+at 100% lines / 95.39% branches. Whole-repository Vitest coverage was 87.05% lines /
+78.36% branches, including frozen validators and files exercised separately by CLI
+and browser runs. These are implementation measurements, not full-game coverage.

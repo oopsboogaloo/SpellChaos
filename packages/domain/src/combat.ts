@@ -1,3 +1,4 @@
+import { structureTargetSchema } from './structures.js';
 import { z } from 'zod';
 const id=z.string().min(1).max(128), uint=z.number().int().min(0).max(1000000);
 const hex=z.strictObject({q:z.number().int().min(-100000).max(100000),r:z.number().int().min(-100000).max(100000)});
@@ -12,7 +13,7 @@ export type DamageComponent=z.infer<typeof componentSchema>;
 export const strikeSchema=z.strictObject({skill:uint,crit:z.number().min(0).max(100),components:z.array(componentSchema).min(1),secondary:z.array(secondarySchema)});
 export const attackDefinitionSchema=z.strictObject({id,name:z.string(),mode:z.enum(['melee','projectile','direct','area','swarm']),range:uint.min(1),minRange:uint,radius:uint,shots:z.array(strikeSchema).min(1).max(3)});
 export type AttackDefinition=z.infer<typeof attackDefinitionSchema>;
-export const attackActionSchema=z.strictObject({type:z.literal('Attack'),attackId:id,targetIds:z.array(id).max(3),ground:hex.nullable(),side:z.enum(['left','right'])});
+export const attackActionSchema=z.strictObject({type:z.literal('Attack'),attackId:id,targetIds:z.array(id).max(3),ground:hex.nullable(),side:z.enum(['left','right']),structure:structureTargetSchema.optional()});
 export type AttackAction=z.infer<typeof attackActionSchema>;
 export const combatActionSchema=z.union([
  attackActionSchema,
@@ -28,6 +29,7 @@ export const corpseSchema=z.strictObject({id,creatureId:id,centre:hex,size:uint.
 export function staff(): AttackDefinition {return {id:'staff',name:'Staff',mode:'melee',range:1,minRange:0,radius:0,shots:[{skill:4,crit:5,components:[{type:'physical',amount:2}],secondary:[]}]};}
 
 export function validAttackTargets(attack:AttackDefinition,action:AttackAction,source:'action'|'guard'='action'):boolean {
+ if(action.structure)return source==='action'&&action.ground===null&&action.targetIds.length===0&&!['swarm','area'].includes(attack.mode);
  if(attack.mode==='swarm')return action.ground===null&&action.targetIds.length===(source==='guard'?1:0);
  if(action.ground!==null)return action.targetIds.length===0 && (attack.mode==='area'||attack.mode==='projectile');
  return attack.mode!=='area' && [1,attack.shots.length].includes(action.targetIds.length);

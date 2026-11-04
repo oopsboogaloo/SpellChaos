@@ -1,3 +1,4 @@
+import { wallStepCost } from './walls.js';
 import { weedStepCost } from './tangleweed.js';
 import { validateCast, reservedMana, castingLocksMovement } from './casting.js';
 import { castingTime, completionAt } from '../../content/src/spells.js';
@@ -24,7 +25,8 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (actions.includes('TotalDefence') && (actions.length !== 1 || order.path.length !== 0)) throw new Error('TOTAL_DEFENCE_WHOLE_TURN');
   if (actions.length > (c.doubleAction && !subdued(c) ? 2 : 1)) throw new Error('ACTION_BUDGET');
   if (subdued(c) && order.path.length && actions.length) throw new Error('SUBDUED_BUDGET');
-  if (order.path.reduce((n,h)=>n+weedStepCost(state,c,h),0) > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
+  const pathStart=order.early&&typeof order.early==='object'&&order.early.type==='Cast'&&order.early.spell==='Teleport'?order.early.ground!:c.centre;
+  if (order.path.reduce((n,h,i)=>n+Math.max(weedStepCost(state,c,h),wallStepCost(state,c,i?order.path[i-1]!:pathStart,h)),0) > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
   if (order.path.length && restrained(state,c)) throw new Error('RESTRAINED');
   if(order.path.length && castingLocksMovement(state,c,true))throw new Error('CASTING_IMMOBILE');
   const existing=state.casts.find(cast=>cast.casterId===c.id);

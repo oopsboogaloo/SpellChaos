@@ -1,3 +1,4 @@
+import { structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
 import { concentration } from './casting.js';
@@ -30,6 +31,7 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
    if(a.targetId!==null&&!s.creatures.some(x=>x.id===a.targetId))throw new Error('UNKNOWN_TARGET');
   }else{
    if(!validAttackTargets(attack,a))throw new Error('INVALID_ATTACK_TARGETS');
+   if(a.structure&&!structureCells(s,a.structure).length)throw new Error('UNKNOWN_STRUCTURE');
    if(a.ground&&!inside(a.ground,s.board))throw new Error('INVALID_GROUND_TARGET');
    if(a.targetIds.some(id=>id===c.id||!s.creatures.some(x=>x.id===id)))throw new Error('UNKNOWN_TARGET');
   }
@@ -64,7 +66,13 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  }
  const strike=attack.shots[p.shotIndex]!;
  let target:Creature|undefined;
- if(attack.mode==='swarm'&&p.source==='action'){
+ if(p.action.structure){
+  p.shotIndex++;
+  const result=strikeStructure(s,a,p.action.structure,attack,p.action.side,strike.components,events,a.id);
+  if(result.kind==='invalid'){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
+  if(result.kind==='terrain')return false;
+  target=s.creatures.find(c=>c.id===result.id);
+ }else if(attack.mode==='swarm'&&p.source==='action'){
   if(p.areaVictims===null)p.areaVictims=s.creatures.filter(c=>enemies(a,c)&&inReach(s,a,c,attack,p.action.side)).map(c=>c.id).sort();
   if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
   const id=p.areaVictims[p.victimIndex++];target=s.creatures.find(c=>c.id===id);
@@ -74,7 +82,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(origin.distance<attack.minRange||origin.distance>attack.range||!clearProjectile(origin.from,ground,p.action.side,s.walls,true)){
    emit(s,events,{type:'AttackInvalid',creatureId:a.id});p.shotIndex++;p.areaVictims=null;return false;
   }
-  if(p.areaVictims===null){p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));damageWeed(s,disk(ground,attack.radius),strike.components,events,a.id);}
+  if(p.areaVictims===null){p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));damageWeed(s,disk(ground,attack.radius),strike.components,events,a.id);damageAreaWalls(s,disk(ground,attack.radius),strike.components,events,a.id);}
   if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
   const targetId=p.areaVictims[p.victimIndex++];
   target=s.creatures.find(c=>c.id===targetId);
@@ -83,6 +91,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(origin.distance>=attack.minRange && origin.distance<=attack.range && sight(s,a,origin.from,ground,p.action.side)){
    const trace=traceProjectile(arenaOf(s),a,ground,'ground',p.action.side);
    target=s.creatures.find(c=>c.id===trace.hit);
+   if(trace.blockedBy){damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);return false;}
    if(!target&&!trace.blockedBy&&damageWeed(s,[ground],strike.components,events,a.id))return false;
   }
  }else{
@@ -91,6 +100,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(target&&attack.mode==='projectile'){
    const trace=traceProjectile(arenaOf(s),a,pair(a,target).to,target.height,p.action.side,target.id);
    target=s.creatures.find(c=>c.id===trace.hit);
+   if(trace.blockedBy){damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);return false;}
   }
  }
  if(!target?.alive){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}

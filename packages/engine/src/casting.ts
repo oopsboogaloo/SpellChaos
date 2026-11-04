@@ -1,3 +1,4 @@
+import { legalCastWall,wallOriginValid,createWall,structureCells,strikeStructure,damageStructure,crossWallHazards } from './walls.js';
 import { legalWeedLayout,createWeed,contactWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
 import { knowsIllusion } from './illusions.js';
@@ -7,8 +8,8 @@ import type { Creature,GameState,Order } from '../../domain/src/state.js';
 import type { Cast,CastAction,CastingTime } from '../../domain/src/spells.js';
 import { alignment,castingTime,completionAt,implementedSpells,manaCost,spellRange,successChance } from '../../content/src/spells.js';
 import { summonProfile } from '../../content/src/summons.js';
-import { footprint,nearestPair,equal,inside,overlap } from '../../geometry/src/hex.js';
-import { placement,traceProjectile } from '../../geometry/src/occupancy.js';
+import { footprint,nearestPair,equal,inside,overlap,distance } from '../../geometry/src/hex.js';
+import { placement,traceProjectile,stepLegality } from '../../geometry/src/occupancy.js';
 import { clearProjectile } from '../../geometry/src/walls.js';
 import { arenaOf } from './orders.js';
 import { active,restrained,fearAllowsStep } from './status.js';
@@ -30,11 +31,14 @@ function legalSummonPlacement(s:GameState,body:Creature):boolean {
  return placement(arenaOf(s),body,body.centre).legal&&!s.creatures.some(c=>c.alive&&overlap(cells,footprint(c.centre,c.size)));
 }
 function targets(s:GameState,a:CastAction) {
+ if(a.structure)return structureCells(s,a.structure);
  if(a.ground)return [a.ground];
  const target=a.spell==='Reanimate'?s.corpses.find(c=>c.id===a.targetId):s.creatures.find(c=>c.id===a.targetId);
  return target?footprint(target.centre,target.size):[];
 }
 function legalTarget(s:GameState,c:Creature,a:CastAction):boolean {
+ if(a.spell==='Wall')return legalCastWall(s,a);
+ if(a.structure)return structureCells(s,a.structure).length>0;
  if(a.spell==='Reanimate')return a.targetId!==null&&canReanimate(s,a.targetId,a.level,c.controller);
  if(a.spell==='Tangleweed')return legalWeedLayout(s,a);
  if(a.ground)return inside(a.ground,s.board);
@@ -52,15 +56,15 @@ export function selectOrigin(s:GameState,c:Creature,a:CastAction):Creature|null 
  const origins=s.creatures.filter(o=>o.id===c.id || (c.kind==='wizard'&&o.familiar&&o.kind!=='illusion'&&o.controller===c.controller&&o.bindingLevel!==null&&active(o)));
  const cells=targets(s,a);
  return origins.map(origin=>({origin,pair:nearestPair(footprint(origin.centre,origin.size),cells)}))
-  .filter(x=>x.pair.distance<=spellRange(a)&&sight(s,x.origin,x.pair.from,x.pair.to,a.side)&&(a.spell!=='Tangleweed'||weedOriginValid(s,x.origin,a)))
+  .filter(x=>x.pair.distance<=spellRange(a)&&sight(s,x.origin,x.pair.from,x.pair.to,a.side)&&(a.spell!=='Tangleweed'||weedOriginValid(s,x.origin,a))&&(a.spell!=='Wall'||wallOriginValid(s,x.origin,a)))
   .sort((a,b)=>a.pair.distance-b.pair.distance || Number(b.origin.id===c.id)-Number(a.origin.id===c.id) || a.origin.createdSequence-b.origin.createdSequence || (a.origin.id<b.origin.id?-1:a.origin.id>b.origin.id?1:0))[0]?.origin??null;
 }
 export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if(c.kind==='illusion'||!c.spellbook.includes(a.spell)||a.level>c.spellLevelCap)throw new Error('SPELL_NOT_KNOWN');
  if(!implementedSpells.includes(a.spell))throw new Error('CONTENT_NOT_AVAILABLE');
  if(!isSummon(a)&&a.variant!=='bound')throw new Error('INVALID_SPELL_VARIANT');
- const groundOnly=isSummon(a)||['Teleport','Darkness','Tangleweed'].includes(a.spell),projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
- if(groundOnly?(a.ground===null||a.targetId!==null):projectile?(a.ground===null)===(a.targetId===null):(a.targetId===null||a.ground!==null))throw new Error('INVALID_SPELL_TARGET');
+ const groundOnly=isSummon(a)||['Teleport','Darkness','Tangleweed','Wall'].includes(a.spell),projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
+ if(groundOnly?(a.ground===null||a.targetId!==null):projectile?(Number(a.ground!==null)+Number(a.targetId!==null)+Number(a.structure!==undefined)!==1):(a.targetId===null||a.ground!==null))throw new Error('INVALID_SPELL_TARGET');
  if((a.targetId!==null&&!(a.spell==='Reanimate'?s.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
  if(!legalTarget(s,c,a))throw new Error('INVALID_SPELL_TARGET');
  if(a.targetId&&a.spell!=='Reanimate'&&!visibleTo(s,s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
@@ -89,7 +93,7 @@ function releaseReservation(s:GameState,casterId:string,amount:number):void {
 }
 export function interruptCast(s:GameState,castId:string,events:Event[],reason:string):void {
  const cast=s.casts.find(c=>c.id===castId);if(!cast)return;
- s.casts=s.casts.filter(c=>c.id!==castId);s.balanceUnits+=alignment(cast.action.spell)*cast.action.level;
+ s.casts=s.casts.filter(c=>c.id!==castId);s.balanceUnits+=alignment(cast.action.spell,cast.action.level)*cast.action.level;
  emit(s,events,{type:'CastInterrupted',creatureId:cast.casterId,action:reason});
 }
 export function invalidateCasts(s:GameState,events:Event[]):void {
@@ -123,7 +127,7 @@ export function startCast(s:GameState,c:Creature,a:CastAction,events:Event[],tim
  if(timing==='instant')completeCast(s,cast.id,events);
 }
 function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):boolean {
- if(!legalTarget(s,c,a)||(a.spell==='Tangleweed'&&!weedOriginValid(s,origin,a)))return false;
+ if(!legalTarget(s,c,a)||(a.spell==='Tangleweed'&&!weedOriginValid(s,origin,a))||(a.spell==='Wall'&&!wallOriginValid(s,origin,a)))return false;
  const pair=nearestPair(footprint(origin.centre,origin.size),targets(s,a));
  if(pair.distance>spellRange(a)||!sight(s,origin,pair.from,pair.to,a.side))return false;
  if(isSummon(a)){
@@ -134,10 +138,15 @@ function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):bo
 }
 function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:Event[],actionId:string):void {
  let target=s.creatures.find(t=>t.id===a.targetId);const projectile=a.spell!=='Magic Attack';
- if(projectile){
+ if(a.structure){
+  const result=strikeStructure(s,origin,a.structure,{mode:'projectile',range:spellRange(a),minRange:0},a.side,[{type:a.spell==='Fire Bolt'?'fire':'magic',amount:a.level+2}],events,c.id,a.spell==='Fire Bolt');
+  if(result.kind!=='creature')return;
+  target=s.creatures.find(t=>t.id===result.id);
+ }else if(projectile){
   const aim=a.ground??nearestPair(footprint(origin.centre,origin.size),footprint(target!.centre,target!.size)).to;
   const trace=traceProjectile(arenaOf(s),origin,aim,target?.height??'ground',a.side,target?.id);
   target=s.creatures.find(t=>t.id===trace.hit);
+  if(trace.blockedBy)damageStructure(s,{kind:'wall',id:trace.blockedBy},[{type:a.spell==='Fire Bolt'?'fire':'magic',amount:a.level+2}],events,c.id,a.spell==='Fire Bolt');
   if(!target&&!trace.blockedBy&&a.ground)damageWeed(s,[a.ground],[{type:a.spell==='Fire Bolt'?'fire':'magic',amount:a.level+2}],events,c.id);
  }
  if(!target?.alive)return;
@@ -151,7 +160,7 @@ function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:
  }).sort((a,b)=>a.id<b.id?-1:1):[original];
  const totals:{targetId:string;amount:number}[]=[];
  for(const victim of victims){
-  const source={...c,centre:origin.centre,size:origin.size,height:origin.height};
+  const source={...c,centre:origin.centre,size:origin.size,height:origin.height,darknessSightRange:origin.darknessSightRange};
   const modifiers=hitModifiers(s,source,victim,{id:'spell',name:a.spell,mode:projectile?'projectile':'direct',range:spellRange(a),minRange:0,radius:0,shots:[]},a.side);
   if(active(victim)&&!roll(s,hitChance(c.intelligence,a.spell==='Magic Attack'?victim.intelligence:victim.dex),...modifiers)){emit(s,events,{type:'SpellMissed',creatureId:c.id,targetId:victim.id});continue;}
   const critical=roll(s,5),type=a.spell==='Fire Bolt'?'fire':'magic';
@@ -169,12 +178,14 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
  if(cast.startedTurn!==s.turn||cast.startedPhase!==s.phase)s.spentActions.push(c.id);
  const valid=validCompletion(s,c,origin,a);
  const success=valid&&(a.spell==='Disbelief'||a.variant==='illusion'||castingRoll(s,successChance(a,s.balanceUnits)));
- s.balanceUnits+=alignment(a.spell)*a.level*(success?2:1);
+ s.balanceUnits+=alignment(a.spell,a.level)*a.level*(success?2:1);
  emit(s,events,{type:success?'CastSucceeded':'CastFailed',creatureId:c.id,action:a.spell});
  if(!success)return;
  if(isSummon(a)){
   const creature=createCreature(allocateId(s,'summon'),a.variant!=='unbound'?cast.controller:null,a.ground!,{...summonProfile(a.spell,a.level)!,...(a.variant==='illusion'?{kind:'illusion' as const,creatorId:c.id,knownIllusionBy:[cast.controller],mana:0,maxMana:0,manaRegen:0,spellbook:[],spellLevelCap:0,corpseEligible:false}:{}),readyTurn:s.turn+1,bindingLevel:a.variant!=='unbound'?a.level:null,createdSequence:s.nextEntityId});
   s.creatures.push(creature);emit(s,events,{type:'CreatureSummoned',creatureId:creature.id});contactWeed(s,creature,events);
+ }else if(a.spell==='Wall'){
+  createWall(s,c,a,allocateId(s,'wall'),events);
  }else if(a.spell==='Tangleweed'){
   createWeed(s,c,a,allocateId(s,'weed'),events);
  }else if(a.spell==='Darkness'){
@@ -205,6 +216,6 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
  }
 }
 export function forceMove(s:GameState,c:Creature,to:Creature['centre'],events:Event[]):void {
- if(!placement(arenaOf(s),c,to).legal)throw new Error('INVALID_FORCED_DESTINATION');
- const from={...c.centre};c.centre={...to};emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});contactWeed(s,c,events);invalidateCasts(s,events);
+ if(!placement(arenaOf(s),c,to).legal||(distance(c.centre,to)===1&&!stepLegality(arenaOf(s),c,c.centre,to,false).legal))throw new Error('INVALID_FORCED_DESTINATION');
+ const from={...c.centre};c.centre={...to};emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);invalidateCasts(s,events);
 }

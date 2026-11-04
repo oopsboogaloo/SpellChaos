@@ -73,7 +73,7 @@ describe('reservation and command validation',()=>{
   const s=fresh();s.creatures[0]!.mana=5;
   expect(()=>submit(s,'wizard-0',cast('Fire Bolt',{level:2}))).toThrow('INSUFFICIENT_MANA');
   expect(()=>submit(s,'wizard-0',cast('Fire Bolt',{variant:'unbound'}))).toThrow('INVALID_SPELL_TARGET_OR_VARIANT');
-  expect(()=>submit(s,'wizard-0',cast('Wall'))).toThrow('CONTENT_NOT_AVAILABLE');
+  expect(()=>submit(s,'wizard-0',cast('Summon Goblin',{targetId:null,ground:h(7,5)}))).toThrow('CONTENT_NOT_AVAILABLE');
   expect(()=>submit(s,'wizard-0',{...summon(),level:8})).toThrow('CONTENT_NOT_AVAILABLE');
   expect(()=>castActionSchema.parse({...cast(),level:9})).toThrow();s.creatures[0]!.spellbook=[];expect(()=>submit(s,'wizard-0',cast())).toThrow('SPELL_NOT_KNOWN');
  });
@@ -217,7 +217,7 @@ describe('casting portability and privacy',()=>{
  });
  it('explicitly migrates legacy combat saves without silently changing their version',()=>{
   const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(9);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(10);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
 

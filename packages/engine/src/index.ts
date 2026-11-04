@@ -30,7 +30,7 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
   return stateSchema.parse({
     schemaVersion: VERSION.schema, rulesVersion: VERSION.rules, contentVersion: VERSION.content, rngVersion: VERSION.rng,
     matchId, revision: 0, eventSequence: 0, turn: 1, phase: 'planning', random: { setup: bookSeed, resolution, ai },
-    tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:[],darkness:[],damageLedger:[], balanceUnits:0, casts:[], castOccupied:[], quickQueue:null, nextEntityId:0,
+    destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:[],darkness:[],damageLedger:[], balanceUnits:0, casts:[], castOccupied:[], quickQueue:null, nextEntityId:0,
     board: { columns: 30, rows: 30 }, walls: [],
     players: playerIds.map((id, i) => ({ id, wizardId: `wizard-${i}`, locked: false, participated: false, missedTurns: 0, eliminated: false })),
     creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard', spellbook:books[i]! })),

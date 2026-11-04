@@ -1,8 +1,8 @@
 {
   "stage": 6,
-  "status": "in-progress",
-  "scope": "Reanimation, swarm lifecycle/combat, illusion provenance/Disbelief/privacy and wall-layout primitives; not full Stage 6 acceptance",
-  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22; MVP swarms, D07; MVP illusions, D16",
+  "status": "mechanics-implemented-review-pending",
+  "scope": "Stage 6 engine mechanics: reanimation, swarms, illusions, Darkness, Tangleweed, Wall materials/hazards and structural targeting; full roster and release acceptance are later stages",
+  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22; MVP swarms, D07; MVP illusions, D16; Wall and MVP abilities walls/interface; R19\u2013R30 in stage report",
   "checks": [
     {
       "id": "REANIMATE-001",
@@ -1191,6 +1191,321 @@
       "testNames": [
         "preserves the immutable v9 %s fixture and continues identically"
       ]
+    },
+    {
+      "id": "WALL-001",
+      "requirement": "rejects missing, disconnected, repeated, excessive and non-adjacent edge layouts",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects missing, disconnected, repeated, excessive and non-adjacent edge layouts"
+      ]
+    },
+    {
+      "id": "WALL-002",
+      "requirement": "places a connected closed network and rejects duplicate occupied edges",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "places a connected closed network and rejects duplicate occupied edges"
+      ]
+    },
+    {
+      "id": "WALL-003",
+      "requirement": "rejects a solid wall through a large footprint and rechecks before completion",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects a solid wall through a large footprint and rechecks before completion"
+      ]
+    },
+    {
+      "id": "WALL-004",
+      "requirement": "requires range and sight to every segment from the selected origin",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "requires range and sight to every segment from the selected origin"
+      ]
+    },
+    {
+      "id": "WALL-005",
+      "requirement": "ends only the deceased caster\u2019s walls and hides caster identity in player views",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "ends only the deceased caster\u2019s walls and hides caster identity in player views"
+      ]
+    },
+    {
+      "id": "WALL-006",
+      "requirement": "crystal passes sight but stops projectiles; Energy blocks flyers and incorporeal bodies",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "crystal passes sight but stops projectiles; Energy blocks flyers and incorporeal bodies"
+      ]
+    },
+    {
+      "id": "WALL-007",
+      "requirement": "counts multiple segments of one network only once for a large footprint",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "counts multiple segments of one network only once for a large footprint"
+      ]
+    },
+    {
+      "id": "WALL-008",
+      "requirement": "separate networks trigger independently and normal defences apply",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "separate networks trigger independently and normal defences apply"
+      ]
+    },
+    {
+      "id": "WALL-009",
+      "requirement": "heals incapacitated undead at Death walls while flyers ignore hazards",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "heals incapacitated undead at Death walls while flyers ignore hazards"
+      ]
+    },
+    {
+      "id": "WALL-010",
+      "requirement": "combines thorns and weed as double movement, not quadruple movement",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "combines thorns and weed as double movement, not quadruple movement"
+      ]
+    },
+    {
+      "id": "WALL-011",
+      "requirement": "forced adjacent movement triggers hazards and cannot cross solid edges; teleport skips hazards",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "forced adjacent movement triggers hazards and cannot cross solid edges; teleport skips hazards"
+      ]
+    },
+    {
+      "id": "WALL-012",
+      "requirement": "melee hits stationary walls without hit or critical rolls",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "melee hits stationary walls without hit or critical rolls"
+      ]
+    },
+    {
+      "id": "WALL-013",
+      "requirement": "rejects missing structures and ambiguous attack target shapes",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects missing structures and ambiguous attack target shapes"
+      ]
+    },
+    {
+      "id": "WALL-014",
+      "requirement": "wastes an attack if its selected segment was destroyed before resolution",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "wastes an attack if its selected segment was destroyed before resolution"
+      ]
+    },
+    {
+      "id": "WALL-015",
+      "requirement": "intercepted creatures use normal attack damage and critical rolls",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "intercepted creatures use normal attack damage and critical rolls"
+      ]
+    },
+    {
+      "id": "WALL-016",
+      "requirement": "Fire Bolt targets wood, ignites it for two future turn ends, and Extinguish removes burning",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "Fire Bolt targets wood, ignites it for two future turn ends, and Extinguish removes burning"
+      ]
+    },
+    {
+      "id": "WALL-017",
+      "requirement": "Fire Bolt is intercepted by creatures and iron ignores ordinary fire",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "Fire Bolt is intercepted by creatures and iron ignores ordinary fire"
+      ]
+    },
+    {
+      "id": "WALL-018",
+      "requirement": "illusion attacks cannot damage or ignite structures",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "illusion attacks cannot damage or ignite structures"
+      ]
+    },
+    {
+      "id": "WALL-019",
+      "requirement": "direct weed targeting damages only the chosen overlapping patch",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "direct weed targeting damages only the chosen overlapping patch"
+      ]
+    },
+    {
+      "id": "WALL-020",
+      "requirement": "area damage hits each segment once even when both adjacent hexes are covered",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "area damage hits each segment once even when both adjacent hexes are covered"
+      ]
+    },
+    {
+      "id": "WALL-021",
+      "requirement": "blocks structural melee by air and Darkness sight beyond adjacency",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "blocks structural melee by air and Darkness sight beyond adjacency"
+      ]
+    },
+    {
+      "id": "WALL-022",
+      "requirement": "retains destruction tombstones so a pending Extinguish order remains portable",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "retains destruction tombstones so a pending Extinguish order remains portable"
+      ]
+    },
+    {
+      "id": "WALL-023",
+      "requirement": "rejects invalid owners, crossing records and damage without replacing a save",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "rejects invalid owners, crossing records and damage without replacing a save"
+      ]
+    },
+    {
+      "id": "WALL-024",
+      "requirement": "explicitly migrates v9 while retaining weed holds and paid movement",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "explicitly migrates v9 while retaining weed holds and paid movement"
+      ]
+    },
+    {
+      "id": "WALL-025",
+      "requirement": "replays all material casts identically through every saved boundary across seeds",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "replays all material casts identically through every saved boundary across seeds"
+      ]
+    },
+    {
+      "id": "WALL-026",
+      "requirement": "restores area attacks between victims without damaging a wall twice",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "restores area attacks between victims without damaging a wall twice"
+      ]
+    },
+    {
+      "id": "WALL-027",
+      "requirement": "resolves a lethal wall crossing before enqueuing Guard reactions",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "resolves a lethal wall crossing before enqueuing Guard reactions"
+      ]
+    },
+    {
+      "id": "WALL-028",
+      "requirement": "remembers network crossings through re-entry and clears the limit next turn",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "remembers network crossings through re-entry and clears the limit next turn"
+      ]
+    },
+    {
+      "id": "WALL-029",
+      "requirement": "refreshes wood burning without multiplying its tick damage",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "refreshes wood burning without multiplying its tick damage"
+      ]
+    },
+    {
+      "id": "WALL-030",
+      "requirement": "refreshing a burning creature also retains its already-due tick",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "refreshing a burning creature also retains its already-due tick"
+      ]
+    },
+    {
+      "id": "WALL-031",
+      "requirement": "implements material, HP, Slow completion and balance at level %i",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "implements material, HP, Slow completion and balance at level %i"
+      ]
+    },
+    {
+      "id": "WALL-032",
+      "requirement": "uses level-specific half alignment on interruption at level %i",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "uses level-specific half alignment on interruption at level %i"
+      ]
+    },
+    {
+      "id": "WALL-033",
+      "requirement": "%s applies typed damage once per network per turn",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "%s applies typed damage once per network per turn"
+      ]
+    },
+    {
+      "id": "WALL-034",
+      "requirement": "preserves the v10 %s fixture and identical continuation",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "preserves the v10 %s fixture and identical continuation"
+      ]
+    },
+    {
+      "id": "WALL-035",
+      "requirement": "hits an intervening crystal wall with a projectile but blocks melee through it",
+      "status": "verified",
+      "testFile": "tests/walls.test.ts",
+      "testNames": [
+        "hits an intervening crystal wall with a projectile but blocks melee through it"
+      ]
     }
   ],
   "browserChecks": [
@@ -1198,10 +1513,12 @@
     "tests/browser/swarms.spec.ts",
     "tests/browser/illusions.spec.ts",
     "tests/browser/darkness.spec.ts",
-    "tests/browser/tangleweed.spec.ts"
+    "tests/browser/tangleweed.spec.ts",
+    "tests/browser/walls.spec.ts"
   ],
-  "remaining": [
-    "Wall spell casting, hazard movement and structural targeting",
-    "Full Stage 6 interaction and replay acceptance"
+  "remaining": [],
+  "releaseBlockers": [
+    "Verbatim source archive and full-source acceptance reconciliation",
+    "Later MVP stages 7\u201312"
   ]
 }

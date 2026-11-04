@@ -59,6 +59,7 @@ export function addCondition(s:GameState,c:Creature,kind:Condition['kind'],sourc
  const existing=c.conditions.find(e=>e.kind===kind&&e.illusionId===illusionId);
  const condition:Condition={kind,illusionId,sourceId,potency,duration:turns,resistance,requiresDamage:true,startsTurn,
   endsTurn:turns===null?null:startsTurn+turns-1,activatesTurn:kind==='Disease'?s.turn+2:null,active:kind!=='Disease'};
+ if(kind==='Burning'&&existing&&existing.endsTurn!==null&&existing.endsTurn>=s.turn)condition.startsTurn=Math.min(existing.startsTurn,startsTurn);
  if(kind==='Disease' && existing){condition.activatesTurn=existing.activatesTurn;condition.active=existing.active;}
  c.conditions=c.conditions.filter(e=>e.kind!==kind||e.illusionId!==illusionId);c.conditions.push(condition);return true;
 }
@@ -79,9 +80,11 @@ export function damageCorpse(s:GameState,corpseId:string,components:readonly Dam
  corpse.skeletal=corpse.fireAcidDamage>=corpse.maxHp/2;
 }
 export function damageWall(s:GameState,wallId:string,components:readonly DamageComponent[],events:Event[],sourceId:string|null=null):number {
+ if(components.some(c=>!Number.isSafeInteger(c.amount)||c.amount<0))throw new Error('INVALID_DAMAGE');
+ if(sourceId&&!s.creatures.some(c=>c.id===sourceId))throw new Error('UNKNOWN_DAMAGE_SOURCE');
  if(s.creatures.some(c=>c.id===sourceId&&c.kind==='illusion'))return 0;
  const wall=s.walls.find(w=>w.id===wallId);if(!wall)return 0;
  const amount=components.reduce((sum,c)=>sum+(wall.material==='iron' && c.type==='fire'?0:c.amount),0);
- wall.hp=Math.max(0,wall.hp-amount);if(wall.hp===0)s.walls=s.walls.filter(w=>w.id!==wallId);
+ wall.hp=Math.max(0,wall.hp-amount);if(wall.hp===0){s.walls=s.walls.filter(w=>w.id!==wallId);if(!s.destroyedWallIds.includes(wallId))s.destroyedWallIds.push(wallId);}
  emit(s,events,{type:'WallDamaged',targetId:wallId,amount});return amount;
 }
