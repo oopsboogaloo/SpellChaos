@@ -8,6 +8,7 @@ Browser wizard combat, built through a reviewed specification and staged plan.
 - [Implementation plan](docs/PLAN.md)
 - [Condensed specification](docs/SPECIFICATION.md)
 - [Foundation progress](docs/stages/01-foundation.md)
+- [Geometry and occupancy](docs/stages/02-geometry.md)
 
 ## Development
 
