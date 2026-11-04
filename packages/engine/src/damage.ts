@@ -1,3 +1,4 @@
+import { resizeSwarm } from './swarms.js';
 import type { Creature,GameState } from '../../domain/src/state.js';
 import type { DamageComponent,DamageType,Condition } from '../../domain/src/combat.js';
 import { emit,type Event } from './events.js';
@@ -35,6 +36,7 @@ export function applyDamage(s:GameState,c:Creature,components:readonly DamageCom
  }
  if(total===0)return 0;
  c.hp=Math.max(-1000000,c.hp-total);c.conditions=c.conditions.filter(e=>e.kind!=='Unconscious');
+ resizeSwarm(s,c,events,false);
  emit(s,events,{type:'DamageApplied',creatureId:c.id,amount:total,critical:!!options.critical});
  return total;
 }
@@ -56,9 +58,10 @@ export function addCondition(s:GameState,c:Creature,kind:Condition['kind'],sourc
 }
 export function heal(s:GameState,c:Creature,amount:number,events:Event[],mode:'ordinary'|'necromantic'|'regeneration'='ordinary'):number {
  if(!Number.isInteger(amount)||amount<0)throw new Error('INVALID_HEALING');
- if(!c.alive || (mode==='ordinary' && (c.undead||c.kind==='illusion')))return 0;
+ if(!c.alive || (c.swarm&&c.hp<=0) || (mode==='ordinary' && (c.undead||c.kind==='illusion')))return 0;
  const restored=Math.min(amount,c.maxHp-c.hp);c.hp+=restored;
  if(mode!=='regeneration')c.conditions=c.conditions.filter(e=>e.kind!=='Bleeding');
+ resizeSwarm(s,c,events,true);
  if(restored)emit(s,events,{type:'Healed',creatureId:c.id,amount:restored});return restored;
 }
 export function damageCorpse(s:GameState,corpseId:string,components:readonly DamageComponent[]):void {

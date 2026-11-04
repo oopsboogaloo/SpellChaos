@@ -1,4 +1,4 @@
-import { health } from '../../engine/src/status.js';
+import { health, restrained } from '../../engine/src/status.js';
 import type { Event } from '../../engine/src/events.js';
 import type { GameState } from '../../domain/src/state.js';
 export function projectView(state: GameState, playerId: string) {
@@ -8,7 +8,7 @@ export function projectView(state: GameState, playerId: string) {
     matchId: state.matchId, turn: state.turn, phase: state.phase, balance: state.balanceUnits/2,
     self: { id: player.id, locked: player.locked },
     players: state.players.map(p => ({ id: p.id, locked: p.locked, eliminated: p.eliminated })),
-    creatures: state.creatures.filter(c => c.alive).map(c => ({ id: c.id, centre: { ...c.centre }, size: c.size, controller: c.controller, height: c.height, health: health(c), ...(c.controller === playerId ? {hp:c.hp,maxHp:c.maxHp,mana:c.mana,maxMana:c.maxMana,spellbook:[...c.spellbook]} : {}) })),
+    creatures: state.creatures.filter(c => c.alive).map(c => ({ id: c.id, centre: { ...c.centre }, size: c.size, controller: c.controller, height: c.height, health: health(c), restrained: restrained(state,c), ...(c.controller === playerId ? {hp:c.hp,maxHp:c.maxHp,mana:c.mana,maxMana:c.maxMana,spellbook:[...c.spellbook]} : {}) })),
     corpses: state.corpses.map(c=>({id:c.id,centre:{...c.centre},size:c.size,skeletal:c.skeletal,restorationUsed:c.restorationUsed})),
     casts: structuredClone(state.casts.filter(c=>c.controller===playerId)),
     orders: structuredClone(state.orders.filter(o => state.creatures.find(c => c.id === o.creatureId)?.controller === playerId)),

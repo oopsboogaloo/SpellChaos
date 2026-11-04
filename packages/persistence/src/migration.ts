@@ -1,3 +1,4 @@
+import { stateSchema as environmentSchema } from '../../domain/src/legacy-v5.js';
 import { stateSchema as castingSchema } from '../../domain/src/legacy-v4.js';
 import { stateSchema as combatSchema } from '../../domain/src/legacy-v3.js';
 import { startingBook } from '../../engine/src/spellbooks.js';
@@ -47,7 +48,7 @@ export function migrateCombatSnapshot(text:string):GameState {
  }));
 }
 
-/** Explicit v4 -> v5 upgrade; no RNG draws, no silent interpretation under new rules. */
+/** Explicit v4 -> current upgrade; no RNG draws, no silent interpretation under new rules. */
 export function migrateCastingSnapshot(text:string):GameState {
  const old=castingSchema.parse(JSON.parse(text));
  return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
@@ -56,5 +57,13 @@ export function migrateCastingSnapshot(text:string):GameState {
    restorationUsed:c.kind==='reanimated'||old.corpses.some(body=>body.creatureId===c.id&&body.restorationUsed),
   })),
   corpses:old.corpses.map(c=>({...c,restorationUsed:c.restorationUsed||old.creatures.some(body=>body.id===c.creatureId&&body.kind==='reanimated')})),
+ });
+}
+
+/** The v5 engine never resized swarms; their stored Size becomes originalSize. */
+export function migrateEnvironmentSnapshot(text:string):GameState {
+ const old=environmentSchema.parse(JSON.parse(text));
+ return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+  creatures:old.creatures.map(c=>createCreature(c.id,c.controller,c.centre,c)),
  });
 }

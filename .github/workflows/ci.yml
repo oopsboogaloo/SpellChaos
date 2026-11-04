@@ -22,6 +22,7 @@ jobs:
       - run: node tools/run-combat.mjs
       - run: node tools/run-casting.mjs
       - run: node tools/run-reanimation.mjs
+      - run: node tools/run-swarms.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
       - uses: actions/upload-artifact@v4

@@ -4,7 +4,7 @@ import type { Creature,GameState,Order } from '../../domain/src/state.js';
 import type { Cast,CastAction,CastingTime } from '../../domain/src/spells.js';
 import { alignment,castingTime,completionAt,implementedSpells,manaCost,spellRange,successChance } from '../../content/src/spells.js';
 import { summonProfile } from '../../content/src/summons.js';
-import { footprint,nearestPair,equal,inside } from '../../geometry/src/hex.js';
+import { footprint,nearestPair,equal,inside,overlap } from '../../geometry/src/hex.js';
 import { placement,traceProjectile } from '../../geometry/src/occupancy.js';
 import { clearSight,clearProjectile } from '../../geometry/src/walls.js';
 import { arenaOf } from './orders.js';
@@ -21,6 +21,11 @@ function allocateId(s:GameState,prefix:string):string {
 }
 const actionPhase=(s:GameState):'early'|'late'=>{if(s.phase!=='early'&&s.phase!=='late')throw new Error('NOT_ACTION_PHASE');return s.phase;};
 const isSummon=(a:CastAction)=>a.spell.startsWith('Summon ');
+function legalSummonPlacement(s:GameState,body:Creature):boolean {
+ // Summoning requires empty placement even though a swarm may overlap later in movement.
+ const cells=footprint(body.centre,body.size);
+ return placement(arenaOf(s),body,body.centre).legal&&!s.creatures.some(c=>c.alive&&overlap(cells,footprint(c.centre,c.size)));
+}
 function targets(s:GameState,a:CastAction) {
  if(a.ground)return [a.ground];
  const target=a.spell==='Reanimate'?s.corpses.find(c=>c.id===a.targetId):s.creatures.find(c=>c.id===a.targetId);
@@ -56,7 +61,7 @@ export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);if(!profile)throw new Error('CONTENT_NOT_AVAILABLE');
   const body=createCreature('$preview',c.controller,a.ground!,profile);
-  if(!placement(arenaOf(s),body,a.ground!).legal)throw new Error('INVALID_SUMMON_PLACEMENT');
+  if(!legalSummonPlacement(s,body))throw new Error('INVALID_SUMMON_PLACEMENT');
  }
 }
 export function reservedMana(order:Order):number {return [order.early,order.late].reduce((n,a)=>n+(a&&typeof a==='object'&&a.type==='Cast'?manaCost(a):0),0);}
@@ -113,7 +118,7 @@ function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):bo
  const pair=nearestPair(footprint(origin.centre,origin.size),targets(s,a));
  if(pair.distance>spellRange(a)||!clearSight(pair.from,pair.to,a.side,s.walls))return false;
  if(isSummon(a)){
-  const profile=summonProfile(a.spell,a.level);return !!profile&&placement(arenaOf(s),createCreature('$preview',c.controller,a.ground!,profile),a.ground!).legal;
+  const profile=summonProfile(a.spell,a.level);return !!profile&&legalSummonPlacement(s,createCreature('$preview',c.controller,a.ground!,profile));
  }
  if(a.spell==='Teleport')return !restrained(s,c)&&!castingLocksMovement(s,c)&&fearAllowsStep(s,c,a.ground!)&&placement(arenaOf(s),c,a.ground!).legal;
  return true;

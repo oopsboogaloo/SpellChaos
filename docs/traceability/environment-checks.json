@@ -1,8 +1,8 @@
 {
   "stage": 6,
   "status": "in-progress",
-  "scope": "Reanimation and wall-layout primitives only; not full Stage 6 acceptance",
-  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22",
+  "scope": "Reanimation, swarm lifecycle/combat and wall-layout primitives; not full Stage 6 acceptance",
+  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22; MVP swarms, D07",
   "checks": [
     {
       "id": "REANIMATE-001",
@@ -228,14 +228,311 @@
       "testNames": [
         "is independent of endpoint orientation, input order and translated coordinates"
       ]
+    },
+    {
+      "id": "SWARM-001",
+      "requirement": "at %i/24 HP has Size %i with fixed maximum HP",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "at %i/24 HP has Size %i with fixed maximum HP"
+      ]
+    },
+    {
+      "id": "SWARM-002",
+      "requirement": "clamps small swarms to Size 1 and preserves the exact half/quarter boundaries",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "clamps small swarms to Size 1 and preserves the exact half/quarter boundaries"
+      ]
+    },
+    {
+      "id": "SWARM-003",
+      "requirement": "releases coverage immediately after shrinking and reapplies it after healing",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "releases coverage immediately after shrinking and reapplies it after healing"
+      ]
+    },
+    {
+      "id": "SWARM-004",
+      "requirement": "restraint includes allies, constructs and smaller swarms but only at the same height",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restraint includes allies, constructs and smaller swarms but only at the same height"
+      ]
+    },
+    {
+      "id": "SWARM-005",
+      "requirement": "derives release after movement, death and height changes without stale condition records",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "derives release after movement, death and height changes without stale condition records"
+      ]
+    },
+    {
+      "id": "SWARM-006",
+      "requirement": "cannot heal a dispersed swarm during the atomic interval before death cleanup",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "cannot heal a dispersed swarm during the atomic interval before death cleanup"
+      ]
+    },
+    {
+      "id": "SWARM-007",
+      "requirement": "Escape cannot remove occupancy restraint, but leaving the footprint can",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "Escape cannot remove occupancy restraint, but leaving the footprint can"
+      ]
+    },
+    {
+      "id": "SWARM-008",
+      "requirement": "ignores illusory coverage for Int 0 while preserving real swarm restraint",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "ignores illusory coverage for Int 0 while preserving real swarm restraint"
+      ]
+    },
+    {
+      "id": "SWARM-009",
+      "requirement": "regrows only as far as legal walls permit and retries at the next turn start",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "regrows only as far as legal walls permit and retries at the next turn start"
+      ]
+    },
+    {
+      "id": "SWARM-010",
+      "requirement": "does not regrow on damage or through the board edge, and overlaps creatures on legal growth",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "does not regrow on damage or through the board edge, and overlaps creatures on legal growth"
+      ]
+    },
+    {
+      "id": "SWARM-011",
+      "requirement": "flying growth crosses ordinary walls but cannot straddle Energy",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "flying growth crosses ordinary walls but cannot straddle Energy"
+      ]
+    },
+    {
+      "id": "SWARM-012",
+      "requirement": "prevents planning movement while covered and exposes current restraint in the permitted view",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "prevents planning movement while covered and exposes current restraint in the permitted view"
+      ]
+    },
+    {
+      "id": "SWARM-013",
+      "requirement": "rolls once per covered or adjacent enemy without friendly fire or cross-height attacks",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "rolls once per covered or adjacent enemy without friendly fire or cross-height attacks"
+      ]
+    },
+    {
+      "id": "SWARM-014",
+      "requirement": "uses ordinary hit and critical rolls per victim and does not count as ranged fire while threatened",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "uses ordinary hit and critical rolls per victim and does not count as ranged fire while threatened"
+      ]
+    },
+    {
+      "id": "SWARM-015",
+      "requirement": "a swarm attack has no manual victim selection and terminates when there are no victims",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "a swarm attack has no manual victim selection and terminates when there are no victims"
+      ]
+    },
+    {
+      "id": "SWARM-016",
+      "requirement": "snapshots candidate victims but rechecks range and allegiance before each hit",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "snapshots candidate victims but rechecks range and allegiance before each hit"
+      ]
+    },
+    {
+      "id": "SWARM-017",
+      "requirement": "Guard attacks only the entering enemy and can react once to each different enemy",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "Guard attacks only the entering enemy and can react once to each different enemy"
+      ]
+    },
+    {
+      "id": "SWARM-018",
+      "requirement": "restores a swarm Guard reaction during an actual movement phase without attacking bystanders",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restores a swarm Guard reaction during an actual movement phase without attacking bystanders"
+      ]
+    },
+    {
+      "id": "SWARM-019",
+      "requirement": "uses the listed swarm poison and never injects it after zero damage",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "uses the listed swarm poison and never injects it after zero damage"
+      ]
+    },
+    {
+      "id": "SWARM-020",
+      "requirement": "applies %s area=%s multiplier %s exactly once",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "applies %s area=%s multiplier %s exactly once"
+      ]
+    },
+    {
+      "id": "SWARM-021",
+      "requirement": "preserves Grove major fire vulnerability without stacking another swarm bonus",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "preserves Grove major fire vulnerability without stacking another swarm bonus"
+      ]
+    },
+    {
+      "id": "SWARM-022",
+      "requirement": "rounds separate mixed damage components after their individual swarm defences",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "rounds separate mixed damage components after their individual swarm defences"
+      ]
+    },
+    {
+      "id": "SWARM-023",
+      "requirement": "overlaps creatures, siege constructs and swarms but cannot cross solid walls on the ground",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "overlaps creatures, siege constructs and swarms but cannot cross solid walls on the ground"
+      ]
+    },
+    {
+      "id": "SWARM-024",
+      "requirement": "intercepts direct projectiles using its current footprint",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "intercepts direct projectiles using its current footprint"
+      ]
+    },
+    {
+      "id": "SWARM-025",
+      "requirement": "fixed maximum HP and bounded Size survive generated damage/healing sequences",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "fixed maximum HP and bounded Size survive generated damage/healing sequences"
+      ]
+    },
+    {
+      "id": "SWARM-026",
+      "requirement": "restores the immutable v6 %s fixture and continues identically",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restores the immutable v6 %s fixture and continues identically"
+      ]
+    },
+    {
+      "id": "SWARM-027",
+      "requirement": "loads the approved %s level %i profile",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "loads the approved %s level %i profile"
+      ]
+    },
+    {
+      "id": "SWARM-028",
+      "requirement": "summons a bound swarm with the original size and next-turn readiness",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "summons a bound swarm with the original size and next-turn readiness"
+      ]
+    },
+    {
+      "id": "SWARM-029",
+      "requirement": "requires an empty summoning footprint even though swarms can overlap after creation",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "requires an empty summoning footprint even though swarms can overlap after creation"
+      ]
+    },
+    {
+      "id": "SWARM-030",
+      "requirement": "matches restored resolution at every per-victim attack boundary over generated seeds",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "matches restored resolution at every per-victim attack boundary over generated seeds"
+      ]
+    },
+    {
+      "id": "SWARM-031",
+      "requirement": "restores a partially damaged swarm with blocked growth and derived coverage",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "restores a partially damaged swarm with blocked growth and derived coverage"
+      ]
+    },
+    {
+      "id": "SWARM-032",
+      "requirement": "rejects corrupted original size, maximum HP and duplicate pending victims transactionally",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "rejects corrupted original size, maximum HP and duplicate pending victims transactionally"
+      ]
+    },
+    {
+      "id": "SWARM-033",
+      "requirement": "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness",
+      "status": "verified",
+      "testFile": "tests/swarms.test.ts",
+      "testNames": [
+        "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness"
+      ]
     }
   ],
   "browserChecks": [
-    "tests/browser/reanimation.spec.ts"
+    "tests/browser/reanimation.spec.ts",
+    "tests/browser/swarms.spec.ts"
   ],
   "remaining": [
     "Illusion provenance, reversal and player-specific detection",
-    "Swarm shrinking, regrowth and coverage restraint",
     "Wall spell casting, hazard movement and structural targeting",
     "Darkness and Tangleweed",
     "Full Stage 6 interaction and replay acceptance"

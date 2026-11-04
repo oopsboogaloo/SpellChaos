@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 5, rules: 'environment-0.1', content: 'reanimation-integration-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 6, rules: 'environment-0.2', content: 'swarm-integration-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -30,7 +30,7 @@ export const creatureSchema = z.strictObject({
   intelligence: uint, dex: uint, move: uint.max(100), mana: uint.max(100),
   alive: z.boolean(), incapacitated: z.boolean(), restrained: z.boolean(), slowed: z.boolean(), subdued: z.boolean(),
   doubleAction: z.boolean(), readyTurn: uint.min(1),
-  swarm: z.boolean(), incorporeal: z.boolean(), nimble: z.boolean(),
+  swarm: z.boolean(), originalSize: z.number().int().min(1).max(10), incorporeal: z.boolean(), nimble: z.boolean(),
   species:z.string(), family:z.enum(summonFamilies).nullable(), summonLevel:z.number().int().min(1).max(8), bindingLevel:z.number().int().min(1).max(8).nullable(), familiar:z.boolean(), createdSequence:uint,
   maxMana:uint.max(100), manaRegen:uint.max(5), spellLevelCap:z.number().int().min(0).max(8), spellbook:z.array(spellSchema),
   con: uint.min(1), hp: z.number().int().min(-1000000).max(1000000), maxHp: uint.min(1),
@@ -142,6 +142,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if (!unique(state.defending.map(d => d.creatureId)) || state.defending.some(d => !creatures.includes(d.creatureId) || !unique(d.phases))) invalid('INVALID_DEFENCE');
   for(const c of state.creatures) {
     if(c.reanimationAttackIds!==null&&(!unique(c.reanimationAttackIds)||c.reanimationAttackIds.some(id=>!c.attacks.some(a=>a.id===id))))invalid('INVALID_BODY_ATTACKS');
+    if(c.swarm&&(c.size>c.originalSize||c.maxHp!==c.con*c.originalSize))invalid('INVALID_SWARM_SIZE_OR_HP');
     if(c.mana>c.maxMana || !unique(c.spellbook))invalid('INVALID_MAGIC_RESOURCES');
     if(c.hp>c.maxHp || !unique(c.attacks.map(a=>a.id)) || !unique(c.conditions.map(c=>c.kind))) invalid('INVALID_COMBAT_ENTITY');
     if(c.conditions.some(effect=>effect.sourceId!==null && !creatures.includes(effect.sourceId))) invalid('INVALID_CONDITION_SOURCE');
@@ -151,8 +152,9 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if(state.reactions.some(r=>!creatures.includes(r.attackerId) || !creatures.includes(r.targetId) || !state.creatures.find(c=>c.id===r.attackerId)?.attacks.some(a=>a.id===r.attackId))) invalid('INVALID_REACTION');
   if(state.pendingAttack) {
     const pending=state.pendingAttack, attacker=state.creatures.find(c=>c.id===pending.attackerId), attack=attacker?.attacks.find(a=>a.id===pending.action.attackId);
+    if((pending.areaVictims!==null&&!unique(pending.areaVictims))||!unique(pending.damageByTarget.map(d=>d.targetId)))invalid('DUPLICATE_ATTACK_VICTIM');
     if(!['early','movement','late'].includes(state.phase) || (pending.source==='action' && (state.phase==='movement' || current?.creatureId!==pending.attackerId)))invalid('INVALID_ATTACK_CONTINUATION');
-    if(!attack || !validAttackTargets(attack,pending.action) || pending.shotIndex>attack.shots.length || pending.victimIndex>(pending.areaVictims?.length ?? 0) || pending.action.targetIds.some(id=>!creatures.includes(id)) || pending.damageByTarget.some(d=>!creatures.includes(d.targetId)) || pending.areaVictims?.some(id=>!creatures.includes(id))) invalid('INVALID_PENDING_ATTACK');
+    if(!attack || !validAttackTargets(attack,pending.action,pending.source) || pending.shotIndex>attack.shots.length || pending.victimIndex>(pending.areaVictims?.length ?? 0) || pending.action.targetIds.some(id=>!creatures.includes(id)) || pending.damageByTarget.some(d=>!creatures.includes(d.targetId)) || pending.areaVictims?.some(id=>!creatures.includes(id))) invalid('INVALID_PENDING_ATTACK');
   }
   if(state.spentActions.some(id=>!creatures.includes(id)) || !unique(state.moved) || state.moved.some(id=>!creatures.includes(id))) invalid('INVALID_TURN_ACTIVITY');
   if(!unique(state.deadHandled) || state.deadHandled.some(id=>!creatures.includes(id)) || !unique(state.corpses.map(c=>c.id)) || state.corpses.some(c=>!creatures.includes(c.creatureId))) invalid('INVALID_CORPSE');

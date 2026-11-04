@@ -1,6 +1,9 @@
 # Stage 6 — in progress
 
-Checkpoint: Reanimate and physical wall-layout geometry. 4 November 2026.
+Current checkpoint: Reanimate, swarm lifecycle/combat and physical wall-layout geometry. 4 November 2026.
+
+The initial reanimation checkpoint below is historical; the swarm increment and
+latest verification are recorded at the end of this report.
 This is a tested implementation increment, **not Stage 6 completion or the playable MVP**.
 Base: Stage 5 (`8ada790`); working branch: `build/stage-06-environment`.
 
@@ -92,7 +95,7 @@ Traceability: [environment checks](../traceability/environment-checks.json).
 ## Remaining work
 
 Stage 6 remains open: reversible illusion damage/conditions and hidden-information
-handling; swarm shrink/regrowth/restraint; all eight Wall casting/material
+handling; all eight Wall casting/material
 interactions, structure/corpse attack targeting, Darkness and Tangleweed; combined
 environment replays. The new wall functions are prerequisites for that work.
 The browser still exposes development previews, not a complete game UI.
@@ -100,3 +103,61 @@ The browser still exposes development previews, not a complete game UI.
 The full verbatim source archive remains outstanding; `SPECIFICATION.md` is a
 condensed register. That limitation is unchanged and remains a release gate.
 No merge or deployment is performed by this checkpoint.
+
+
+## Swarm increment — 4 November 2026
+
+The approved Snake Swarm (Serpent 3), Greater Snake Swarm (Serpent 4) and
+Strangling Grove (Plant 6) profiles are now available. Their numeric profiles,
+poison potency and defences follow the MVP tables. These join the three existing
+familiar profiles; they do not stand in for the rest of the 56-profile roster.
+
+Damage shrinks Size immediately below half/quarter original HP, keeping the
+centre and original maximum HP fixed. Healing restores HP immediately and grows
+only to a legal footprint. Turn start retries deferred growth. Coverage restraint
+is derived from current footprints, height and Size, including allied creatures,
+constructs and smaller swarms. Movement, death and shrinking release it without
+stale condition records. Swarms at zero HP disperse, cannot heal during the
+pending cleanup boundary and leave no corpse.
+
+Swarm attacks enumerate covered/adjacent enemies once in stable ID order, use
+separate hit/critical/secondary-effect rolls and preserve their victim cursor and
+per-action damage totals across snapshots. Range and allegiance are rechecked
+before each hit. They respect walls and height. Ground swarms cannot cross solid
+walls; flying swarms can cross ordinary walls but not Energy. Swarms intercept
+ordinary projectiles. Existing damage multipliers apply per component, with D07
+preserving the Grove's explicit major fire vulnerability without double stacking.
+
+Additional implementation rulings:
+
+- S6-R6: An ordinary swarm attack is melee per victim, not an arcing/resistance
+  area attack. Its several bite/root rolls do not implicitly grant the area
+  damage property. It incurs no threatened-ranged penalty.
+- S6-R7: Swarm Guard reacts only against the entering creature, once per enemy;
+  it does not reattack all bystanders each time a new enemy enters range.
+- S6-R8: Escape can contest actual holds and condition restraints. It cannot
+  remove the continuous restraint of still being covered by a larger swarm.
+- S6-R9: Initial summoning still requires an empty footprint, as specified for
+  summoning. Swarm overlap is permitted during movement and legal regrowth.
+- S6-R10: Candidate victims are snapshotted at the beginning of each attack
+  strike; newly arriving targets do not join a partially resolved strike.
+
+Schema 6 / rules `environment-0.2` / content `swarm-integration-0.1`.
+`originalSize` is explicit portable state. The existing pending-attack cursor
+also stores swarm victim continuation. Schema-5 validators and content eligibility
+are frozen; `migrateEnvironmentSnapshot` upgrades explicitly without consuming
+RNG. Earlier migrations still target the current schema. Player views report
+current restraint without exposing exact enemy HP.
+
+Four immutable fixtures cover planning, movement coverage, a partially resolved
+swarm attack and blocked regrowth. Generated continuation tests use seed 6003
+(30 cases); generated damage/healing invariants use seed 6004 (60 cases). The
+headless CLI checks 37 atomic steps, proving a swarm can cover a slower creature
+and prevent its planned escape before a late attack. Node and Chromium compare
+its complete state, event stream and permitted view.
+
+Latest verification: 282 headless tests and 12 Chromium tests passed; typechecking,
+production build and all five CLI scenarios passed. GitHub Actions now includes
+`node tools/run-swarms.mjs`. The PR records the exact tested GitHub commit/run.
+Stage 6 remains in progress: illusions and the remaining environment spells are
+not enabled. No merge or deployment is part of this increment.

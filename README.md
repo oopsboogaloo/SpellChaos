@@ -39,11 +39,14 @@ roster and remaining illusion/environment spells are still staged work. Reanimat
 now resolves against eligible corpses at levels 1–8; run
 `node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 remains
 in progress; wall layout geometry is available but Wall casting is not enabled.
+Snake Swarm, Greater Snake Swarm and Strangling Grove now support shrinking,
+legal regrowth, coverage restraint and per-enemy attacks. Run
+`node tools/run-swarms.mjs` for a movement/coverage/attack replay.
 
 ## Saves
 
-Current saves use schema 5 / rules `environment-0.1` / content `reanimation-integration-0.1`.
-Foundation schema-1, orders schema-2, combat schema-3 and casting schema-4 have explicit migration functions; normal
+Current saves use schema 6 / rules `environment-0.2` / content `swarm-integration-0.1`.
+Foundation schema-1, orders schema-2, combat schema-3 casting schema-4 and environment schema-5 have explicit migration functions; normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -66,3 +69,10 @@ casts and existing combat data while adding body attack selection and restoratio
 history; it does not redraw spellbooks. An explicit body attack list excludes
 non-body powers from reanimation (`null` retains all basic attacks; `[]` retains
 none). Full-roster body capability annotations are part of Stage 7.
+
+
+Schema 5 uses `migrateEnvironmentSnapshot` to upgrade explicitly. Stored Size
+becomes `originalSize`; swarm maximum HP remains fixed when current Size changes.
+Published schema-5 fixtures and validators are frozen. Four schema-6 fixtures
+cover planning, movement coverage, per-victim attack continuation and blocked
+regrowth. Old saves are never silently loaded under current rules.

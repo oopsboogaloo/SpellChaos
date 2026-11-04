@@ -1,3 +1,4 @@
+import { regrowSwarms } from './swarms.js';
 import { startCast, completeCast, invalidateCasts, concentration, castingLocksMovement, slotOccupied } from './casting.js';
 import { awardAndRegenerate } from './spellbooks.js';
 import { compareEntries } from './queue.js';
@@ -41,6 +42,7 @@ function finishTurn(state: GameState, events: Event[]): void {
   state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
+  regrowSwarms(state,events);
   emit(state, events, { type: 'TurnStarted' });
 }
 

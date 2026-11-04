@@ -10,7 +10,7 @@ export type Condition=z.infer<typeof conditionSchema>;
 export const componentSchema=z.strictObject({type:damageTypeSchema,amount:uint});
 export type DamageComponent=z.infer<typeof componentSchema>;
 export const strikeSchema=z.strictObject({skill:uint,crit:z.number().min(0).max(100),components:z.array(componentSchema).min(1),secondary:z.array(secondarySchema)});
-export const attackDefinitionSchema=z.strictObject({id,name:z.string(),mode:z.enum(['melee','projectile','direct','area']),range:uint.min(1),minRange:uint,radius:uint,shots:z.array(strikeSchema).min(1).max(3)});
+export const attackDefinitionSchema=z.strictObject({id,name:z.string(),mode:z.enum(['melee','projectile','direct','area','swarm']),range:uint.min(1),minRange:uint,radius:uint,shots:z.array(strikeSchema).min(1).max(3)});
 export type AttackDefinition=z.infer<typeof attackDefinitionSchema>;
 export const attackActionSchema=z.strictObject({type:z.literal('Attack'),attackId:id,targetIds:z.array(id).max(3),ground:hex.nullable(),side:z.enum(['left','right'])});
 export type AttackAction=z.infer<typeof attackActionSchema>;
@@ -27,7 +27,8 @@ export const pendingAttackSchema=z.strictObject({attackerId:id,action:attackActi
 export const corpseSchema=z.strictObject({id,creatureId:id,centre:hex,size:uint.min(1),con:uint.min(1),maxHp:uint.min(1),fireAcidDamage:uint,skeletal:z.boolean(),restorationUsed:z.boolean()});
 export function staff(): AttackDefinition {return {id:'staff',name:'Staff',mode:'melee',range:1,minRange:0,radius:0,shots:[{skill:4,crit:5,components:[{type:'physical',amount:2}],secondary:[]}]};}
 
-export function validAttackTargets(attack:AttackDefinition,action:AttackAction):boolean {
+export function validAttackTargets(attack:AttackDefinition,action:AttackAction,source:'action'|'guard'='action'):boolean {
+ if(attack.mode==='swarm')return action.ground===null&&action.targetIds.length===(source==='guard'?1:0);
  if(action.ground!==null)return action.targetIds.length===0 && (attack.mode==='area'||attack.mode==='projectile');
  return attack.mode!=='area' && [1,attack.shots.length].includes(action.targetIds.length);
 }

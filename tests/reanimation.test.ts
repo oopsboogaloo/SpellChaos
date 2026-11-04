@@ -8,7 +8,7 @@ import { startCast, completeCast, interruptCast, selectOrigin } from '../package
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 import { damageCorpse, damageMultiplier } from '../packages/engine/src/damage.js';
 import { encodeSnapshot, restoreSnapshot, canonical } from '../packages/persistence/src/snapshot.js';
-import { migrateCastingSnapshot } from '../packages/persistence/src/migration.js';
+import { migrateCastingSnapshot, migrateEnvironmentSnapshot } from '../packages/persistence/src/migration.js';
 import { stateSchema as legacySchema } from '../packages/domain/src/legacy-v4.js';
 import { summonProfile } from '../packages/content/src/summons.js';
 import { projectView } from '../packages/views/src/index.js';
@@ -126,9 +126,9 @@ describe('Reanimate body and casting rules',()=>{
 });
 
 describe('reanimation persistence and permitted views',()=>{
- it.each(['planning','casting','restored'])('preserves the published v5 %s fixture and its continuation',name=>{
+ it.each(['planning','casting','restored'])('explicitly migrates the published v5 %s fixture and preserves continuation',name=>{
   const text=readFileSync(`tests/fixtures/reanimation-v5-${name}.json`,'utf8').trim();
-  const s=restoreSnapshot(text);expect(encodeSnapshot(s)).toBe(text);
+  expect(()=>restoreSnapshot(text)).toThrow();const s=migrateEnvironmentSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   const ready=s.phase==='planning'?start(s):s;expect(run(ready,true)).toEqual(run(ready));
  });
  it('rejects negative or non-finite corpse exposure without changing skeletal state',()=>{
@@ -146,7 +146,7 @@ describe('reanimation persistence and permitted views',()=>{
  it('explicitly migrates the frozen v4 fixture without altering RNG or corpse data',()=>{
   const text=readFileSync('tests/fixtures/casting-v4.json','utf8').trim();const old=legacySchema.parse(JSON.parse(text));
   expect(canonical(old)).toBe(text);expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(5);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
+  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(6);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
   expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   expect(()=>migrateCastingSnapshot(encodeSnapshot(s))).toThrow();
  });

@@ -17,7 +17,7 @@ export function createCreature(id: string, controller: string | null, centre: Cr
     species: overrides.kind === 'wizard' ? 'Wizard' : 'Scenario creature', family: null, summonLevel: overrides.kind === 'wizard' ? 8 : 1, bindingLevel: overrides.kind !== 'wizard' && controller!==null ? 1 : null, familiar: false, createdSequence: 0,
     maxMana: overrides.kind === 'wizard' ? 100 : (overrides.mana ?? 0), manaRegen: overrides.kind === 'wizard' ? 5 : (overrides.mana ? 1 : 0), spellLevelCap: overrides.kind === 'wizard' ? 8 : 0, spellbook: [],
     alive: true, incapacitated: false, restrained: false, slowed: false, subdued: false, doubleAction: false, readyTurn: 1,
-    swarm: false, incorporeal: false, nimble: false,
+    swarm: false, originalSize: overrides.size ?? 2, incorporeal: false, nimble: false,
     con: 5, hp: (overrides.con ?? 5) * (overrides.size ?? 2), maxHp: (overrides.con ?? 5) * (overrides.size ?? 2),
     attacks: [staff()], conditions: [], defences: [], undead: overrides.kind === 'reanimated', undeadClass: overrides.kind === 'reanimated' ? 'zombie' : 'none', construct: false, plant: false, flammable: false,
     packTactics: false, regeneration: 0, regenerationBlockedTurn: null, fireAcidDamage: 0, grappleLimbs: 0, grappleEqualSize: false, corpseEligible: true, restorationUsed: overrides.kind === 'reanimated', reanimationAttackIds: null, ...overrides };
