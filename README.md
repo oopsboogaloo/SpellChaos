@@ -35,12 +35,15 @@ that verifies save/restore at each step. Combat, Guard, conditions and death now
 resolve headlessly; `node tools/run-combat.mjs` demonstrates them. Spellcasting,
 mana, alignment and control now resolve in the same engine. Run
 `node tools/run-casting.mjs` to verify remote casting across turns. The full
-roster and remaining illusion/environment spells are still staged work.
+roster and remaining illusion/environment spells are still staged work. Reanimate
+now resolves against eligible corpses at levels 1–8; run
+`node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 remains
+in progress; wall layout geometry is available but Wall casting is not enabled.
 
 ## Saves
 
-Current saves use schema 4 / rules `casting-0.1` / content `casting-integration-0.1`.
-Foundation schema-1, orders schema-2 and combat schema-3 have explicit migration functions; normal
+Current saves use schema 5 / rules `environment-0.1` / content `reanimation-integration-0.1`.
+Foundation schema-1, orders schema-2, combat schema-3 and casting schema-4 have explicit migration functions; normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -55,3 +58,11 @@ GitHub Actions repeats typechecking, tests and build on pushes and pull requests
 
 No deployment is configured yet. Full content, illusion/environment spells, responsive UI,
 full browser workflow tests and release gates remain in the plan.
+
+
+Schema 4 uses `migrateCastingSnapshot` to upgrade explicitly. Its frozen validators
+and fixtures are retained. The migration preserves random state, orders, pending
+casts and existing combat data while adding body attack selection and restoration
+history; it does not redraw spellbooks. An explicit body attack list excludes
+non-body powers from reanimation (`null` retains all basic attacks; `[]` retains
+none). Full-roster body capability annotations are part of Stage 7.

@@ -8,7 +8,7 @@ export type SpellFamily=z.infer<typeof spellSchema>;
 export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right'])}).superRefine((action,ctx)=>{
  const groundOnly=action.spell.startsWith('Summon ')||action.spell==='Teleport';
  const projectile=action.spell==='Magic Bolt'||action.spell==='Fire Bolt';
- const targeted=['Bind','Release','Disbelief','Magic Attack','Healing Bolt'].includes(action.spell);
+ const targeted=['Bind','Release','Disbelief','Magic Attack','Healing Bolt','Reanimate'].includes(action.spell);
  if((groundOnly&&(action.ground===null||action.targetId!==null)) || (projectile&&((action.ground===null)===(action.targetId===null))) || (targeted&&(action.targetId===null||action.ground!==null)) || (!action.spell.startsWith('Summon ')&&action.variant!=='bound'))ctx.addIssue({code:'custom',message:'INVALID_SPELL_TARGET_OR_VARIANT'});
 });
 export type CastAction=z.infer<typeof castActionSchema>;

@@ -20,7 +20,7 @@ export function createCreature(id: string, controller: string | null, centre: Cr
     swarm: false, incorporeal: false, nimble: false,
     con: 5, hp: (overrides.con ?? 5) * (overrides.size ?? 2), maxHp: (overrides.con ?? 5) * (overrides.size ?? 2),
     attacks: [staff()], conditions: [], defences: [], undead: overrides.kind === 'reanimated', undeadClass: overrides.kind === 'reanimated' ? 'zombie' : 'none', construct: false, plant: false, flammable: false,
-    packTactics: false, regeneration: 0, regenerationBlockedTurn: null, fireAcidDamage: 0, grappleLimbs: 0, grappleEqualSize: false, corpseEligible: true, ...overrides };
+    packTactics: false, regeneration: 0, regenerationBlockedTurn: null, fireAcidDamage: 0, grappleLimbs: 0, grappleEqualSize: false, corpseEligible: true, restorationUsed: overrides.kind === 'reanimated', reanimationAttackIds: null, ...overrides };
 }
 export function createMatch(matchId: string, playerIds: string[], seed: number): GameState {
   const setup = nextRandom(seed).state, resolution = nextRandom(setup).state, ai = nextRandom(resolution).state;

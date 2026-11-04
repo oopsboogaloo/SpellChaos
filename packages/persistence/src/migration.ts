@@ -1,3 +1,4 @@
+import { stateSchema as castingSchema } from '../../domain/src/legacy-v4.js';
 import { stateSchema as combatSchema } from '../../domain/src/legacy-v3.js';
 import { startingBook } from '../../engine/src/spellbooks.js';
 import { stateSchema as legacySchema } from '../../domain/src/legacy-v1.js';
@@ -44,4 +45,16 @@ export function migrateCombatSnapshot(text:string):GameState {
   balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
   creatures:old.creatures.map(c=>createCreature(c.id,c.controller,c.centre,c)),
  }));
+}
+
+/** Explicit v4 -> v5 upgrade; no RNG draws, no silent interpretation under new rules. */
+export function migrateCastingSnapshot(text:string):GameState {
+ const old=castingSchema.parse(JSON.parse(text));
+ return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+  creatures:old.creatures.map(c=>createCreature(c.id,c.controller,c.centre,{...c,
+   reanimationAttackIds:c.family==='Dragon'&&c.summonLevel===1?[]:null,
+   restorationUsed:c.kind==='reanimated'||old.corpses.some(body=>body.creatureId===c.id&&body.restorationUsed),
+  })),
+  corpses:old.corpses.map(c=>({...c,restorationUsed:c.restorationUsed||old.creatures.some(body=>body.id===c.creatureId&&body.kind==='reanimated')})),
+ });
 }

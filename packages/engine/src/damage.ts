@@ -62,6 +62,7 @@ export function heal(s:GameState,c:Creature,amount:number,events:Event[],mode:'o
  if(restored)emit(s,events,{type:'Healed',creatureId:c.id,amount:restored});return restored;
 }
 export function damageCorpse(s:GameState,corpseId:string,components:readonly DamageComponent[]):void {
+ if(components.some(c=>!Number.isSafeInteger(c.amount)||c.amount<0))throw new Error('INVALID_DAMAGE');
  const corpse=s.corpses.find(c=>c.id===corpseId);if(!corpse)throw new Error('UNKNOWN_CORPSE');
  corpse.fireAcidDamage+=components.filter(c=>c.type==='fire'||c.type==='acid').reduce((sum,c)=>sum+c.amount,0);
  corpse.skeletal=corpse.fireAcidDamage>=corpse.maxHp/2;

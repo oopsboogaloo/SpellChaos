@@ -9,6 +9,7 @@ export function projectView(state: GameState, playerId: string) {
     self: { id: player.id, locked: player.locked },
     players: state.players.map(p => ({ id: p.id, locked: p.locked, eliminated: p.eliminated })),
     creatures: state.creatures.filter(c => c.alive).map(c => ({ id: c.id, centre: { ...c.centre }, size: c.size, controller: c.controller, height: c.height, health: health(c), ...(c.controller === playerId ? {hp:c.hp,maxHp:c.maxHp,mana:c.mana,maxMana:c.maxMana,spellbook:[...c.spellbook]} : {}) })),
+    corpses: state.corpses.map(c=>({id:c.id,centre:{...c.centre},size:c.size,skeletal:c.skeletal,restorationUsed:c.restorationUsed})),
     casts: structuredClone(state.casts.filter(c=>c.controller===playerId)),
     orders: structuredClone(state.orders.filter(o => state.creatures.find(c => c.id === o.creatureId)?.controller === playerId)),
     reservations: structuredClone(state.reservations.filter(r => state.creatures.find(c => c.id === r.creatureId)?.controller === playerId)),

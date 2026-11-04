@@ -1,3 +1,4 @@
+import { canReanimate, reanimate } from './reanimation.js';
 import { randomBelow } from '../../domain/src/random.js';
 import type { Creature,GameState,Order } from '../../domain/src/state.js';
 import type { Cast,CastAction,CastingTime } from '../../domain/src/spells.js';
@@ -20,8 +21,13 @@ function allocateId(s:GameState,prefix:string):string {
 }
 const actionPhase=(s:GameState):'early'|'late'=>{if(s.phase!=='early'&&s.phase!=='late')throw new Error('NOT_ACTION_PHASE');return s.phase;};
 const isSummon=(a:CastAction)=>a.spell.startsWith('Summon ');
-const targets=(s:GameState,a:CastAction)=>a.ground?[a.ground]:footprint(s.creatures.find(c=>c.id===a.targetId)!.centre,s.creatures.find(c=>c.id===a.targetId)!.size);
+function targets(s:GameState,a:CastAction) {
+ if(a.ground)return [a.ground];
+ const target=a.spell==='Reanimate'?s.corpses.find(c=>c.id===a.targetId):s.creatures.find(c=>c.id===a.targetId);
+ return target?footprint(target.centre,target.size):[];
+}
 function legalTarget(s:GameState,c:Creature,a:CastAction):boolean {
+ if(a.spell==='Reanimate')return a.targetId!==null&&canReanimate(s,a.targetId,a.level,c.controller);
  if(a.ground)return inside(a.ground,s.board);
  const target=s.creatures.find(t=>t.id===a.targetId);if(!target?.alive)return false;
  if(a.spell==='Healing Bolt')return !target.undead&&target.kind!=='illusion';
@@ -43,7 +49,7 @@ export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if(!isSummon(a)&&a.variant!=='bound')throw new Error('INVALID_SPELL_VARIANT');
  const groundOnly=isSummon(a)||a.spell==='Teleport',projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
  if(groundOnly?(a.ground===null||a.targetId!==null):projectile?(a.ground===null)===(a.targetId===null):(a.targetId===null||a.ground!==null))throw new Error('INVALID_SPELL_TARGET');
- if((a.targetId!==null&&!s.creatures.some(t=>t.id===a.targetId))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
+ if((a.targetId!==null&&!(a.spell==='Reanimate'?s.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
  if(!legalTarget(s,c,a))throw new Error('INVALID_SPELL_TARGET');
  if(a.spell==='Teleport' && (restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,c,a.ground!)||!placement(arenaOf(s),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
  if(a.spell==='Disbelief'&&s.creatures.find(t=>t.id===a.targetId)?.kind==='illusion')throw new Error('ILLUSION_PROVENANCE_NOT_AVAILABLE');
@@ -148,6 +154,9 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
  if(isSummon(a)){
   const creature=createCreature(allocateId(s,'summon'),a.variant==='bound'?cast.controller:null,a.ground!,{...summonProfile(a.spell,a.level)!,readyTurn:s.turn+1,bindingLevel:a.variant==='bound'?a.level:null,createdSequence:s.nextEntityId});
   s.creatures.push(creature);emit(s,events,{type:'CreatureSummoned',creatureId:creature.id});
+ }else if(a.spell==='Reanimate'){
+  const servant=reanimate(s,a.targetId!,a.level,cast.controller,allocateId(s,'reanimated'));
+  emit(s,events,{type:'CreatureReanimated',creatureId:servant.id,targetId:a.targetId!});
  }else if(['Magic Bolt','Fire Bolt','Magic Attack'].includes(a.spell))spellDamage(s,c,origin,a,events);
  else if(a.spell==='Healing Bolt')heal(s,s.creatures.find(t=>t.id===a.targetId)!,a.level+3,events);
  else if(a.spell==='Teleport'){const from={...c.centre};c.centre={...a.ground!};if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});}

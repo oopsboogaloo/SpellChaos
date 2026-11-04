@@ -1,0 +1,243 @@
+{
+  "stage": 6,
+  "status": "in-progress",
+  "scope": "Reanimation and wall-layout primitives only; not full Stage 6 acceptance",
+  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22",
+  "checks": [
+    {
+      "id": "REANIMATE-001",
+      "requirement": "uses Slow casting, level %i cost and binding, and one casting roll",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "uses Slow casting, level %i cost and binding, and one casting roll"
+      ]
+    },
+    {
+      "id": "REANIMATE-002",
+      "requirement": "retains body attacks and wings while stripping poison, mana, familiar, regeneration and escape traits",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "retains body attacks and wings while stripping poison, mana, familiar, regeneration and escape traits"
+      ]
+    },
+    {
+      "id": "REANIMATE-003",
+      "requirement": "skeletons retain Move and Dex after cumulative fire/acid reaches half original HP",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "skeletons retain Move and Dex after cumulative fire/acid reaches half original HP"
+      ]
+    },
+    {
+      "id": "REANIMATE-004",
+      "requirement": "uses explicit body attack selection and does not turn dragonet Spark into an undead power",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "uses explicit body attack selection and does not turn dragonet Spark into an undead power"
+      ]
+    },
+    {
+      "id": "REANIMATE-005",
+      "requirement": "preserves zero movement and rounds positive half statistics down to at least one",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "preserves zero movement and rounds positive half statistics down to at least one"
+      ]
+    },
+    {
+      "id": "REANIMATE-006",
+      "requirement": "does not refresh restoration eligibility on the original or descendant corpse",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "does not refresh restoration eligibility on the original or descendant corpse"
+      ]
+    },
+    {
+      "id": "REANIMATE-007",
+      "requirement": "rejects excluded corpse categories %j",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects excluded corpse categories %j"
+      ]
+    },
+    {
+      "id": "REANIMATE-008",
+      "requirement": "rejects living creatures, unknown corpses, ground targets and corpses above spell level",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects living creatures, unknown corpses, ground targets and corpses above spell level"
+      ]
+    },
+    {
+      "id": "REANIMATE-009",
+      "requirement": "cannot raise eliminated wizards, including with level 8",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "cannot raise eliminated wizards, including with level 8"
+      ]
+    },
+    {
+      "id": "REANIMATE-010",
+      "requirement": "checks whole-footprint placement at planning and completion without relocation",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "checks whole-footprint placement at planning and completion without relocation"
+      ]
+    },
+    {
+      "id": "REANIMATE-011",
+      "requirement": "keeps the opportunity after interruption or a failed casting roll",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "keeps the opportunity after interruption or a failed casting roll"
+      ]
+    },
+    {
+      "id": "REANIMATE-012",
+      "requirement": "allows only the first successful competing cast to consume a corpse",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "allows only the first successful competing cast to consume a corpse"
+      ]
+    },
+    {
+      "id": "REANIMATE-013",
+      "requirement": "uses a real familiar origin and collapses servants on controller death",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "uses a real familiar origin and collapses servants on controller death"
+      ]
+    },
+    {
+      "id": "REANIMATE-014",
+      "requirement": "preserves the published v5 %s fixture and its continuation",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "preserves the published v5 %s fixture and its continuation"
+      ]
+    },
+    {
+      "id": "REANIMATE-015",
+      "requirement": "rejects negative or non-finite corpse exposure without changing skeletal state",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects negative or non-finite corpse exposure without changing skeletal state"
+      ]
+    },
+    {
+      "id": "REANIMATE-016",
+      "requirement": "restores every atomic boundary including late-to-next-turn casting, across seeds",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "restores every atomic boundary including late-to-next-turn casting, across seeds"
+      ]
+    },
+    {
+      "id": "REANIMATE-017",
+      "requirement": "explicitly migrates the frozen v4 fixture without altering RNG or corpse data",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "explicitly migrates the frozen v4 fixture without altering RNG or corpse data"
+      ]
+    },
+    {
+      "id": "REANIMATE-018",
+      "requirement": "rejects malformed body attack references and pending corpse references transactionally",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "rejects malformed body attack references and pending corpse references transactionally"
+      ]
+    },
+    {
+      "id": "REANIMATE-019",
+      "requirement": "exposes corpse targeting information without exact HP, exposure or hidden spell orders",
+      "status": "verified",
+      "testFile": "tests/reanimation.test.ts",
+      "testNames": [
+        "exposes corpse targeting information without exact HP, exposure or hidden spell orders"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-001",
+      "requirement": "distinguishes adjoining edges from opposite edges of the same hex",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "distinguishes adjoining edges from opposite edges of the same hex"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-002",
+      "requirement": "identifies a corner equally from each of the three incident segments",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "identifies a corner equally from each of the three incident segments"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-003",
+      "requirement": "builds a closed radius-%i perimeter with no internal edges",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "builds a closed radius-%i perimeter with no internal edges"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-004",
+      "requirement": "rejects empty, duplicate, disconnected and over-budget layouts",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "rejects empty, duplicate, disconnected and over-budget layouts"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-005",
+      "requirement": "validates footprints, existing segments and board boundary corners",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "validates footprints, existing segments and board boundary corners"
+      ]
+    },
+    {
+      "id": "WALL-LAYOUT-006",
+      "requirement": "is independent of endpoint orientation, input order and translated coordinates",
+      "status": "verified",
+      "testFile": "tests/wall-layout.test.ts",
+      "testNames": [
+        "is independent of endpoint orientation, input order and translated coordinates"
+      ]
+    }
+  ],
+  "browserChecks": [
+    "tests/browser/reanimation.spec.ts"
+  ],
+  "remaining": [
+    "Illusion provenance, reversal and player-specific detection",
+    "Swarm shrinking, regrowth and coverage restraint",
+    "Wall spell casting, hazard movement and structural targeting",
+    "Darkness and Tangleweed",
+    "Full Stage 6 interaction and replay acceptance"
+  ]
+}

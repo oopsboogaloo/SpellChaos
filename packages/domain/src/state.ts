@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 4, rules: 'casting-0.1', content: 'casting-integration-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 5, rules: 'environment-0.1', content: 'reanimation-integration-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -38,7 +38,7 @@ export const creatureSchema = z.strictObject({
   defences: z.array(z.strictObject({type:damageTypeSchema,multiplier:z.union([z.literal(0),z.literal(0.25),z.literal(0.5),z.literal(1.5),z.literal(2)])})),
   undead:z.boolean(), undeadClass:z.enum(['none','zombie','skeleton','higher','exception']), construct:z.boolean(), plant:z.boolean(), flammable:z.boolean(),
   packTactics:z.boolean(), regeneration:uint, regenerationBlockedTurn:uint.nullable(), fireAcidDamage:uint,
-  grappleLimbs:uint, grappleEqualSize:z.boolean(), corpseEligible:z.boolean(),
+  grappleLimbs:uint, grappleEqualSize:z.boolean(), corpseEligible:z.boolean(), restorationUsed:z.boolean(), reanimationAttackIds:z.array(id).nullable(),
 
 });
 export type Creature = z.infer<typeof creatureSchema>;
@@ -109,7 +109,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     const actions = [order.early, order.late].filter(Boolean);
     for(const action of actions)if(action && typeof action==='object'){
       if(action.type==='Cast'){
-        if((action.targetId!==null&&!creatures.includes(action.targetId)) || (action.ground&&!inside(action.ground,state.board)))invalid('INVALID_CAST_TARGET');
+        if((action.targetId!==null&&!(action.spell==='Reanimate'?state.corpses.some(c=>c.id===action.targetId):creatures.includes(action.targetId))) || (action.ground&&!inside(action.ground,state.board)))invalid('INVALID_CAST_TARGET');
       }else if(action.type==='Attack'||action.type==='Guard'){
         const attack=creature.attacks.find(a=>a.id===action.attackId);
         if(!attack)invalid('INVALID_ORDER_ATTACK');
@@ -141,6 +141,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if (['planning','ready','ended'].includes(state.phase) && (state.cursor.entries.length || state.cursor.index || state.cursor.pathIndex)) invalid('UNEXPECTED_CURSOR');
   if (!unique(state.defending.map(d => d.creatureId)) || state.defending.some(d => !creatures.includes(d.creatureId) || !unique(d.phases))) invalid('INVALID_DEFENCE');
   for(const c of state.creatures) {
+    if(c.reanimationAttackIds!==null&&(!unique(c.reanimationAttackIds)||c.reanimationAttackIds.some(id=>!c.attacks.some(a=>a.id===id))))invalid('INVALID_BODY_ATTACKS');
     if(c.mana>c.maxMana || !unique(c.spellbook))invalid('INVALID_MAGIC_RESOURCES');
     if(c.hp>c.maxHp || !unique(c.attacks.map(a=>a.id)) || !unique(c.conditions.map(c=>c.kind))) invalid('INVALID_COMBAT_ENTITY');
     if(c.conditions.some(effect=>effect.sourceId!==null && !creatures.includes(effect.sourceId))) invalid('INVALID_CONDITION_SOURCE');
@@ -158,7 +159,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if(!unique(state.casts.map(c=>c.id)) || !unique(state.casts.map(c=>c.casterId)))invalid('DUPLICATE_CAST');
   for(const cast of state.casts){
     if(!implementedSpells.includes(cast.action.spell)||(cast.action.spell.startsWith('Summon ')&&!summonProfile(cast.action.spell,cast.action.level)))invalid('UNAVAILABLE_CAST_CONTENT');
-    if(!creatures.includes(cast.casterId)||!creatures.includes(cast.originId)||!players.includes(cast.controller)||cast.dueTurn<cast.startedTurn||cast.startedTurn>state.turn||cast.dueTurn<state.turn||(cast.action.targetId!==null&&!creatures.includes(cast.action.targetId)))invalid('INVALID_CAST_REFERENCE');
+    if(!creatures.includes(cast.casterId)||!creatures.includes(cast.originId)||!players.includes(cast.controller)||cast.dueTurn<cast.startedTurn||cast.startedTurn>state.turn||cast.dueTurn<state.turn||(cast.action.targetId!==null&&!(cast.action.spell==='Reanimate'?state.corpses.some(c=>c.id===cast.action.targetId):creatures.includes(cast.action.targetId))))invalid('INVALID_CAST_REFERENCE');
   }
   if(state.castOccupied.some(slot=>!creatures.includes(slot.creatureId)||slot.turn!==state.turn))invalid('INVALID_CAST_SLOT');
   if(state.quickQueue && (!['early','late'].includes(state.phase) || !unique(state.quickQueue) || state.quickQueue.some(id=>!creatures.includes(id))))invalid('INVALID_QUICK_QUEUE');

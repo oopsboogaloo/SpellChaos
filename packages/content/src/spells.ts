@@ -3,7 +3,7 @@ export const guaranteed:SpellFamily[]=['Disbelief','Bind','Release'];
 export const startingPool=spellFamilies.filter(s=>!guaranteed.includes(s));
 export const damageSpells:SpellFamily[]=['Magic Bolt','Fire Bolt','Magic Attack'];
 export const utilitySpells:SpellFamily[]=['Healing Bolt','Teleport','Wall','Tangleweed','Darkness','Reanimate'];
-export const implementedSpells:SpellFamily[]=['Summon Cat','Summon Serpent','Summon Dragon','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport'];
+export const implementedSpells:SpellFamily[]=['Summon Cat','Summon Serpent','Summon Dragon','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport','Reanimate'];
 export function alignment(spell:SpellFamily):number {
  if(['Summon Cat','Summon Plant','Summon Archer','Bind','Healing Bolt','Tangleweed'].includes(spell))return 1;
  if(['Summon Serpent','Summon Goblin','Summon Spirit','Fire Bolt','Darkness','Reanimate'].includes(spell))return -1;

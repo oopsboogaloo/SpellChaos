@@ -10,6 +10,6 @@ export function summonProfile(spell:SpellFamily,level:number):Partial<Creature>|
   const bite=strike('Bite',4,1);
   return {...base,species:'Snake familiar',family:'Serpent',move:3,dex:6,intelligence:2,defences:[{type:'poison',multiplier:.5},{type:'cold',multiplier:1.5}],attacks:[{...bite,shots:[{...bite.shots[0]!,secondary:[{kind:'Poisoned',potency:2,resistance:'con',duration:3,requiresDamage:true}]}]}]};
  }
- if(spell==='Summon Dragon')return {...base,species:'Dragonet familiar',family:'Dragon',move:5,dex:6,intelligence:4,height:'air',defences:[{type:'fire',multiplier:.5},{type:'cold',multiplier:1.5}],attacks:[strike('Spark',4,1,'fire',3)]};
+ if(spell==='Summon Dragon')return {...base,species:'Dragonet familiar',family:'Dragon',move:5,dex:6,intelligence:4,height:'air',reanimationAttackIds:[],defences:[{type:'fire',multiplier:.5},{type:'cold',multiplier:1.5}],attacks:[strike('Spark',4,1,'fire',3)]};
  return null;
 }

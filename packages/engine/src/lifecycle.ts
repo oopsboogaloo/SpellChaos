@@ -13,7 +13,7 @@ export function cleanupDeaths(s:GameState,events:Event[]):void {
   if(!dying.length)break;
   for(const c of dying){
    c.alive=false;s.deadHandled.push(c.id);
-   if(c.corpseEligible && !c.swarm && !c.construct && !c.plant && c.kind!=='illusion')s.corpses.push({id:`corpse:${c.id}`,creatureId:c.id,centre:{...c.centre},size:c.size,con:c.con,maxHp:c.maxHp,fireAcidDamage:c.fireAcidDamage,skeletal:c.fireAcidDamage>=c.maxHp/2,restorationUsed:false});
+   if(c.corpseEligible && !c.swarm && !c.construct && !c.plant && c.kind!=='illusion')s.corpses.push({id:`corpse:${c.id}`,creatureId:c.id,centre:{...c.centre},size:c.size,con:c.con,maxHp:c.maxHp,fireAcidDamage:c.fireAcidDamage,skeletal:c.fireAcidDamage>=c.maxHp/2,restorationUsed:c.restorationUsed});
    s.guards=s.guards.filter(g=>g.creatureId!==c.id);
    s.reservations=s.reservations.filter(r=>r.creatureId!==c.id);
    emit(s,events,{type:'CreatureDied',creatureId:c.id});
