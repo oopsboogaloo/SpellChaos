@@ -65,3 +65,11 @@ outstanding release gates; the existing condensed specification is not that arch
 Checkpoint verification: `pnpm check` passed 505 tests (including 66 roster checks),
 `pnpm build` passed, all nine existing CLI scenarios passed, and Chromium passed
 all 16 tests. The Wall integration fingerprint remains `fnv1a32-v1:7662cfca`.
+
+Attack-trait checkpoint: `attack-traits.ts` now implements the deterministic
+modifier calculation for Aim, Brace, Ambush, Rally and close-range disadvantage.
+Seven focused tests cover boundaries, D08/D18, non-stacking and JSON context
+restoration. This pure calculation is not yet connected to attack resolution:
+phase-local action history and authoritative trait state must be added with the
+next schema migration before these creatures can be enabled. This does not claim
+mid-resolution save coverage for those pending fields.
