@@ -1,3 +1,4 @@
+import { concentration } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
 import type { AttackAction, AttackDefinition } from '../../domain/src/combat.js';
@@ -11,7 +12,7 @@ import { cleanupDeaths } from './lifecycle.js';
 import { emit, type Event } from './events.js';
 import { buildQueue } from './queue.js';
 
-type CombatAction = Exclude<Order['early'],string|null>;
+type CombatAction = Exclude<Order['early'],string|null|{type:'Cast'}>;
 const pair=(a:Creature,b:Creature)=>nearestPair(footprint(a.centre,a.size),footprint(b.centre,b.size));
 const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.controller!==b.controller);
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
@@ -37,9 +38,9 @@ function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:
   (attack.mode!=='melee'||a.height===b.height) && clearSight(p.from,p.to,side,s.walls) &&
   (attack.mode!=='melee'||clearProjectile(p.from,p.to,side,s.walls));
 }
-function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition):[boolean,boolean]{
+export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition):[boolean,boolean]{
  const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
- const advantage=allies.some(x=>a.packTactics||oppositeSectors(b.centre,a.centre,x.centre));
+ const advantage=allies.some(x=>a.packTactics||(pair(a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
  const threatened=attack.mode!=='melee' && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(a,x).distance===1);
  const defended=s.defending.some(d=>d.creatureId===b.id && (s.phase==='movement' ? false : d.phases.includes(s.phase as 'early'|'late')));
  return [advantage,defended||threatened||has(a,'Fear')];
@@ -52,7 +53,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  const p=s.pendingAttack!;const a=s.creatures.find(c=>c.id===p.attackerId)!;
  const attack=a.attacks.find(x=>x.id===p.action.attackId)!;
  if(!active(a)||a.controller===null||p.shotIndex>=attack.shots.length){
-  emit(s,events,{type:'AttackFinished',creatureId:a.id,damageByTarget:p.damageByTarget});s.pendingAttack=null;return true;
+  emit(s,events,{type:'AttackFinished',creatureId:a.id,damageByTarget:p.damageByTarget});concentration(s,p.damageByTarget,events);s.pendingAttack=null;return true;
  }
  const strike=attack.shots[p.shotIndex]!;
  let target:Creature|undefined;
@@ -103,7 +104,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
   c.conditions=c.conditions.filter(e=>e.kind!=='Restrained'||roll(s,effectChance(e.potency,e.resistance==='physical'?2*c.size:c.intelligence)));
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
  }
- if(!action||typeof action==='string')return;
+ if(!action||typeof action==='string'||action.type==='Cast')return;
  if(action.type==='Attack'){beginAttack(s,c,action,'action');return;}
  if(action.type==='Guard'){
   s.guards=s.guards.filter(g=>g.creatureId!==c.id);

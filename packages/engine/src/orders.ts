@@ -1,3 +1,5 @@
+import { validateCast, reservedMana, castingLocksMovement } from './casting.js';
+import { castingTime, completionAt } from '../../content/src/spells.js';
 import { active, incapacitated, slowed, subdued, restrained, fearAllowsStep } from './status.js';
 import { validateCombatAction } from './combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
@@ -23,10 +25,23 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (subdued(c) && order.path.length && actions.length) throw new Error('SUBDUED_BUDGET');
   if (order.path.length > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
   if (order.path.length && restrained(state,c)) throw new Error('RESTRAINED');
-  for (const action of actions) if (typeof action === 'object') validateCombatAction(state,c,action);
+  if(order.path.length && castingLocksMovement(state,c,true))throw new Error('CASTING_IMMOBILE');
+  const existing=state.casts.find(cast=>cast.casterId===c.id);
+  if(existing && subdued(c) && order.path.length)throw new Error('SUBDUED_BUDGET');
+  if(existing && (actions.includes('TotalDefence') || order.early || (order.late && (!c.doubleAction || existing.dueTurn!==state.turn || existing.duePhase!=='early'))))throw new Error('CASTING_OCCUPIES_ACTION');
+  for (const phase of ['early','late'] as const) {
+    const action=order[phase];if(!action||typeof action!=='object')continue;
+    if(action.type==='Cast'){
+      validateCast(state,c,action);
+      const timing=castingTime(action.spell),due=completionAt(state.turn,phase,timing);
+      if(phase==='early' && order.path.length && (due.turn>state.turn||due.phase==='late'))throw new Error('CASTING_IMMOBILE');
+      if(phase==='early' && order.late && (due.turn>state.turn||due.phase==='late'))throw new Error('CASTING_OCCUPIES_ACTION');
+    }else validateCombatAction(state,c,action);
+  }
+  if(reservedMana(order)>c.mana)throw new Error('INSUFFICIENT_MANA');
   // Static terrain is known; moving creatures are rechecked at resolution.
   const arena = { ...arenaOf(state), creatures: [] };
-  let from = c.centre;
+  let from = order.early && typeof order.early==='object' && order.early.type==='Cast' && order.early.spell==='Teleport' ? order.early.ground! : c.centre;
   for (const to of order.path) {
     if (!fearAllowsStep(state,{...c,centre:from},to)) throw new Error('FEAR_APPROACH');
     if (!stepLegality(arena, c, from, to, true).legal) throw new Error('INVALID_PATH');

@@ -265,11 +265,11 @@
     },
     {
       "id": "COMBAT-030",
-      "requirement": "roundtrips permanent multiattack, Guard and end-damage fixtures and continues unchanged",
+      "requirement": "explicitly migrates permanent combat fixtures and continues identically",
       "status": "implemented",
       "testFile": "tests/combat.test.ts",
       "testNames": [
-        "roundtrips permanent multiattack, Guard and end-damage fixtures and continues unchanged"
+        "explicitly migrates permanent combat fixtures and continues identically"
       ]
     },
     {

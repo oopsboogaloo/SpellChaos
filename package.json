@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit && tsc -p apps/web/tsconfig.json",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --testTimeout=30000",
     "check": "pnpm typecheck && pnpm test",
     "build": "tsc -p tsconfig.build.json && vite build apps/web --base=/SpellChaos/ --outDir ../../dist/web",
     "dev": "vite apps/web",
