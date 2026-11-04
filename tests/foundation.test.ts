@@ -59,7 +59,7 @@ describe('portable foundation', () => {
   it('rejects unsupported versions, broken references and inconsistent histories', () => {
     const state = fresh();
     for (const candidate of [
-      { ...state, schemaVersion: 2 }, { ...state, rulesVersion: 'other' },
+      { ...state, schemaVersion: 999 }, { ...state, rulesVersion: 'other' },
       { ...state, players: [state.players[0], state.players[0]] },
       { ...state, phase: 'ready' }, { ...state, revision: 2 },
       { ...state, extra: true }, { ...state, random: { ...state.random, resolution: 0 } },

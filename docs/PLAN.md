@@ -1,10 +1,10 @@
 # Spell Chaos — staged implementation plan
-Version 0.1 · 2 November 2026 · **AWAITING OWNER APPROVAL**
+Version 0.1 · 2 November 2026 · **APPROVED by owner**
 
 ## Authority and execution contract
 The owner approved [DESIGN.md](DESIGN.md), including D01–D22, and requested this plan. The original specification v0.9, its later MVP overrides and those accepted decisions govern implementation. [SPECIFICATION.md](SPECIFICATION.md) remains a condensed reference.
 
-This plan does not begin implementation. After approval, execute stages in order, commit each completed stage to GitHub and provide its reviewable result, checks and remaining limitations. Unless the owner's approval specifies continuous execution, pause after each stage for review before beginning the next. Routine fixes needed to satisfy a stage belong to that stage and need no additional permission.
+The owner approved implementation on 2 November 2026 and delegated routine decisions. Execute stages in order, commit each completed stage to GitHub and provide its reviewable result, checks and remaining limitations. Unless the owner's approval specifies continuous execution, pause after each stage for review before beginning the next. Routine fixes needed to satisfy a stage belong to that stage and need no additional permission.
 
 No subset of the roster or rules is called the complete MVP. All 56 profiles, all 12 non-summoning families, the three summon variants, required devices and mandatory serialization/testing are release requirements. Optional balance tooling is included as an independently runnable stage because the approved design includes it; it never changes game rules or blocks normal play.
 

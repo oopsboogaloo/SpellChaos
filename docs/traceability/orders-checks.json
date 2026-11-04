@@ -1,0 +1,118 @@
+{
+  "stage": 3,
+  "source": "Specification v0.9 Turn structure, actions, planning and serialization; approved design sections3,5,9",
+  "scope": "Stage3 orders and resolver, not combat/spell effects",
+  "checks": [
+    {
+      "id": "ORD-001",
+      "requirement": "Editable drafts, revision/control validation and unordered defaults",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "revises and clears drafts atomically and defaults unordered units to Total Defence",
+        "rejects foreign control, excessive movement, disconnected paths and late Dash without mutation"
+      ]
+    },
+    {
+      "id": "ORD-002",
+      "requirement": "Action and movement budgets",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "enforces ordinary/Double Action, Subdued and Total Defence whole-turn budgets",
+        "halves positive Slowed movement, preserves zero and prevents restrained movement",
+        "grants Dash movement only after its early action resolves"
+      ]
+    },
+    {
+      "id": "ORD-003",
+      "requirement": "Full-phase defence flags",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "applies Defend for the entire chosen phase before its initiative"
+      ]
+    },
+    {
+      "id": "ORD-004",
+      "requirement": "Resource reservations",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "reserves, replaces and cancels resources without overspending or mutating the prior ledger"
+      ]
+    },
+    {
+      "id": "ORD-005",
+      "requirement": "Phase snapshots and initiative",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "uses Dex, smaller Size and wizard proximity for action initiative",
+        "uses Move, larger Size and proximity for movement; Slowed then Quick come last",
+        "assigns unique random ties independently of source-array order",
+        "snapshots wizard distances at each phase beginning and retains an already-built queue"
+      ]
+    },
+    {
+      "id": "ORD-006",
+      "requirement": "Complete-path collision resolution",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "resolves whole paths in movement order and stops before a still-occupied cell",
+        "does not swap allied creatures and permits paths into space vacated by a faster creature"
+      ]
+    },
+    {
+      "id": "ORD-007",
+      "requirement": "Actor eligibility",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "skips not-yet-ready and incapacitated creatures without granting default defence",
+        "skips a summon that dies after the phase queue snapshot without changing order"
+      ]
+    },
+    {
+      "id": "ORD-008",
+      "requirement": "Hidden draft information",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "does not expose opponents drafts, reservations or random queue keys"
+      ]
+    },
+    {
+      "id": "ORD-009",
+      "requirement": "Portable atomic continuation",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "restores at every atomic boundary with identical events, random state and outcome",
+        "rejects corrupted mid-resolution cursor and unsupported saved actions",
+        "loads permanent planning and mid-movement fixtures without changing their encoding"
+      ]
+    },
+    {
+      "id": "ORD-010",
+      "requirement": "Planning timer and participation",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "uses explicit clock deadlines, supports disabled timers and ignores lock/deadline races",
+        "auto-locks the latest draft at deadline and resets missed turns on participation"
+      ]
+    },
+    {
+      "id": "ORD-011",
+      "requirement": "Third missed-turn surrender",
+      "status": "implemented",
+      "testFile": "tests/orders.test.ts",
+      "testNames": [
+        "surrenders on the third consecutive miss, unbinds summons and collapses servants/illusions",
+        "produces a draw when all remaining players surrender together"
+      ]
+    }
+  ]
+}
