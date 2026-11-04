@@ -1,3 +1,4 @@
+import { stateSchema as darknessSchema } from '../../domain/src/legacy-v8.js';
 import { stateSchema as illusionSchema } from '../../domain/src/legacy-v7.js';
 import { stateSchema as swarmSchema } from '../../domain/src/legacy-v6.js';
 import type { Creature } from '../../domain/src/state.js';
@@ -33,7 +34,7 @@ export function migrateOrdersSnapshot(text: string): GameState {
     creatures: old.creatures.map(c => createCreature(c.id,c.controller,c.centre,{...c,...(!c.alive?{hp:-5*c.size}:{})})),
     walls: old.walls.map(w => {const hp=5+3*(['wood','stone','iron','crystal','thorns','fire','energy','death'].indexOf(w.material)+1);return {...w,hp,maxHp:hp,burning:null};}),
     cursor: {...old.cursor,lastRestingCentre:null},
-    darkness:[],damageLedger:[],balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
+    tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
     guards:[],holds:[],reactions:[],pendingAttack:null,spentActions:[],moved:[],corpses:[],deadHandled:[],endStep:0,
   };
   return fillBooks(stateSchema.parse(next));
@@ -46,7 +47,7 @@ function fillBooks(s:GameState):GameState {
 /** Explicit upgrade; legacy combat snapshots and their validators are immutable. */
 export function migrateCombatSnapshot(text:string):GameState {
  const old=combatSchema.parse(JSON.parse(text));
- return fillBooks(stateSchema.parse({...old,darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return fillBooks(stateSchema.parse({...old,tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
   creatures:old.creatures.map(upgradeCreature),
  }));
@@ -55,7 +56,7 @@ export function migrateCombatSnapshot(text:string):GameState {
 /** Explicit v4 -> current upgrade; no RNG draws, no silent interpretation under new rules. */
 export function migrateCastingSnapshot(text:string):GameState {
  const old=castingSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return stateSchema.parse({...old,tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   creatures:old.creatures.map(c=>upgradeCreature({...c,
    reanimationAttackIds:c.family==='Dragon'&&c.summonLevel===1?[]:null,
    restorationUsed:c.kind==='reanimated'||old.corpses.some(body=>body.creatureId===c.id&&body.restorationUsed),
@@ -67,7 +68,7 @@ export function migrateCastingSnapshot(text:string):GameState {
 /** The v5 engine never resized swarms; their stored Size becomes originalSize. */
 export function migrateEnvironmentSnapshot(text:string):GameState {
  const old=environmentSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return stateSchema.parse({...old,tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   creatures:old.creatures.map(upgradeCreature),
  });
 }
@@ -79,7 +80,7 @@ function upgradeCreature(c:Pick<Creature,'id'|'controller'|'centre'> & Partial<O
 export function migrateSwarmSnapshot(text:string):GameState {
  const old=swarmSchema.parse(JSON.parse(text));
  return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
-  darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,
+  tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,
   creatures:old.creatures.map(upgradeCreature),
  });
 }
@@ -87,6 +88,17 @@ export function migrateSwarmSnapshot(text:string):GameState {
 /** Explicit v7 upgrade: no Darkness existed in these saves; RNG and pending work survive. */
 export function migrateIllusionSnapshot(text:string):GameState {
  const old=illusionSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,darkness:[],
+ return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],
  creatures:old.creatures.map(c=>({...c,darknessSightRange:0,ignoresDarknessDisadvantage:false}))});
+}
+
+function legacyMovement(old:{phase:string;cursor:{index:number;pathIndex:number;entries:{creatureId:string}[]}}){
+ const actor=old.cursor.entries[old.cursor.index];
+ return old.phase==='movement'&&actor&&old.cursor.pathIndex>0?[{creatureId:actor.creatureId,amount:old.cursor.pathIndex}]:[];
+}
+/** V8 had unit-cost movement; preserve the active actor's already paid steps. */
+export function migrateDarknessSnapshot(text:string):GameState {
+ const old=darknessSchema.parse(JSON.parse(text));
+ return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old)});
 }

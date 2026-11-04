@@ -1,3 +1,4 @@
+import { weedStepCost,contactWeed,pruneWeedHolds } from './tangleweed.js';
 import { regrowSwarms } from './swarms.js';
 import { startCast, completeCast, invalidateCasts, concentration, castingLocksMovement, slotOccupied } from './casting.js';
 import { awardAndRegenerate } from './spellbooks.js';
@@ -39,6 +40,7 @@ function finishPhase(state: GameState, events: Event[]): void {
 }
 function finishTurn(state: GameState, events: Event[]): void {
   awardAndRegenerate(state); state.castOccupied=[]; state.quickQueue=null;
+  state.weedAttempts=[];state.movementSpent=[];
   state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
@@ -79,7 +81,7 @@ export function advanceAtomicStep(state: GameState): Transition {
     const order = next.orders.find(o => o.creatureId === c.id) ?? defaultOrder(c.id);
     const advanceActor = () => {
       if(next.phase === 'movement' && c.alive && next.cursor.lastRestingCentre && !placement(arenaOf(next),c,c.centre).legal) {
-        const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre}; emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
+        const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};pruneWeedHolds(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
       next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null; };
     if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (restrained(next,c) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
@@ -92,14 +94,17 @@ export function advanceAtomicStep(state: GameState): Transition {
       } else if (next.cursor.pathIndex >= next.cursor.activePath.length) advanceActor();
       else {
         const to = next.cursor.activePath[next.cursor.pathIndex]!;
-        if (!fearAllowsStep(next,c,to) || next.cursor.pathIndex >= movementAllowance(c,order) || !stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal) {
+        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+weedStepCost(next,c,to)>movementAllowance(c,order) || !stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal) {
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
           if(!next.moved.includes(c.id)) next.moved.push(c.id);
+          const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=weedStepCost(next,c,to);
+          if(paid)paid.amount+=cost;else next.movementSpent.push({creatureId:c.id,amount:cost});
           const from = { ...c.centre }; c.centre = { ...to }; next.cursor.pathIndex++;
           if(placement(arenaOf(next),c,c.centre).legal) next.cursor.lastRestingCentre = {...c.centre};
           enqueueGuards(next,c,from);
           emit(next, events, { type: 'CreatureMoved', creatureId: c.id, from, to: { ...to } });
+          contactWeed(next,c,events);
         }
       }
     } else {

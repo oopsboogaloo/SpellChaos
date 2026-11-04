@@ -10,6 +10,7 @@ export function projectView(state: GameState, playerId: string) {
     matchId: state.matchId, turn: state.turn, phase: state.phase, balance: state.balanceUnits/2,
     self: { id: player.id, locked: player.locked },
     players: state.players.map(p => ({ id: p.id, locked: p.locked, eliminated: p.eliminated })),
+    tangleweed:structuredClone(state.tangleweed.map(({casterId:_caster,...w})=>w)),
     darkness: structuredClone(state.darkness.map(({casterId:_caster,...d})=>d)),
     creatures: state.creatures.filter(c => c.alive&&visibleTo(state,c,playerId)).map(c => ({ id: c.id, centre: { ...c.centre }, size: c.size, controller: c.controller, height: c.height, species:c.species, family:c.family, stats:{con:c.con,dex:c.dex,intelligence:c.intelligence,move:c.move,maxHp:c.maxHp}, attacks:structuredClone(c.attacks), defences:structuredClone(c.defences), ...(knowsIllusion(c,playerId)?{illusion:true}:{}), health: health(c), restrained: restrained(state,c), ...(c.controller === playerId ? {hp:c.hp,maxHp:c.maxHp,mana:c.mana,maxMana:c.maxMana,spellbook:[...c.spellbook]} : {}) })),
     corpses: state.corpses.filter(body=>visibleTo(state,{...state.creatures.find(c=>c.id===body.creatureId)!,centre:body.centre,size:body.size},playerId)).map(c=>({id:c.id,centre:{...c.centre},size:c.size,skeletal:c.skeletal,restorationUsed:c.restorationUsed})),

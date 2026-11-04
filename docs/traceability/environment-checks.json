@@ -966,17 +966,242 @@
       "testNames": [
         "blocks Magic Attack family spread into Darkness"
       ]
+    },
+    {
+      "id": "TANGLEWEED-001",
+      "requirement": "rejects disconnected, repeated, missing, off-board and wrong-count cells",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "rejects disconnected, repeated, missing, off-board and wrong-count cells"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-002",
+      "requirement": "requires every cell in range and sight of one origin and cannot grow through solid walls",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "requires every cell in range and sight of one origin and cannot grow through solid walls"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-003",
+      "requirement": "fails an already-paid cast when a new wall invalidates placement",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "fails an already-paid cast when a new wall invalidates placement"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-004",
+      "requirement": "accepts occupied hexes and restrains an allied mindless creature on creation",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "accepts occupied hexes and restrains an allied mindless creature on creation"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-005",
+      "requirement": "doubles cost once per large footprint and ignores airborne creatures",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "doubles cost once per large footprint and ignores airborne creatures"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-006",
+      "requirement": "rejects plans exceeding the terrain-adjusted budget",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "rejects plans exceeding the terrain-adjusted budget"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-007",
+      "requirement": "records movement cost and restores a partially traversed path exactly",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "records movement cost and restores a partially traversed path exactly"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-008",
+      "requirement": "attempts at most once per turn across patches and re-entry",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "attempts at most once per turn across patches and re-entry"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-009",
+      "requirement": "chooses the strongest overlapping patch and then a stable ID",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "chooses the strongest overlapping patch and then a stable ID"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-010",
+      "requirement": "escapes weed separately while another restraint remains",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "escapes weed separately while another restraint remains"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-011",
+      "requirement": "forces entry checks but ignores flight and releases a hold when forced out",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "forces entry checks but ignores flight and releases a hold when forced out"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-012",
+      "requirement": "removes holds on expiry and caster death without removing other conditions",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "removes holds on expiry and caster death without removing other conditions"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-013",
+      "requirement": "damages each intersected cell once and releases a destroyed holding cell",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "damages each intersected cell once and releases a destroyed holding cell"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-014",
+      "requirement": "ignores illusion damage and rejects invalid components or unknown sources",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "ignores illusion damage and rejects invalid components or unknown sources"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-015",
+      "requirement": "lets Fire Bolt hit ground weed, but an intervening creature intercepts it",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "lets Fire Bolt hit ground weed, but an intervening creature intercepts it"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-016",
+      "requirement": "damages weed with an arcing area only once per shot across saved victim steps",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "damages weed with an arcing area only once per shot across saved victim steps"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-017",
+      "requirement": "rejects malformed terrain, hold and movement references without changing the original",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "rejects malformed terrain, hold and movement references without changing the original"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-018",
+      "requirement": "migrates v8 cloud state and v2 movement cost explicitly",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "migrates v8 cloud state and v2 movement cost explicitly"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-019",
+      "requirement": "restores every atomic boundary for generated casts and seeds",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "restores every atomic boundary for generated casts and seeds"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-020",
+      "requirement": "does not retry old standing contacts when a new patch is cast elsewhere",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "does not retry old standing contacts when a new patch is cast elsewhere"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-021",
+      "requirement": "checks a new summon\u2019s contact without granting it an action",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "checks a new summon\u2019s contact without granting it an action"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-022",
+      "requirement": "teleporting into weed checks restraint without a Guard reaction",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "teleporting into weed checks restraint without a Guard reaction"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-023",
+      "requirement": "preserves spent movement even if the remaining terrain is destroyed mid-path",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "preserves spent movement even if the remaining terrain is destroyed mid-path"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-024",
+      "requirement": "implements level %i connected placement, Slow timing, HP, cost and expiry",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "implements level %i connected placement, Slow timing, HP, cost and expiry"
+      ]
+    },
+    {
+      "id": "TANGLEWEED-025",
+      "requirement": "preserves the immutable v9 %s fixture and continues identically",
+      "status": "verified",
+      "testFile": "tests/tangleweed.test.ts",
+      "testNames": [
+        "preserves the immutable v9 %s fixture and continues identically"
+      ]
     }
   ],
   "browserChecks": [
     "tests/browser/reanimation.spec.ts",
     "tests/browser/swarms.spec.ts",
     "tests/browser/illusions.spec.ts",
-    "tests/browser/darkness.spec.ts"
+    "tests/browser/darkness.spec.ts",
+    "tests/browser/tangleweed.spec.ts"
   ],
   "remaining": [
     "Wall spell casting, hazard movement and structural targeting",
-    "Tangleweed",
     "Full Stage 6 interaction and replay acceptance"
   ]
 }

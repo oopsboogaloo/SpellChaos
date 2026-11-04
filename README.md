@@ -45,8 +45,8 @@ legal regrowth, coverage restraint and per-enemy attacks. Run
 
 ## Saves
 
-Current saves use schema 8 / rules `environment-0.4` / content `darkness-integration-0.1`.
-Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 swarm schema-6 and illusion schema-7 have explicit migration functions; normal
+Current saves use schema 9 / rules `environment-0.5` / content `tangleweed-integration-0.1`.
+Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 swarm schema-6 illusion schema-7 and Darkness schema-8 have explicit migration functions; normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -86,7 +86,7 @@ illusion knowledge are portable state. Schema 6 upgrades explicitly through
 did not enable illusion casting. Schema-6 fixtures and validators remain frozen.
 Player events omit authoritative sequence numbers to avoid revealing private
 notifications through gaps; their array order is the permitted playback order.
-Wall casting and Tangleweed remain Stage 6 work.
+Wall casting, material hazards and direct structural targeting remain Stage 6 work.
 
 ### Darkness checkpoint
 
@@ -99,3 +99,15 @@ Schema 7 upgrades explicitly through `migrateIllusionSnapshot`; it adds no cloud
 and preserves RNG, wounds and pending work. Three immutable schema-8 fixtures
 cover planning, Quick casting and an active cloud. Full roster vision abilities
 and the playable browser interface remain later stages.
+
+### Tangleweed checkpoint
+
+All eight Tangleweed levels support connected placement, Slow completion,
+terrain-adjusted movement, physical restraint and Escape, expiry and caster-death
+cleanup. Each hex has its own HP. Ground projectiles/bolts and area attacks can
+destroy weed; illusions cannot. Melee structural targeting remains with the Wall
+checkpoint. Owners receive the existing permitted view of restrained creatures.
+Run `node tools/run-tangleweed.mjs` after building for the combined replay.
+Schema 8 upgrades explicitly through `migrateDarknessSnapshot`; prior movement
+steps become already-spent movement points. Five immutable schema-9 fixtures
+exercise planning, casting, paid movement, a hold and a pending attack.

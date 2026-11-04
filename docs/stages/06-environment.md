@@ -1,6 +1,6 @@
 # Stage 6 — in progress
 
-Current checkpoint: Reanimate, swarms, illusion provenance/Disbelief, Darkness and wall-layout geometry. 4 November 2026.
+Current checkpoint: Reanimate, swarms, illusion provenance/Disbelief, Darkness, Tangleweed and wall-layout geometry. 4 November 2026.
 
 The initial reanimation checkpoint below is historical; the swarm increment and
 later increments and latest verification are recorded below.
@@ -290,3 +290,64 @@ Validation: `pnpm check` passed 351 tests; production build passed; all seven
 headless CLI scenarios passed. Chromium passed 14 tests, including Node/browser
 Darkness replay parity. CI runs these same checks; this remains an engine
 checkpoint, not a full gameplay or release acceptance report.
+
+### Tangleweed decisions before implementation
+
+R22: Choose exactly L distinct, connected hexes, with the first as the aiming
+anchor. One locked origin must have range 8 and sight to every hex. Connections
+cannot grow through solid walls. Existing creatures do not invalidate placement.
+Each patch persists through turn T+L, has 3L HP per hex, and ends on caster death.
+Overlapping patches retain independent HP and duration.
+
+R23: A grounded creature pays 2 movement points for a step whose destination
+footprint touches any living weed hex, regardless of footprint size or overlap.
+Flying creatures pay the ordinary cost. Paid movement is serialized separately
+from path index so changing terrain cannot retroactively change spent movement.
+
+R24: Weed attempts restraint on creation beneath a grounded creature and on entry
+(including teleport/forced entry), at most once per creature per turn across all
+patches. Resolve multiple patches by highest level, then stable patch ID; choose
+the first covered hex in canonical coordinate order. Apply potency L against
+2×Size, including mindless creatures and allies. Standing still alone does not
+retry. Escape contests the retained patch's potency against physical resistance;
+it removes only that weed hold. Expiry, caster death, destruction of the holding
+hex, leaving coverage or becoming airborne releases the hold. Other restraints
+remain intact. This contact rule also applies to grounded incorporeal creatures:
+Tangleweed is magical restraint.
+
+R25: Weed is destructible spell terrain with no additional damage defence.
+Ground-targeted bolts/projectiles may damage it if no creature or wall intercepts;
+area attacks damage each intersected weed hex once per shot, with no critical or
+resistance roll for terrain. Illusions cannot damage it. Direct melee structural
+targeting is delivered with the remaining Wall/structure work.
+
+
+### Tangleweed implementation checkpoint
+
+Implemented the eight levels, connected layouts, a single locked origin with
+range/sight to every hex, Slow timing, per-hex HP, duration and caster cleanup.
+Grounded footprints pay double movement cost once per step; paid movement is
+stored independently from path index. Contact includes creation, voluntary
+movement, teleport, forced movement, summoning and reanimation. Once-per-turn
+attempts and source-specific holds survive snapshots. Escape and terrain removal
+preserve unrelated restraints. Airborne creatures ignore weed contact and cost.
+
+Ground-targeted bolts/projectiles respect creature and wall interception before
+damaging weed. Area damage touches each terrain hex once per shot, including
+multi-victim attacks resumed between victims. Illusions cannot damage terrain.
+Direct melee structural targeting remains outstanding with Wall implementation.
+
+Schema 9 / rules `environment-0.5` / content `tangleweed-integration-0.1` adds
+patches, attempts, holds and spent movement. `migrateDarknessSnapshot` explicitly
+upgrades schema 8 and preserves any already-paid unit-cost steps. Earlier
+migrations also preserve those steps. Frozen validators/fixtures remain intact.
+Five schema-9 fixtures cover planning, casting, movement, restraint and attacks.
+The combined CLI runs 32 atomic steps, ending with two patches and one of the
+new patch's hexes destroyed; fingerprint `fnv1a32-v1:2a3f5844`.
+
+Local verification: `pnpm check` passed 387 tests, Chromium passed 15 tests,
+including Node/browser Tangleweed parity, and the production build passed.
+Wall casting/material hazards, direct structural targeting and final combined
+Stage 6 acceptance remain. The verbatim source archive is still outstanding;
+this is an engine checkpoint, not the finished MVP or a deployed release.
+All eight headless CLI scenarios also passed against this production build.

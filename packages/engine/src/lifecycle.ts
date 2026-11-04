@@ -1,3 +1,4 @@
+import { pruneWeedHolds } from './tangleweed.js';
 import { invalidateCasts } from './casting.js';
 import type { GameState } from '../../domain/src/state.js';
 import { emit,type Event } from './events.js';
@@ -15,7 +16,7 @@ export function cleanupDeaths(s:GameState,events:Event[]):void {
   // Freeze the whole lethal batch before reversing any damage: shock deaths stay dead.
   for(const c of dying)c.alive=false;
   for(const c of dying){
-   c.alive=false;s.deadHandled.push(c.id);s.darkness=s.darkness.filter(d=>d.casterId!==c.id);
+   c.alive=false;s.deadHandled.push(c.id);s.darkness=s.darkness.filter(d=>d.casterId!==c.id);s.tangleweed=s.tangleweed.filter(w=>w.casterId!==c.id);pruneWeedHolds(s);
    if(c.corpseEligible && !c.swarm && !c.construct && !c.plant && c.kind!=='illusion')s.corpses.push({id:`corpse:${c.id}`,creatureId:c.id,centre:{...c.centre},size:c.size,con:c.con,maxHp:c.maxHp,fireAcidDamage:c.fireAcidDamage,skeletal:c.fireAcidDamage>=c.maxHp/2,restorationUsed:c.restorationUsed});
    s.guards=s.guards.filter(g=>g.creatureId!==c.id);
    s.reservations=s.reservations.filter(r=>r.creatureId!==c.id);
@@ -68,6 +69,7 @@ export function recover(s:GameState,events:Event[]):void {
 }
 export function expireConditions(s:GameState):void {
  s.darkness=s.darkness.filter(d=>d.endsTurn>s.turn);
+ s.tangleweed=s.tangleweed.filter(w=>w.endsTurn>s.turn);pruneWeedHolds(s);
  for(const c of s.creatures)c.conditions=c.conditions.filter(e=>e.endsTurn===null||e.endsTurn>s.turn);
  for(const wall of s.walls)if(wall.burning && wall.burning.endsTurn<=s.turn)wall.burning=null;
  releaseBrokenHolds(s);

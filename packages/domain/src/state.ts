@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 8, rules: 'environment-0.4', content: 'darkness-integration-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 9, rules: 'environment-0.5', content: 'tangleweed-integration-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -51,6 +51,9 @@ export const rawStateSchema = z.strictObject({
   matchId: id, revision: uint, eventSequence: uint, turn: uint.min(1),
   phase: z.enum(['planning', 'ready', 'early', 'movement', 'late', 'end', 'ended']),
   random: z.strictObject({ setup: rngState, resolution: rngState, ai: rngState }),
+  tangleweed:z.array(z.strictObject({id,casterId:id,level:z.number().int().min(1).max(8),createdTurn:uint.min(1),endsTurn:uint.min(1),cells:z.array(z.strictObject({hex:hexSchema,hp:uint.min(1)})).min(1).max(8)})),
+  weedAttempts:z.array(id),weedHolds:z.array(z.strictObject({creatureId:id,patchId:id,hex:hexSchema})),
+  movementSpent:z.array(z.strictObject({creatureId:id,amount:uint})),
   darkness:z.array(z.strictObject({id,casterId:id,centre:hexSchema,level:z.number().int().min(1).max(8),createdTurn:uint.min(1),endsTurn:uint.min(1)})),
   damageLedger:z.array(damageRecordSchema),
   balanceUnits:z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER), casts:z.array(castSchema), castOccupied:z.array(occupiedSlotSchema), quickQueue:z.array(id).nullable(), nextEntityId:uint,
@@ -73,6 +76,10 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   const players = state.players.map(p => p.id), creatures = state.creatures.map(c => c.id);
   if (!unique(players) || players.includes('$system')) invalid('INVALID_PLAYERS');
   if (!unique(creatures)) invalid('DUPLICATE_CREATURE');
+  if(!unique(state.tangleweed.map(w=>w.id))||!unique(state.weedAttempts)||!unique(state.weedHolds.map(h=>h.creatureId))||!unique(state.movementSpent.map(m=>m.creatureId)))invalid('DUPLICATE_WEED_OR_MOVEMENT');
+  for(const w of state.tangleweed)if(!creatures.includes(w.casterId)||w.createdTurn>state.turn||w.endsTurn!==w.createdTurn+w.level||w.cells.length>w.level||!unique(w.cells.map(c=>`${c.hex.q},${c.hex.r}`))||w.cells.some(c=>!inside(c.hex,state.board)||c.hp>3*w.level))invalid('INVALID_TANGLEWEED');
+  for(const h of state.weedHolds)if(!creatures.includes(h.creatureId)||!state.tangleweed.some(w=>w.id===h.patchId&&w.cells.some(c=>distance(c.hex,h.hex)===0)))invalid('INVALID_WEED_HOLD');
+  if(state.weedAttempts.some(id=>!creatures.includes(id))||state.movementSpent.some(m=>!creatures.includes(m.creatureId)))invalid('INVALID_WEED_OR_MOVEMENT_REFERENCE');
   if (!unique(state.darkness.map(d=>d.id))) invalid('DUPLICATE_DARKNESS');
   for(const d of state.darkness)if(!creatures.includes(d.casterId)||!inside(d.centre,state.board)||d.createdTurn>state.turn||d.endsTurn!==d.createdTurn+d.level)invalid('INVALID_DARKNESS');
   if (!unique(state.walls.map(w => w.id))) invalid('DUPLICATE_WALL');
@@ -114,7 +121,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     const actions = [order.early, order.late].filter(Boolean);
     for(const action of actions)if(action && typeof action==='object'){
       if(action.type==='Cast'){
-        if((action.targetId!==null&&!(action.spell==='Reanimate'?state.corpses.some(c=>c.id===action.targetId):creatures.includes(action.targetId))) || (action.ground&&!inside(action.ground,state.board)))invalid('INVALID_CAST_TARGET');
+        if((action.targetId!==null&&!(action.spell==='Reanimate'?state.corpses.some(c=>c.id===action.targetId):creatures.includes(action.targetId))) || (action.ground&&!inside(action.ground,state.board))||action.hexes?.some(h=>!inside(h,state.board)))invalid('INVALID_CAST_TARGET');
       }else if(action.type==='Attack'||action.type==='Guard'){
         const attack=creature.attacks.find(a=>a.id===action.attackId);
         if(!attack)invalid('INVALID_ORDER_ATTACK');
@@ -173,6 +180,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if(!unique(state.casts.map(c=>c.id)) || !unique(state.casts.map(c=>c.casterId)))invalid('DUPLICATE_CAST');
   for(const cast of state.casts){
     if(!implementedSpells.includes(cast.action.spell)||(cast.action.spell.startsWith('Summon ')&&!summonProfile(cast.action.spell,cast.action.level)))invalid('UNAVAILABLE_CAST_CONTENT');
+    if(cast.action.hexes?.some(h=>!inside(h,state.board)))invalid('INVALID_CAST_LAYOUT');
     if(!creatures.includes(cast.casterId)||!creatures.includes(cast.originId)||!players.includes(cast.controller)||cast.dueTurn<cast.startedTurn||cast.startedTurn>state.turn||cast.dueTurn<state.turn||(cast.action.targetId!==null&&!(cast.action.spell==='Reanimate'?state.corpses.some(c=>c.id===cast.action.targetId):creatures.includes(cast.action.targetId))))invalid('INVALID_CAST_REFERENCE');
   }
   if(state.castOccupied.some(slot=>!creatures.includes(slot.creatureId)||slot.turn!==state.turn))invalid('INVALID_CAST_SLOT');

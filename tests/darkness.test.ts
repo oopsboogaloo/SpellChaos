@@ -9,7 +9,7 @@ import { darkAt,sight,visibleTo } from '../packages/engine/src/visibility.js';
 import { emit,type Event } from '../packages/engine/src/events.js';
 import { projectView,projectEvents } from '../packages/views/src/index.js';
 import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snapshot.js';
-import { migrateIllusionSnapshot } from '../packages/persistence/src/migration.js';
+import { migrateIllusionSnapshot,migrateDarknessSnapshot } from '../packages/persistence/src/migration.js';
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 import { startScenarioTurn } from '../packages/scenario/src/casting.js';
 import { manaCost,spellRange,castingTime,alignment } from '../packages/content/src/spells.js';
@@ -113,7 +113,7 @@ describe('Darkness interaction regressions',()=>{
 });
 
  it.each(['planning','casting','active'])('retains the immutable v8 %s fixture and resumes every boundary exactly',name=>{
-  const text=readFileSync(`tests/fixtures/darkness-v8-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(encodeSnapshot(s)).toBe(text);
+  const text=readFileSync(`tests/fixtures/darkness-v8-${name}.json`,'utf8').trim(),s=migrateDarknessSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
  });
  it('blocks Magic Attack family spread into Darkness',()=>{

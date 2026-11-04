@@ -1,12 +1,18 @@
 import { z } from 'zod';
+import { distance } from '../../geometry/src/hex.js';
 const id=z.string().min(1).max(128),uint=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const hex=z.strictObject({q:z.number().int().min(-100000).max(100000),r:z.number().int().min(-100000).max(100000)});
 export const summonFamilies=['Cat','Serpent','Goblin','Dragon','Spirit','Plant','Archer'] as const;
 export const spellFamilies=['Summon Cat','Summon Serpent','Summon Goblin','Summon Dragon','Summon Spirit','Summon Plant','Summon Archer','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport','Wall','Tangleweed','Darkness','Reanimate'] as const;
 export const spellSchema=z.enum(spellFamilies);
 export type SpellFamily=z.infer<typeof spellSchema>;
-export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound','illusion']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right'])}).superRefine((action,ctx)=>{
- const groundOnly=action.spell.startsWith('Summon ')||['Teleport','Darkness'].includes(action.spell);
+export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound','illusion']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right']),hexes:z.array(hex).min(1).max(8).optional()}).superRefine((action,ctx)=>{
+ if(action.spell==='Tangleweed'){
+  const cells=action.hexes??[],seen=new Set<number>([0]);
+  for(let i=0;i<cells.length;i++)for(let j=0;j<cells.length;j++)if([...seen].some(k=>cells[k]&&distance(cells[k]!,cells[j]!)===1))seen.add(j);
+  if(cells.length!==action.level||new Set(cells.map(h=>`${h.q},${h.r}`)).size!==cells.length||seen.size!==cells.length||!action.ground||!cells[0]||distance(action.ground,cells[0])!==0)ctx.addIssue({code:'custom',message:'INVALID_WEED_LAYOUT'});
+ }else if(action.hexes!==undefined)ctx.addIssue({code:'custom',message:'UNEXPECTED_HEX_LAYOUT'});
+ const groundOnly=action.spell.startsWith('Summon ')||['Teleport','Darkness','Tangleweed'].includes(action.spell);
  const projectile=action.spell==='Magic Bolt'||action.spell==='Fire Bolt';
  const targeted=['Bind','Release','Disbelief','Magic Attack','Healing Bolt','Reanimate'].includes(action.spell);
  if((groundOnly&&(action.ground===null||action.targetId!==null)) || (projectile&&((action.ground===null)===(action.targetId===null))) || (targeted&&(action.targetId===null||action.ground!==null)) || (!action.spell.startsWith('Summon ')&&action.variant!=='bound'))ctx.addIssue({code:'custom',message:'INVALID_SPELL_TARGET_OR_VARIANT'});

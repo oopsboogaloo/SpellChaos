@@ -1,3 +1,4 @@
+import { escapeWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
 import { concentration } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
@@ -73,7 +74,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(origin.distance<attack.minRange||origin.distance>attack.range||!clearProjectile(origin.from,ground,p.action.side,s.walls,true)){
    emit(s,events,{type:'AttackInvalid',creatureId:a.id});p.shotIndex++;p.areaVictims=null;return false;
   }
-  if(p.areaVictims===null)p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));
+  if(p.areaVictims===null){p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));damageWeed(s,disk(ground,attack.radius),strike.components,events,a.id);}
   if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
   const targetId=p.areaVictims[p.victimIndex++];
   target=s.creatures.find(c=>c.id===targetId);
@@ -82,6 +83,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(origin.distance>=attack.minRange && origin.distance<=attack.range && sight(s,a,origin.from,ground,p.action.side)){
    const trace=traceProjectile(arenaOf(s),a,ground,'ground',p.action.side);
    target=s.creatures.find(c=>c.id===trace.hit);
+   if(!target&&!trace.blockedBy&&damageWeed(s,[ground],strike.components,events,a.id))return false;
   }
  }else{
   target=s.creatures.find(c=>c.id===(p.action.targetIds[p.shotIndex]??p.action.targetIds[0]));p.shotIndex++;
@@ -111,6 +113,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
 }
 export function resolveCombatAction(s:GameState,c:Creature,action:Order['early'],events:Event[]):void {
  if(action==='Escape'){
+  escapeWeed(s,c);
   s.holds=s.holds.filter(h=>h.targetId!==c.id||!roll(s,escapeChance(c.size,s.creatures.find(x=>x.id===h.grapplerId)!.size)));
   c.conditions=c.conditions.filter(e=>e.kind!=='Restrained'||roll(s,effectChance(e.potency,e.resistance==='physical'?2*c.size:c.intelligence)));
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
