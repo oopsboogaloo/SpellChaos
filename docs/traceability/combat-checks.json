@@ -1,0 +1,384 @@
+{
+  "stage": 4,
+  "source": "Specification v0.9 combat, conditions, MVP damage, death and portable serialization; accepted D07, D09, D10, D14, D19",
+  "checks": [
+    {
+      "id": "COMBAT-001",
+      "requirement": "clamps hit, effect and escape chances at specified boundaries",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "clamps hit, effect and escape chances at specified boundaries"
+      ]
+    },
+    {
+      "id": "COMBAT-002",
+      "requirement": "rolls twice for advantage/disadvantage, cancels both and records exact RNG state",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "rolls twice for advantage/disadvantage, cancels both and records exact RNG state"
+      ]
+    },
+    {
+      "id": "COMBAT-003",
+      "requirement": "combines strongest resistance and vulnerability, rounding each component up",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "combines strongest resistance and vulnerability, rounding each component up"
+      ]
+    },
+    {
+      "id": "COMBAT-004",
+      "requirement": "uses explicit undead classes and swarm fire/area non-stacking rules",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "uses explicit undead classes and swarm fire/area non-stacking rules"
+      ]
+    },
+    {
+      "id": "COMBAT-005",
+      "requirement": "automatic hits bypass hit dice but retain independent critical dice",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "automatic hits bypass hit dice but retain independent critical dice"
+      ]
+    },
+    {
+      "id": "COMBAT-006",
+      "requirement": "zero damage does not wake, suppress regeneration, or inject a secondary condition",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "zero damage does not wake, suppress regeneration, or inject a secondary condition"
+      ]
+    },
+    {
+      "id": "COMBAT-007",
+      "requirement": "validates attack identity, target shape and on-board ground targets transactionally",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "validates attack identity, target shape and on-board ground targets transactionally"
+      ]
+    },
+    {
+      "id": "COMBAT-008",
+      "requirement": "rechecks the selected creature after movement and wastes an out-of-range attack",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "rechecks the selected creature after movement and wastes an out-of-range attack"
+      ]
+    },
+    {
+      "id": "COMBAT-009",
+      "requirement": "intercepts direct projectiles with allies and uses the intercepted defence",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "intercepts direct projectiles with allies and uses the intercepted defence"
+      ]
+    },
+    {
+      "id": "COMBAT-010",
+      "requirement": "hits each large area victim once with resistance instead of hit/critical rolls",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "hits each large area victim once with resistance instead of hit/critical rolls"
+      ]
+    },
+    {
+      "id": "COMBAT-011",
+      "requirement": "persists per-hit damage accumulation and continues identically at every atomic boundary",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "persists per-hit damage accumulation and continues identically at every atomic boundary"
+      ]
+    },
+    {
+      "id": "COMBAT-012",
+      "requirement": "Defend applies before defender initiative and advantage cancels its disadvantage",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "Defend applies before defender initiative and advantage cancels its disadvantage"
+      ]
+    },
+    {
+      "id": "COMBAT-013",
+      "requirement": "interrupts movement immediately, persists the reaction, and stops an incapacitated mover",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "interrupts movement immediately, persists the reaction, and stops an incapacitated mover"
+      ]
+    },
+    {
+      "id": "COMBAT-014",
+      "requirement": "melee Guard reacts once per enemy, ranged only once, and forced relocation queues nothing",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "melee Guard reacts once per enemy, ranged only once, and forced relocation queues nothing"
+      ]
+    },
+    {
+      "id": "COMBAT-015",
+      "requirement": "respects Guard target and area restrictions",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "respects Guard target and area restrictions"
+      ]
+    },
+    {
+      "id": "COMBAT-016",
+      "requirement": "contests each hold independently and keeps both holders and targets stationary",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "contests each hold independently and keeps both holders and targets stationary"
+      ]
+    },
+    {
+      "id": "COMBAT-017",
+      "requirement": "releases holds freely through an owned, replayable command",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "releases holds freely through an owned, replayable command"
+      ]
+    },
+    {
+      "id": "COMBAT-018",
+      "requirement": "uses HP boundaries and heals damage-based incapacity without resurrecting",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "uses HP boundaries and heals damage-based incapacity without resurrecting"
+      ]
+    },
+    {
+      "id": "COMBAT-019",
+      "requirement": "poison ticks on application and two following turns, refreshing without stacking",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "poison ticks on application and two following turns, refreshing without stacking"
+      ]
+    },
+    {
+      "id": "COMBAT-020",
+      "requirement": "acid/burning begin next turn, bleeding begins now and treatment removes it",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "acid/burning begin next turn, bleeding begins now and treatment removes it"
+      ]
+    },
+    {
+      "id": "COMBAT-021",
+      "requirement": "positive damage wakes ordinary sleep and regeneration never treats bleeding",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "positive damage wakes ordinary sleep and regeneration never treats bleeding"
+      ]
+    },
+    {
+      "id": "COMBAT-022",
+      "requirement": "fire and acid suppress regeneration that turn, including at non-positive HP",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "fire and acid suppress regeneration that turn, including at non-positive HP"
+      ]
+    },
+    {
+      "id": "COMBAT-023",
+      "requirement": "enforces undead, plant, construct and mindless condition immunities",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "enforces undead, plant, construct and mindless condition immunities"
+      ]
+    },
+    {
+      "id": "COMBAT-024",
+      "requirement": "disease becomes Subdued after three ends and Fear blocks voluntary approach",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "disease becomes Subdued after three ends and Fear blocks voluntary approach"
+      ]
+    },
+    {
+      "id": "COMBAT-025",
+      "requirement": "snapshots simultaneous end damage before death and victory so both wizards can draw",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "snapshots simultaneous end damage before death and victory so both wizards can draw"
+      ]
+    },
+    {
+      "id": "COMBAT-026",
+      "requirement": "wizard death unbinds summons, collapses servants and wins only at phase end",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "wizard death unbinds summons, collapses servants and wins only at phase end"
+      ]
+    },
+    {
+      "id": "COMBAT-027",
+      "requirement": "keeps corpses nonblocking and accumulates fire/acid exposure before and after death",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "keeps corpses nonblocking and accumulates fire/acid exposure before and after death"
+      ]
+    },
+    {
+      "id": "COMBAT-028",
+      "requirement": "does not create usable corpses for excluded bodies %j",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "does not create usable corpses for excluded bodies %j"
+      ]
+    },
+    {
+      "id": "COMBAT-029",
+      "requirement": "swarms die at zero and iron walls ignore ordinary fire",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "swarms die at zero and iron walls ignore ordinary fire"
+      ]
+    },
+    {
+      "id": "COMBAT-030",
+      "requirement": "roundtrips permanent multiattack, Guard and end-damage fixtures and continues unchanged",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "roundtrips permanent multiattack, Guard and end-damage fixtures and continues unchanged"
+      ]
+    },
+    {
+      "id": "COMBAT-031",
+      "requirement": "rejects unknown attack/condition/hold references and corrupt pending positions",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "rejects unknown attack/condition/hold references and corrupt pending positions"
+      ]
+    },
+    {
+      "id": "COMBAT-032",
+      "requirement": "exposes public health bands but only owner HP and damage totals",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "exposes public health bands but only owner HP and damage totals"
+      ]
+    },
+    {
+      "id": "COMBAT-033",
+      "requirement": "grapples use attack reach, limited limbs, hit plus physical resistance and release on incapacity",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "grapples use attack reach, limited limbs, hit plus physical resistance and release on incapacity"
+      ]
+    },
+    {
+      "id": "COMBAT-034",
+      "requirement": "rolls Fear recovery against Int at each end and expires it after its final turn",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "rolls Fear recovery against Int at each end and expires it after its final turn"
+      ]
+    },
+    {
+      "id": "COMBAT-035",
+      "requirement": "limits newly Subdued actors by actual movement/actions, and newly Slowed movement by allowance",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "limits newly Subdued actors by actual movement/actions, and newly Slowed movement by allowance"
+      ]
+    },
+    {
+      "id": "COMBAT-036",
+      "requirement": "extinguishes an adjacent edge wall using a normal action",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "extinguishes an adjacent edge wall using a normal action"
+      ]
+    },
+    {
+      "id": "COMBAT-037",
+      "requirement": "allows visible empty-hex projectile orders and intercepts occupants without retargeting",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "allows visible empty-hex projectile orders and intercepts occupants without retargeting"
+      ]
+    },
+    {
+      "id": "COMBAT-038",
+      "requirement": "returns an interrupted flyer to its last legal resting footprint",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "returns an interrupted flyer to its last legal resting footprint"
+      ]
+    },
+    {
+      "id": "COMBAT-039",
+      "requirement": "rejects an area shot that becomes invalid without consuming victim dice",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "rejects an area shot that becomes invalid without consuming victim dice"
+      ]
+    },
+    {
+      "id": "COMBAT-040",
+      "requirement": "flanking grants advantage and ranged melee threat imposes disadvantage",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "flanking grants advantage and ranged melee threat imposes disadvantage"
+      ]
+    },
+    {
+      "id": "COMBAT-041",
+      "requirement": "uses strict health-band boundaries and validates negative damage",
+      "status": "implemented",
+      "testFile": "tests/combat.test.ts",
+      "testNames": [
+        "uses strict health-band boundaries and validates negative damage"
+      ]
+    },
+    {
+      "id": "COMBAT-BROWSER",
+      "requirement": "Identical Node/Chromium combat continuation",
+      "status": "implemented",
+      "testFile": "tests/browser/combat.spec.ts",
+      "testNames": [
+        "Node and Chromium reproduce multiattacks, Guard and poison through every saved boundary"
+      ]
+    }
+  ]
+}

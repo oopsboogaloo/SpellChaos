@@ -1,5 +1,10 @@
 import { commandSchema, stateSchema, VERSION, type Creature, type GameState, type Command } from '../../domain/src/state.js';
 import { canonical } from '../../persistence/src/snapshot.js';
+import { staff } from '../../domain/src/combat.js';
+import { cleanupDeaths } from './lifecycle.js';
+import { active } from './status.js';
+import { emit, type Event, type Transition } from './events.js';
+export { emit, type Event, type Transition } from './events.js';
 import { nextRandom } from './random.js';
 import { startingPositions } from '../../geometry/src/spawn.js';
 import { defaultOrder, validateOrder, replaceReservation } from './orders.js';
@@ -7,7 +12,10 @@ import { defaultOrder, validateOrder, replaceReservation } from './orders.js';
 export function createCreature(id: string, controller: string | null, centre: Creature['centre'], overrides: Partial<Creature> = {}): Creature {
   return { id, controller, centre, kind: 'summon', size: 2, height: 'ground', intelligence: 7, dex: 5, move: 2, mana: 100,
     alive: true, incapacitated: false, restrained: false, slowed: false, subdued: false, doubleAction: false, readyTurn: 1,
-    swarm: false, incorporeal: false, nimble: false, ...overrides };
+    swarm: false, incorporeal: false, nimble: false,
+    con: 5, hp: (overrides.con ?? 5) * (overrides.size ?? 2), maxHp: (overrides.con ?? 5) * (overrides.size ?? 2),
+    attacks: [staff()], conditions: [], defences: [], undead: overrides.kind === 'reanimated', undeadClass: overrides.kind === 'reanimated' ? 'zombie' : 'none', construct: false, plant: false, flammable: false,
+    packTactics: false, regeneration: 0, regenerationBlockedTurn: null, fireAcidDamage: 0, grappleLimbs: 0, grappleEqualSize: false, corpseEligible: true, ...overrides };
 }
 export function createMatch(matchId: string, playerIds: string[], seed: number): GameState {
   const setup = nextRandom(seed).state, resolution = nextRandom(setup).state, ai = nextRandom(resolution).state;
@@ -18,29 +26,20 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
     board: { columns: 30, rows: 30 }, walls: [],
     players: playerIds.map((id, i) => ({ id, wizardId: `wizard-${i}`, locked: false, participated: false, missedTurns: 0, eliminated: false })),
     creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard' })),
-    orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null }, defending: [], result: null, accepted: [],
+    orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null }, defending: [], guards: [], holds: [], reactions: [], pendingAttack: null, spentActions: [], moved: [], corpses: [], deadHandled: [], endStep: 0, result: null, accepted: [],
   });
-}
-export interface Event { type: string; sequence: number; turn: number; phase: GameState['phase']; creatureId?: string; playerId?: string; from?: Creature['centre']; to?: Creature['centre']; action?: string }
-export interface Transition { state: GameState; events: Event[]; acknowledgedRevision: number }
-export function emit(state: GameState, events: Event[], event: Omit<Event, 'sequence' | 'turn' | 'phase'>): void {
-  events.push({ ...event, sequence: ++state.eventSequence, turn: state.turn, phase: state.phase });
 }
 export function surrender(state: GameState, playerId: string, events: Event[]): void {
   const player = state.players.find(p => p.id === playerId)!;
-  player.eliminated = true; player.locked = true;
-  for (const c of state.creatures.filter(c => c.controller === playerId)) {
-    if (c.kind === 'summon') c.controller = null;
-    else c.alive = false;
-    state.orders = state.orders.filter(o => o.creatureId !== c.id);
-    state.reservations = state.reservations.filter(r => r.creatureId !== c.id);
-  }
+  const wizard = state.creatures.find(c => c.id === player.wizardId)!;
+  wizard.hp = -wizard.maxHp; cleanupDeaths(state, events);
   emit(state, events, { type: 'PlayerSurrendered', playerId });
 }
 export function checkVictory(state: GameState, events: Event[]): boolean {
   const living = state.players.filter(p => !p.eliminated);
   if (living.length > 1) return false;
-  state.phase = 'ended'; state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null };
+  state.phase = 'ended'; state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
+  state.pendingAttack = null; state.reactions = [];
   state.result = living.length ? { type: 'winner', playerId: living[0]!.id } : { type: 'draw' };
   emit(state, events, { type: 'MatchEnded' }); return true;
 }
@@ -60,7 +59,7 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
   if (!system && !player) throw new Error('UNKNOWN_PLAYER');
   if (!system && (state.phase !== 'planning' || player!.locked || player!.eliminated)) throw new Error('ORDERS_LOCKED');
   if (command.type === 'SetOrder') validateOrder(state, command.order, command.playerId);
-  if (command.type === 'ClearOrder' && !state.creatures.some(c => c.id === command.creatureId && c.controller === command.playerId)) throw new Error('NOT_CONTROLLED');
+  if ((command.type === 'ClearOrder' || command.type === 'ReleaseHold') && !state.creatures.some(c => c.id === command.creatureId && c.controller === command.playerId)) throw new Error('NOT_CONTROLLED');
   if (command.type === 'DeadlineReached' && state.phase !== 'planning') throw new Error('DEADLINE_NOT_APPLICABLE');
   if (command.type === 'StartResolution' && state.phase !== 'ready') throw new Error('NOT_READY');
   const next = structuredClone(state), events: Event[] = [];
@@ -71,6 +70,8 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
     const c = next.creatures.find(c => c.id === command.order.creatureId)!;
     next.reservations = replaceReservation(next.reservations, { orderId: c.id, creatureId: c.id, amount: 0 }, c.mana);
     // Private draft changes are acknowledged but never emitted as opponent-visible events.
+  } else if (command.type === 'ReleaseHold') {
+    next.holds = next.holds.filter(h => h.grapplerId !== command.creatureId || (command.targetId !== null && h.targetId !== command.targetId));
   } else if (command.type === 'ClearOrder') {
     next.orders = next.orders.filter(o => o.creatureId !== command.creatureId);
     next.reservations = next.reservations.filter(r => r.orderId !== command.creatureId);
@@ -94,9 +95,9 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
     for (const c of next.creatures.filter(c => c.alive)) if (!next.orders.some(o => o.creatureId === c.id)) next.orders.push(defaultOrder(c.id));
     // Initialization of the phase queue is delegated to the resolver after this acknowledgement.
     next.phase = 'early';
-    next.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null };
+    next.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
     next.dashed = [];
-    next.defending = next.orders.filter(o => { const c = next.creatures.find(c => c.id === o.creatureId)!; return c.alive && !c.incapacitated && c.readyTurn <= next.turn; }).filter(o => o.early === 'TotalDefence' || o.late === 'TotalDefence' || o.early === 'Defend' || o.late === 'Defend')
+    next.defending = next.orders.filter(o => { const c = next.creatures.find(c => c.id === o.creatureId)!; return active(c) && c.readyTurn <= next.turn; }).filter(o => o.early === 'TotalDefence' || o.late === 'TotalDefence' || o.early === 'Defend' || o.late === 'Defend')
       .map(o => ({ creatureId: o.creatureId, phases: o.early === 'TotalDefence' || o.late === 'TotalDefence' ? ['early', 'late'] :
         [...(o.early === 'Defend' ? ['early' as const] : []), ...(o.late === 'Defend' ? ['late' as const] : [])] }));
     emit(next, events, { type: 'ResolutionStarted' });
