@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 7, rules: 'environment-0.3', content: 'illusion-integration-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 8, rules: 'environment-0.4', content: 'darkness-integration-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -26,7 +26,7 @@ export const commandSchema = z.discriminatedUnion('type', [
 export type Command = z.infer<typeof commandSchema>;
 export const creatureSchema = z.strictObject({
   id, centre: hexSchema, size: z.number().int().min(1).max(10), controller: id.nullable(),
-  creatorId:id.nullable(), knownIllusionBy:z.array(id),
+  darknessSightRange:uint, ignoresDarknessDisadvantage:z.boolean(), creatorId:id.nullable(), knownIllusionBy:z.array(id),
   kind: z.enum(['wizard', 'summon', 'reanimated', 'illusion']), height: z.enum(['ground', 'air']),
   intelligence: uint, dex: uint, move: uint.max(100), mana: uint.max(100),
   alive: z.boolean(), incapacitated: z.boolean(), restrained: z.boolean(), slowed: z.boolean(), subdued: z.boolean(),
@@ -51,6 +51,7 @@ export const rawStateSchema = z.strictObject({
   matchId: id, revision: uint, eventSequence: uint, turn: uint.min(1),
   phase: z.enum(['planning', 'ready', 'early', 'movement', 'late', 'end', 'ended']),
   random: z.strictObject({ setup: rngState, resolution: rngState, ai: rngState }),
+  darkness:z.array(z.strictObject({id,casterId:id,centre:hexSchema,level:z.number().int().min(1).max(8),createdTurn:uint.min(1),endsTurn:uint.min(1)})),
   damageLedger:z.array(damageRecordSchema),
   balanceUnits:z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER), casts:z.array(castSchema), castOccupied:z.array(occupiedSlotSchema), quickQueue:z.array(id).nullable(), nextEntityId:uint,
   board: z.strictObject({ columns: z.literal(30), rows: z.literal(30) }),
@@ -72,6 +73,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   const players = state.players.map(p => p.id), creatures = state.creatures.map(c => c.id);
   if (!unique(players) || players.includes('$system')) invalid('INVALID_PLAYERS');
   if (!unique(creatures)) invalid('DUPLICATE_CREATURE');
+  if (!unique(state.darkness.map(d=>d.id))) invalid('DUPLICATE_DARKNESS');
+  for(const d of state.darkness)if(!creatures.includes(d.casterId)||!inside(d.centre,state.board)||d.createdTurn>state.turn||d.endsTurn!==d.createdTurn+d.level)invalid('INVALID_DARKNESS');
   if (!unique(state.walls.map(w => w.id))) invalid('DUPLICATE_WALL');
   if (!unique(state.accepted.map(a => a.command.commandId)) || state.revision !== state.accepted.length) invalid('INVALID_HISTORY');
   state.accepted.forEach((a, i) => {

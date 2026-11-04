@@ -1,6 +1,6 @@
 # Stage 6 — in progress
 
-Current checkpoint: Reanimate, swarms, illusion provenance/Disbelief and wall-layout geometry. 4 November 2026.
+Current checkpoint: Reanimate, swarms, illusion provenance/Disbelief, Darkness and wall-layout geometry. 4 November 2026.
 
 The initial reanimation checkpoint below is historical; the swarm increment and
 later increments and latest verification are recorded below.
@@ -241,3 +241,52 @@ The latest instrumented suite also passed all 321 tests: engine coverage is
 100% lines / 95.38% branches; the illusion module is 100% for both. Whole-repository
 Vitest coverage is 86.18% lines / 82.12% branches, including frozen validators and
 files exercised separately by browser/CLI runs. This is not full-game coverage.
+
+### Darkness checkpoint decisions (before implementation)
+
+R19: Darkness uses a ground centre, radius `1 + floor(L/3)`, range 8,
+Quick casting and expiry at end of casting turn + L. Areas clip to the board;
+overlapping clouds coexist and do not increase disadvantage. Each cloud retains
+its caster, and ends on that caster's death.
+
+R20: A ray touching any dark hex (including either endpoint) blocks sight.
+Adjacent creatures may still attack, with disadvantage, but solid walls still
+block them. This exception does not grant spell targeting through Darkness.
+Large footprints use the existing nearest occupied-hex ray. Darkness vision
+traits have an explicit range; ignoring attack disadvantage alone does not
+provide sight. Full roster assignment remains Stage 7.
+
+R21: Owners always inspect their creatures. Hidden enemy occupants are omitted
+unless an active controlled observer has sight or is adjacent. Enemy-targeted
+commands must use a visible creature. Area attacks can target remembered ground;
+they still obey projectile/wall rules. Event audiences are captured when emitted,
+so later cloud expiry cannot reveal previously hidden actors through the log.
+
+
+### Darkness implementation checkpoint
+
+Implemented all eight Darkness levels with Quick completion, radius scaling,
+expiry, overlap and caster-death cleanup. Sight, ranged attacks, familiar origins
+and Magic Attack spread consult the cloud geometry. Adjacent attacks remain legal
+with disadvantage; arcing area attacks may target remembered ground. Owner views
+retain their creatures, enemy occupants and corpses are filtered, and events
+capture permitted audiences before cloud expiry. Vision-range and disadvantage
+traits are portable fields; full creature assignments remain Stage 7.
+
+Schema 8 / rules `environment-0.4` / content `darkness-integration-0.1` adds cloud
+state and vision traits. `migrateIllusionSnapshot` explicitly upgrades schema 7
+without changing RNG, wound provenance or pending attacks; validators and old
+fixtures remain frozen. Three new fixtures cover planning, queued casting and an
+active cloud. `tools/run-darkness.mjs` checks every atomic boundary of a turn in
+which a Quick cloud invalidates a planned ranged shot; fingerprint
+`fnv1a32-v1:8c38ed66` after 32 steps.
+
+Wall casting/material hazards and structural targeting, Tangleweed and combined
+Stage 6 acceptance remain outstanding. Full responsive UI, AI and deployed play
+remain later stages. The verbatim specification archive is still outstanding;
+this checkpoint does not resolve that documentation gate.
+
+Validation: `pnpm check` passed 351 tests; production build passed; all seven
+headless CLI scenarios passed. Chromium passed 14 tests, including Node/browser
+Darkness replay parity. CI runs these same checks; this remains an engine
+checkpoint, not a full gameplay or release acceptance report.

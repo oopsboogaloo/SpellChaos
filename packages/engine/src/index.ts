@@ -13,7 +13,7 @@ import { startingPositions } from '../../geometry/src/spawn.js';
 import { defaultOrder, validateOrder, replaceReservation } from './orders.js';
 
 export function createCreature(id: string, controller: string | null, centre: Creature['centre'], overrides: Partial<Creature> = {}): Creature {
-  return { id, controller, centre, creatorId:null, knownIllusionBy:[], kind: 'summon', size: 2, height: 'ground', intelligence: 7, dex: 5, move: 2, mana: overrides.kind === 'wizard' ? 100 : 0,
+  return { id, controller, centre, darknessSightRange:0,ignoresDarknessDisadvantage:false,creatorId:null, knownIllusionBy:[], kind: 'summon', size: 2, height: 'ground', intelligence: 7, dex: 5, move: 2, mana: overrides.kind === 'wizard' ? 100 : 0,
     species: overrides.kind === 'wizard' ? 'Wizard' : 'Scenario creature', family: null, summonLevel: overrides.kind === 'wizard' ? 8 : 1, bindingLevel: overrides.kind !== 'wizard' && controller!==null ? 1 : null, familiar: false, createdSequence: 0,
     maxMana: overrides.kind === 'wizard' ? 100 : (overrides.mana ?? 0), manaRegen: overrides.kind === 'wizard' ? 5 : (overrides.mana ? 1 : 0), spellLevelCap: overrides.kind === 'wizard' ? 8 : 0, spellbook: [],
     alive: true, incapacitated: false, restrained: false, slowed: false, subdued: false, doubleAction: false, readyTurn: 1,
@@ -30,7 +30,7 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
   return stateSchema.parse({
     schemaVersion: VERSION.schema, rulesVersion: VERSION.rules, contentVersion: VERSION.content, rngVersion: VERSION.rng,
     matchId, revision: 0, eventSequence: 0, turn: 1, phase: 'planning', random: { setup: bookSeed, resolution, ai },
-    damageLedger:[], balanceUnits:0, casts:[], castOccupied:[], quickQueue:null, nextEntityId:0,
+    darkness:[],damageLedger:[], balanceUnits:0, casts:[], castOccupied:[], quickQueue:null, nextEntityId:0,
     board: { columns: 30, rows: 30 }, walls: [],
     players: playerIds.map((id, i) => ({ id, wizardId: `wizard-${i}`, locked: false, participated: false, missedTurns: 0, eliminated: false })),
     creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard', spellbook:books[i]! })),

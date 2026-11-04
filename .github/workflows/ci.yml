@@ -24,6 +24,7 @@ jobs:
       - run: node tools/run-reanimation.mjs
       - run: node tools/run-swarms.mjs
       - run: node tools/run-illusions.mjs
+      - run: node tools/run-darkness.mjs
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
       - uses: actions/upload-artifact@v4

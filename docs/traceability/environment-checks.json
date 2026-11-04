@@ -777,16 +777,206 @@
       "testNames": [
         "rejects missing sources, invalid remaining loss and leaked player references without replacing a save"
       ]
+    },
+    {
+      "id": "DARKNESS-001",
+      "requirement": "rejects creature targeting, off-board ground and invalid variants",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "rejects creature targeting, off-board ground and invalid variants"
+      ]
+    },
+    {
+      "id": "DARKNESS-002",
+      "requirement": "rechecks sight when a queued Quick cast completes and spends its mana",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "rechecks sight when a queued Quick cast completes and spends its mana"
+      ]
+    },
+    {
+      "id": "DARKNESS-003",
+      "requirement": "removes only the dead caster\u2019s clouds, preserving independent overlapping clouds",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "removes only the dead caster\u2019s clouds, preserving independent overlapping clouds"
+      ]
+    },
+    {
+      "id": "DARKNESS-004",
+      "requirement": "allows a border centre and overlapping areas without extra disadvantage",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "allows a border centre and overlapping areas without extra disadvantage"
+      ]
+    },
+    {
+      "id": "DARKNESS-005",
+      "requirement": "blocks rays into, through and out of a cloud but not a clear ray",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "blocks rays into, through and out of a cloud but not a clear ray"
+      ]
+    },
+    {
+      "id": "DARKNESS-006",
+      "requirement": "keeps owners visible, hides enemy occupants, and permits adjacent inspection",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "keeps owners visible, hides enemy occupants, and permits adjacent inspection"
+      ]
+    },
+    {
+      "id": "DARKNESS-007",
+      "requirement": "does not disclose secret target IDs through spell planning",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "does not disclose secret target IDs through spell planning"
+      ]
+    },
+    {
+      "id": "DARKNESS-008",
+      "requirement": "permits adjacent melee with disadvantage; walls still block and immunity to disadvantage does not grant vision",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "permits adjacent melee with disadvantage; walls still block and immunity to disadvantage does not grant vision"
+      ]
+    },
+    {
+      "id": "DARKNESS-009",
+      "requirement": "respects limited Darkness sight without allowing sight through stone",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "respects limited Darkness sight without allowing sight through stone"
+      ]
+    },
+    {
+      "id": "DARKNESS-010",
+      "requirement": "captures event audiences before expiry and never exports them or sequence numbers",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "captures event audiences before expiry and never exports them or sequence numbers"
+      ]
+    },
+    {
+      "id": "DARKNESS-011",
+      "requirement": "does not reveal a hidden movement origin when the enemy emerges",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "does not reveal a hidden movement origin when the enemy emerges"
+      ]
+    },
+    {
+      "id": "DARKNESS-012",
+      "requirement": "matches uninterrupted play at every atomic boundary for generated seeds and levels",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "matches uninterrupted play at every atomic boundary for generated seeds and levels"
+      ]
+    },
+    {
+      "id": "DARKNESS-013",
+      "requirement": "rejects malformed area references, duplicate IDs and invalid durations transactionally",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "rejects malformed area references, duplicate IDs and invalid durations transactionally"
+      ]
+    },
+    {
+      "id": "DARKNESS-014",
+      "requirement": "explicitly migrates v7 without changing RNG or pending attacks",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "explicitly migrates v7 without changing RNG or pending attacks"
+      ]
+    },
+    {
+      "id": "DARKNESS-015",
+      "requirement": "invalidates a preplanned ranged target but permits an arcing area at remembered ground",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "invalidates a preplanned ranged target but permits an arcing area at remembered ground"
+      ]
+    },
+    {
+      "id": "DARKNESS-016",
+      "requirement": "uses the familiar\u2019s vision and location for remote casting",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "uses the familiar\u2019s vision and location for remote casting"
+      ]
+    },
+    {
+      "id": "DARKNESS-017",
+      "requirement": "handles partially covered large footprints using the nearest boundary ray",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "handles partially covered large footprints using the nearest boundary ray"
+      ]
+    },
+    {
+      "id": "DARKNESS-018",
+      "requirement": "blocks direct projectile fire into dark ground and hidden combat target commands",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "blocks direct projectile fire into dark ground and hidden combat target commands"
+      ]
+    },
+    {
+      "id": "DARKNESS-019",
+      "requirement": "implements level %i cost, radius, Quick timing and duration",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "implements level %i cost, radius, Quick timing and duration"
+      ]
+    },
+    {
+      "id": "DARKNESS-020",
+      "requirement": "retains the immutable v8 %s fixture and resumes every boundary exactly",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "retains the immutable v8 %s fixture and resumes every boundary exactly"
+      ]
+    },
+    {
+      "id": "DARKNESS-021",
+      "requirement": "Magic Attack spread requires sight through Darkness",
+      "status": "verified",
+      "testFile": "tests/darkness.test.ts",
+      "testNames": [
+        "blocks Magic Attack family spread into Darkness"
+      ]
     }
   ],
   "browserChecks": [
     "tests/browser/reanimation.spec.ts",
     "tests/browser/swarms.spec.ts",
-    "tests/browser/illusions.spec.ts"
+    "tests/browser/illusions.spec.ts",
+    "tests/browser/darkness.spec.ts"
   ],
   "remaining": [
     "Wall spell casting, hazard movement and structural targeting",
-    "Darkness and Tangleweed",
+    "Tangleweed",
     "Full Stage 6 interaction and replay acceptance"
   ]
 }

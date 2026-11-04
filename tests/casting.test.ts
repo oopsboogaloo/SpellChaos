@@ -217,7 +217,7 @@ describe('casting portability and privacy',()=>{
  });
  it('explicitly migrates legacy combat saves without silently changing their version',()=>{
   const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(7);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(8);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
 

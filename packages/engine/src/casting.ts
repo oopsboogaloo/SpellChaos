@@ -1,3 +1,4 @@
+import { sight,darkRay,visibleTo } from './visibility.js';
 import { knowsIllusion } from './illusions.js';
 import { canReanimate, reanimate } from './reanimation.js';
 import { randomBelow } from '../../domain/src/random.js';
@@ -7,7 +8,7 @@ import { alignment,castingTime,completionAt,implementedSpells,manaCost,spellRang
 import { summonProfile } from '../../content/src/summons.js';
 import { footprint,nearestPair,equal,inside,overlap } from '../../geometry/src/hex.js';
 import { placement,traceProjectile } from '../../geometry/src/occupancy.js';
-import { clearSight,clearProjectile } from '../../geometry/src/walls.js';
+import { clearProjectile } from '../../geometry/src/walls.js';
 import { arenaOf } from './orders.js';
 import { active,restrained,fearAllowsStep } from './status.js';
 import { addCondition,applyDamage,clamp,effectChance,heal,hitChance,roll } from './damage.js';
@@ -46,17 +47,18 @@ export function selectOrigin(s:GameState,c:Creature,a:CastAction):Creature|null 
  const origins=s.creatures.filter(o=>o.id===c.id || (c.kind==='wizard'&&o.familiar&&o.kind!=='illusion'&&o.controller===c.controller&&o.bindingLevel!==null&&active(o)));
  const cells=targets(s,a);
  return origins.map(origin=>({origin,pair:nearestPair(footprint(origin.centre,origin.size),cells)}))
-  .filter(x=>x.pair.distance<=spellRange(a)&&clearSight(x.pair.from,x.pair.to,a.side,s.walls))
+  .filter(x=>x.pair.distance<=spellRange(a)&&sight(s,x.origin,x.pair.from,x.pair.to,a.side))
   .sort((a,b)=>a.pair.distance-b.pair.distance || Number(b.origin.id===c.id)-Number(a.origin.id===c.id) || a.origin.createdSequence-b.origin.createdSequence || (a.origin.id<b.origin.id?-1:a.origin.id>b.origin.id?1:0))[0]?.origin??null;
 }
 export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if(c.kind==='illusion'||!c.spellbook.includes(a.spell)||a.level>c.spellLevelCap)throw new Error('SPELL_NOT_KNOWN');
  if(!implementedSpells.includes(a.spell))throw new Error('CONTENT_NOT_AVAILABLE');
  if(!isSummon(a)&&a.variant!=='bound')throw new Error('INVALID_SPELL_VARIANT');
- const groundOnly=isSummon(a)||a.spell==='Teleport',projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
+ const groundOnly=isSummon(a)||['Teleport','Darkness'].includes(a.spell),projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
  if(groundOnly?(a.ground===null||a.targetId!==null):projectile?(a.ground===null)===(a.targetId===null):(a.targetId===null||a.ground!==null))throw new Error('INVALID_SPELL_TARGET');
  if((a.targetId!==null&&!(a.spell==='Reanimate'?s.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
  if(!legalTarget(s,c,a))throw new Error('INVALID_SPELL_TARGET');
+ if(a.targetId&&a.spell!=='Reanimate'&&!visibleTo(s,s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
  if(a.spell==='Teleport' && (restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,c,a.ground!)||!placement(arenaOf(s),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
  if(a.spell==='Healing Bolt'&&knowsIllusion(s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
  if(isSummon(a)){
@@ -118,7 +120,7 @@ export function startCast(s:GameState,c:Creature,a:CastAction,events:Event[],tim
 function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):boolean {
  if(!legalTarget(s,c,a))return false;
  const pair=nearestPair(footprint(origin.centre,origin.size),targets(s,a));
- if(pair.distance>spellRange(a)||!clearSight(pair.from,pair.to,a.side,s.walls))return false;
+ if(pair.distance>spellRange(a)||!sight(s,origin,pair.from,pair.to,a.side))return false;
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);return !!profile&&legalSummonPlacement(s,createCreature('$preview',c.controller,a.ground!,profile));
  }
@@ -134,11 +136,17 @@ function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:
  }
  if(!target?.alive)return;
  const original=target;
- const victims=a.spell==='Magic Attack'&&original.family!==null?s.creatures.filter(t=>t.alive&&(t.id===original.id || (t.family===original.family&&nearestPair(footprint(t.centre,t.size),footprint(original.centre,original.size)).distance<=a.level+3&&clearProjectile(nearestPair(footprint(original.centre,original.size),footprint(t.centre,t.size)).from,nearestPair(footprint(original.centre,original.size),footprint(t.centre,t.size)).to,a.side,s.walls)))).sort((a,b)=>a.id<b.id?-1:1):[original];
+ const victims=a.spell==='Magic Attack'&&original.family!==null?s.creatures.filter(t=>{
+  if(!t.alive)return false;
+  if(t.id===original.id)return true;
+  if(t.family!==original.family)return false;
+  const spread=nearestPair(footprint(original.centre,original.size),footprint(t.centre,t.size));
+  return spread.distance<=a.level+3&&!darkRay(s,spread.from,spread.to,a.side)&&clearProjectile(spread.from,spread.to,a.side,s.walls);
+ }).sort((a,b)=>a.id<b.id?-1:1):[original];
  const totals:{targetId:string;amount:number}[]=[];
  for(const victim of victims){
   const source={...c,centre:origin.centre,size:origin.size,height:origin.height};
-  const modifiers=hitModifiers(s,source,victim,{id:'spell',name:a.spell,mode:projectile?'projectile':'direct',range:spellRange(a),minRange:0,radius:0,shots:[]});
+  const modifiers=hitModifiers(s,source,victim,{id:'spell',name:a.spell,mode:projectile?'projectile':'direct',range:spellRange(a),minRange:0,radius:0,shots:[]},a.side);
   if(active(victim)&&!roll(s,hitChance(c.intelligence,a.spell==='Magic Attack'?victim.intelligence:victim.dex),...modifiers)){emit(s,events,{type:'SpellMissed',creatureId:c.id,targetId:victim.id});continue;}
   const critical=roll(s,5),type=a.spell==='Fire Bolt'?'fire':'magic';
   const amount=applyDamage(s,victim,[{type,amount:a.level+(a.spell==='Magic Attack'?1:2)}],events,{critical,sourceId:c.id,actionId});
@@ -161,6 +169,9 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
  if(isSummon(a)){
   const creature=createCreature(allocateId(s,'summon'),a.variant!=='unbound'?cast.controller:null,a.ground!,{...summonProfile(a.spell,a.level)!,...(a.variant==='illusion'?{kind:'illusion' as const,creatorId:c.id,knownIllusionBy:[cast.controller],mana:0,maxMana:0,manaRegen:0,spellbook:[],spellLevelCap:0,corpseEligible:false}:{}),readyTurn:s.turn+1,bindingLevel:a.variant!=='unbound'?a.level:null,createdSequence:s.nextEntityId});
   s.creatures.push(creature);emit(s,events,{type:'CreatureSummoned',creatureId:creature.id});
+ }else if(a.spell==='Darkness'){
+  s.darkness.push({id:allocateId(s,'darkness'),casterId:c.id,centre:{...a.ground!},level:a.level,createdTurn:s.turn,endsTurn:s.turn+a.level});
+  emit(s,events,{type:'DarknessCreated',creatureId:c.id,to:a.ground!});
  }else if(a.spell==='Reanimate'){
   const servant=reanimate(s,a.targetId!,a.level,cast.controller,allocateId(s,'reanimated'));
   emit(s,events,{type:'CreatureReanimated',creatureId:servant.id,targetId:a.targetId!});

@@ -1,3 +1,4 @@
+import { sight,darkRay,visibleTo } from './visibility.js';
 import { concentration } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
@@ -18,6 +19,8 @@ const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.
 const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm';
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
+ const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
+ if(targetIds.some(id=>{const t=s.creatures.find(c=>c.id===id);return t&&!visibleTo(s,t,c.controller!);}))throw new Error('UNKNOWN_TARGET');
  if(a.type==='Attack' || a.type==='Guard'){
   const attack=c.attacks.find(x=>x.id===a.attackId); if(!attack)throw new Error('UNKNOWN_ATTACK');
   if(a.type==='Guard'){
@@ -37,15 +40,16 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
 function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):boolean {
  const p=pair(a,b);
  return b.alive && p.distance<=attack.range && p.distance>=attack.minRange &&
-  (!melee(attack)||a.height===b.height) && clearSight(p.from,p.to,side,s.walls) &&
+  (!melee(attack)||a.height===b.height) && (sight(s,a,p.from,p.to,side)||(p.distance<=1&&clearSight(p.from,p.to,side,s.walls))) &&
   (!melee(attack)||clearProjectile(p.from,p.to,side,s.walls));
 }
-export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition):[boolean,boolean]{
+export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):[boolean,boolean]{
  const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
  const advantage=allies.some(x=>a.packTactics||(pair(a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
  const threatened=!melee(attack) && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(a,x).distance===1);
  const defended=s.defending.some(d=>d.creatureId===b.id && (s.phase==='movement' ? false : d.phases.includes(s.phase as 'early'|'late')));
- return [advantage,defended||threatened||has(a,'Fear')];
+ const p=pair(a,b),obscured=!a.ignoresDarknessDisadvantage&&(a.darknessSightRange===0||p.distance>a.darknessSightRange)&&darkRay(s,p.from,p.to,side);
+ return [advantage,defended||threatened||has(a,'Fear')||obscured];
 }
 export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard'):void {
  s.pendingAttack={actionId:`attack-${s.nextEntityId++}`,attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
@@ -75,7 +79,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   target=s.creatures.find(c=>c.id===targetId);
  }else if(p.action.ground){
   const ground=p.action.ground,origin=nearestPair(footprint(a.centre,a.size),[ground]);p.shotIndex++;
-  if(origin.distance>=attack.minRange && origin.distance<=attack.range && clearSight(origin.from,ground,p.action.side,s.walls)){
+  if(origin.distance>=attack.minRange && origin.distance<=attack.range && sight(s,a,origin.from,ground,p.action.side)){
    const trace=traceProjectile(arenaOf(s),a,ground,'ground',p.action.side);
    target=s.creatures.find(c=>c.id===trace.hit);
   }
@@ -88,7 +92,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   }
  }
  if(!target?.alive){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
- const [advantage,disadvantage]=hitModifiers(s,a,target,attack);
+ const [advantage,disadvantage]=hitModifiers(s,a,target,attack,p.action.side);
  const area=attack.mode==='area';
  const hit=area || !active(target) || roll(s,hitChance(strike.skill,target.dex),advantage,disadvantage);
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}

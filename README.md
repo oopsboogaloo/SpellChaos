@@ -35,7 +35,7 @@ that verifies save/restore at each step. Combat, Guard, conditions and death now
 resolve headlessly; `node tools/run-combat.mjs` demonstrates them. Spellcasting,
 mana, alignment and control now resolve in the same engine. Run
 `node tools/run-casting.mjs` to verify remote casting across turns. The full
-roster and remaining illusion/environment spells are still staged work. Reanimate
+roster and remaining environment spells are still staged work. Reanimate
 now resolves against eligible corpses at levels 1–8; run
 `node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 remains
 in progress; wall layout geometry is available but Wall casting is not enabled.
@@ -45,8 +45,8 @@ legal regrowth, coverage restraint and per-enemy attacks. Run
 
 ## Saves
 
-Current saves use schema 7 / rules `environment-0.3` / content `illusion-integration-0.1`.
-Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 and swarm schema-6 have explicit migration functions; normal
+Current saves use schema 8 / rules `environment-0.4` / content `darkness-integration-0.1`.
+Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 swarm schema-6 and illusion schema-7 have explicit migration functions; normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -59,7 +59,7 @@ idempotency, immutable transitions, view filtering, snapshot corruption, and
 identical continuation after fresh decoding. Generated RNG tests use seed 12345.
 GitHub Actions repeats typechecking, tests and build on pushes and pull requests.
 
-No deployment is configured yet. Full content, illusion/environment spells, responsive UI,
+No deployment is configured yet. Full content, remaining environment spells, responsive UI,
 full browser workflow tests and release gates remain in the plan.
 
 
@@ -86,4 +86,16 @@ illusion knowledge are portable state. Schema 6 upgrades explicitly through
 did not enable illusion casting. Schema-6 fixtures and validators remain frozen.
 Player events omit authoritative sequence numbers to avoid revealing private
 notifications through gaps; their array order is the permitted playback order.
-Wall casting, Darkness and Tangleweed remain Stage 6 work.
+Wall casting and Tangleweed remain Stage 6 work.
+
+### Darkness checkpoint
+
+Darkness now casts at all eight levels, blocks sight into/through its area,
+allows adjacent attacks with disadvantage, and expires or ends on caster death.
+Owner views retain their units; hidden enemy occupants and event identities are
+filtered. Event audiences are captured at emission, before later expiry.
+Run `node tools/run-darkness.mjs` after building for the saved-turn replay.
+Schema 7 upgrades explicitly through `migrateIllusionSnapshot`; it adds no clouds
+and preserves RNG, wounds and pending work. Three immutable schema-8 fixtures
+cover planning, Quick casting and an active cloud. Full roster vision abilities
+and the playable browser interface remain later stages.
