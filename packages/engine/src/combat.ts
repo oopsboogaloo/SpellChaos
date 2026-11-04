@@ -17,6 +17,7 @@ const pair=(a:Creature,b:Creature)=>nearestPair(footprint(a.centre,a.size),footp
 const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.controller!==b.controller);
 const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm';
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
+ if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
  if(a.type==='Attack' || a.type==='Guard'){
   const attack=c.attacks.find(x=>x.id===a.attackId); if(!attack)throw new Error('UNKNOWN_ATTACK');
   if(a.type==='Guard'){
@@ -47,7 +48,7 @@ export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefi
  return [advantage,defended||threatened||has(a,'Fear')];
 }
 export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard'):void {
- s.pendingAttack={attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
+ s.pendingAttack={actionId:`attack-${s.nextEntityId++}`,attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
 }
 /** One hit/victim per atomic step; aggregate damage survives snapshots for concentration. */
 export function stepAttack(s:GameState,events:Event[]):boolean {
@@ -93,7 +94,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
- const damage=applyDamage(s,target,strike.components,events,{area,critical,half});
+ const damage=applyDamage(s,target,strike.components,events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});
@@ -111,6 +112,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
+ if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
  if(action.type==='Attack'){beginAttack(s,c,action,'action');return;}
  if(action.type==='Guard'){
   s.guards=s.guards.filter(g=>g.creatureId!==c.id);
@@ -122,6 +124,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
  const reach=action.type==='Grapple'?Math.max(1,...c.attacks.filter(a=>a.mode==='melee').map(a=>a.range)):1;
  if(!target?.alive || pair(c,target).distance>reach || c.height!==target.height || !clearProjectile(pair(c,target).from,pair(c,target).to,'left',s.walls)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
  if(action.type==='Grapple'){
+  if(c.kind==='illusion'&&target.intelligence===0)return;
   const limb=Array.from({length:c.grappleLimbs},(_,i)=>i).find(i=>!s.holds.some(h=>h.grapplerId===c.id&&h.limb===i));
   if(limb===undefined||target.id===c.id||target.size>c.size||(target.size===c.size&&!c.grappleEqualSize))return;
   const skill=c.attacks.find(a=>a.mode==='melee')?.shots[0]?.skill??c.dex;

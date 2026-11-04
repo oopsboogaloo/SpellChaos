@@ -1,9 +1,9 @@
 # Stage 6 — in progress
 
-Current checkpoint: Reanimate, swarm lifecycle/combat and physical wall-layout geometry. 4 November 2026.
+Current checkpoint: Reanimate, swarms, illusion provenance/Disbelief and wall-layout geometry. 4 November 2026.
 
 The initial reanimation checkpoint below is historical; the swarm increment and
-latest verification are recorded at the end of this report.
+later increments and latest verification are recorded below.
 This is a tested implementation increment, **not Stage 6 completion or the playable MVP**.
 Base: Stage 5 (`8ada790`); working branch: `build/stage-06-environment`.
 
@@ -94,8 +94,7 @@ Traceability: [environment checks](../traceability/environment-checks.json).
 
 ## Remaining work
 
-Stage 6 remains open: reversible illusion damage/conditions and hidden-information
-handling; all eight Wall casting/material
+Stage 6 remains open: all eight Wall casting/material
 interactions, structure/corpse attack targeting, Darkness and Tangleweed; combined
 environment replays. The new wall functions are prerequisites for that work.
 The browser still exposes development previews, not a complete game UI.
@@ -161,3 +160,84 @@ production build and all five CLI scenarios passed. GitHub Actions now includes
 `node tools/run-swarms.mjs`. The PR records the exact tested GitHub commit/run.
 Stage 6 remains in progress: illusions and the remaining environment spells are
 not enabled. No merge or deployment is part of this increment.
+
+## Illusion implementation decisions
+
+- S6-R11: Damage history records source, action, typed components, applied amount
+  and remaining loss. Healing consumes oldest reversible loss before real loss;
+  previously untracked scenario/save injuries are real baseline damage.
+- S6-R12: Real and independently sourced illusory condition instances coexist.
+  Reapplication refreshes the matching instance. A damage condition still ticks
+  only once: prefer a real active instance, otherwise earliest application and
+  stable source ID. Removing an illusion cannot erase a real condition.
+- S6-R13: Death cleanup first marks every lethal member of its snapshot dead,
+  then reverses illusion damage. Neither iteration order nor simultaneous source
+  removal can revive a victim already killed. Reversal never heals the dead.
+- S6-R14: Illusory fire/acid suppresses regeneration for its application turn,
+  but cannot burn a real corpse into a skeleton. Illusory damage restoration
+  does not undo previously missed regeneration or completed actions.
+- S6-R15: Unknown enemy illusions are valid apparent Healing Bolt targets;
+  casting can spend mana and succeed but cannot heal them. Known illusions can
+  be rejected during planning without creating a hidden-information oracle.
+- S6-R16: Detection is an engine capability for specific creature abilities,
+  not a universal player command. It records truth for that player only and
+  never removes the illusion. Original creators remember truth after transfer.
+
+- S6-R17: The illusion speed clue is at most +2 steps to the turn allowance,
+  after ordinary Dash/Slowed calculations. It does not change listed Move or
+  movement-priority statistics, and Total Defence still forbids movement.
+- S6-R18: Player event feeds omit authoritative sequence numbers. Otherwise
+  gaps caused by a private detection success could disclose hidden information.
+
+## Illusion increment — 4 November 2026
+
+All enabled summon profiles now support the Illusion variant: half base mana,
+rounded up, guaranteed casting success and normal successful balance shift (D16).
+Placement, casting interruption and next-turn readiness still apply. The owner
+sees truth; opponents see the claimed species, statistics, attacks and defences.
+Illusions retain copied combat traits but cannot cast, supply familiar origins,
+regenerate mana, heal real creatures, manipulate real resources or leave corpses.
+They cannot damage Int 0 creatures or apply secondary restraints to them.
+
+Damage records retain source, action, typed components, final damage and remaining
+loss. Healing consumes oldest reversible loss first. Disbelief, destruction and
+caster/controller death remove source conditions and grapples and restore only
+remaining damage to survivors. Cleanup freezes the entire lethal batch first;
+mutual illusion deaths, shock deaths and wizard elimination remain permanent.
+Real and illusory conditions coexist without multiplying ongoing damage. The
+original caster's identity survives binding changes or Release.
+
+Detection is a player-specific engine capability for later creature abilities;
+it is not a new universal player action. It reveals truth without removing the
+illusion. Public events redact exact enemy damage, private detections and global
+sequence numbers. Healing Bolt's planning validation accepts unknown enemy
+illusions as apparent targets, preventing a free truth probe; it cannot actually
+heal them. Known illusions may be rejected during planning.
+
+Schema 7 / rules `environment-0.3` / content `illusion-integration-0.1`.
+Damage history, condition provenance, creator identity, private knowledge and
+attack action IDs are serialised. Schema-6 validators and content availability
+are frozen; explicit migration treats pre-illusion injuries as a real baseline
+and adds no RNG draws. Earlier migrations remain supported. Invalid provenance,
+unknown player/source IDs, excessive reversible loss and reviving a processed
+death are rejected before replacing the running game.
+
+Four immutable schema-7 fixtures cover planning, a partially resolved illusion
+attack, the boundary before Disbelief and completed removal. Generated atomic
+continuation uses seed 7001 (30 cases). The new CLI compares restored and direct
+execution at all 33 steps, restoring one survivor while preserving another
+victim's death. Chromium matches Node state and permitted event/view output.
+
+Latest verification: **321 headless tests and 13 Chromium tests passed**, along
+with typechecking, production build and all six CLI scenarios. GitHub Actions
+includes `node tools/run-illusions.mjs`. Full roster-specific detection, illusion
+copies of later abilities and browser presentation remain their planned stages.
+Stage 6 still needs Wall casting/material interactions, structural targeting,
+Darkness, Tangleweed and their combined interaction replays. This remains a draft
+checkpoint with no merge or deployment. The full verbatim source archive remains
+outstanding; the condensed register is not presented as that archive.
+
+The latest instrumented suite also passed all 321 tests: engine coverage is
+100% lines / 95.38% branches; the illusion module is 100% for both. Whole-repository
+Vitest coverage is 86.18% lines / 82.12% branches, including frozen validators and
+files exercised separately by browser/CLI runs. This is not full-game coverage.

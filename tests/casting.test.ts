@@ -217,7 +217,7 @@ describe('casting portability and privacy',()=>{
  });
  it('explicitly migrates legacy combat saves without silently changing their version',()=>{
   const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(6);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(7);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
 
@@ -292,7 +292,7 @@ it('Teleport preserves restraint and Fear restrictions rather than granting an u
  s.creatures[0]!.restrained=false;addCondition(s,s.creatures[0]!,'Fear','wizard-1',3,2);expect(()=>submit(s,'wizard-0',cast('Teleport',{targetId:null,ground:h(7,5)}))).toThrow('INVALID_TELEPORT_DESTINATION');
 });
 it.each(['undead','illusion'] as const)('Healing Bolt rejects %s targets during planning',kind=>{
- const s=fresh();if(kind==='undead')s.creatures[1]!.undead=true;else s.creatures[1]!.kind='illusion';
+ const s=fresh();if(kind==='undead')s.creatures[1]!.undead=true;else {s.creatures[1]!.kind='illusion';s.creatures[1]!.knownIllusionBy=['a'];}
  expect(()=>submit(s,'wizard-0',cast('Healing Bolt'))).toThrow('INVALID_SPELL_TARGET');
 });
 it('cannot complete a long cast before its scheduled turn and phase',()=>{

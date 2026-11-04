@@ -13,9 +13,10 @@ export function health(c:Creature):'healthy'|'wounded'|'critical'|'incapacitated
 }
 
 export function fearAllowsStep(s:GameState,c:Creature,to:Creature['centre']):boolean {
- const fear=c.conditions.find(e=>e.kind==='Fear');
- const source=s.creatures.find(x=>x.id===fear?.sourceId && x.alive);
- if(!source)return true;
- const target=footprint(source.centre,source.size);
- return nearestPair(footprint(to,c.size),target).distance>=nearestPair(footprint(c.centre,c.size),target).distance;
+ const fears=c.conditions.filter(e=>e.kind==='Fear'&&e.active);
+ return fears.every(fear=>{
+  const source=s.creatures.find(x=>x.id===fear.sourceId&&x.alive);if(!source)return true;
+  const target=footprint(source.centre,source.size);
+  return nearestPair(footprint(to,c.size),target).distance>=nearestPair(footprint(c.centre,c.size),target).distance;
+ });
 }

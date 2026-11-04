@@ -15,10 +15,10 @@ export function castingTime(spell:SpellFamily):CastingTime {
 }
 export function manaCost(action:CastAction):number {
  if(action.spell==='Disbelief')return 2;
- return action.spell.startsWith('Summon ')&&action.variant==='unbound'?Math.ceil(5*action.level/2):5*action.level;
+ return action.spell.startsWith('Summon ')&&action.variant!=='bound'?Math.ceil(5*action.level/2):5*action.level;
 }
 export function successChance(action:CastAction,balanceUnits:number):number {
- if(action.spell==='Disbelief')return 100;
+ if(action.spell==='Disbelief'||action.variant==='illusion')return 100;
  const b=balanceUnits/2;
  const base=Math.max(5,Math.min(95,95-8*action.level+20*alignment(action.spell)*b/(40+Math.abs(b))));
  return action.spell.startsWith('Summon ')&&action.variant==='unbound'?Math.min(95,base+20):base;

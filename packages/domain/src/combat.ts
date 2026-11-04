@@ -5,7 +5,7 @@ export const damageTypeSchema=z.enum(['physical','fire','cold','lightning','necr
 export type DamageType=z.infer<typeof damageTypeSchema>;
 export const conditionKindSchema=z.enum(['Bleeding','Poisoned','Acid','Burning','Unconscious','Restrained','Subdued','Slowed','Disease','Fear']);
 export const secondarySchema=z.strictObject({kind:conditionKindSchema,potency:uint,resistance:z.enum(['con','int','physical']),duration:uint.nullable(),requiresDamage:z.boolean()});
-export const conditionSchema=secondarySchema.extend({sourceId:id.nullable(),startsTurn:uint,endsTurn:uint.nullable(),activatesTurn:uint.nullable(),active:z.boolean()});
+export const conditionSchema=secondarySchema.extend({illusionId:id.nullable(),sourceId:id.nullable(),startsTurn:uint,endsTurn:uint.nullable(),activatesTurn:uint.nullable(),active:z.boolean()});
 export type Condition=z.infer<typeof conditionSchema>;
 export const componentSchema=z.strictObject({type:damageTypeSchema,amount:uint});
 export type DamageComponent=z.infer<typeof componentSchema>;
@@ -23,7 +23,7 @@ export const combatActionSchema=z.union([
 export const guardSchema=z.strictObject({creatureId:id,attackId:id,targetId:id.nullable(),area:z.array(hex),attacked:z.array(id),spent:z.boolean()});
 export const holdSchema=z.strictObject({grapplerId:id,targetId:id,limb:uint});
 export const reactionSchema=z.strictObject({attackerId:id,targetId:id,attackId:id});
-export const pendingAttackSchema=z.strictObject({attackerId:id,action:attackActionSchema,shotIndex:uint,victimIndex:uint,areaVictims:z.array(id).nullable(),damageByTarget:z.array(z.strictObject({targetId:id,amount:uint})),source:z.enum(['action','guard'])});
+export const pendingAttackSchema=z.strictObject({actionId:id,attackerId:id,action:attackActionSchema,shotIndex:uint,victimIndex:uint,areaVictims:z.array(id).nullable(),damageByTarget:z.array(z.strictObject({targetId:id,amount:uint})),source:z.enum(['action','guard'])});
 export const corpseSchema=z.strictObject({id,creatureId:id,centre:hex,size:uint.min(1),con:uint.min(1),maxHp:uint.min(1),fireAcidDamage:uint,skeletal:z.boolean(),restorationUsed:z.boolean()});
 export function staff(): AttackDefinition {return {id:'staff',name:'Staff',mode:'melee',range:1,minRange:0,radius:0,shots:[{skill:4,crit:5,components:[{type:'physical',amount:2}],secondary:[]}]};}
 
@@ -32,3 +32,5 @@ export function validAttackTargets(attack:AttackDefinition,action:AttackAction,s
  if(action.ground!==null)return action.targetIds.length===0 && (attack.mode==='area'||attack.mode==='projectile');
  return attack.mode!=='area' && [1,attack.shots.length].includes(action.targetIds.length);
 }
+
+export const damageRecordSchema=z.strictObject({sequence:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),targetId:id,sourceId:id.nullable(),actionId:id.nullable(),illusionId:id.nullable(),components:z.array(componentSchema).min(1),amount:z.number().int().min(1),remaining:z.number().int().min(0)});

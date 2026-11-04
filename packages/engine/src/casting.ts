@@ -1,3 +1,4 @@
+import { knowsIllusion } from './illusions.js';
 import { canReanimate, reanimate } from './reanimation.js';
 import { randomBelow } from '../../domain/src/random.js';
 import type { Creature,GameState,Order } from '../../domain/src/state.js';
@@ -35,7 +36,7 @@ function legalTarget(s:GameState,c:Creature,a:CastAction):boolean {
  if(a.spell==='Reanimate')return a.targetId!==null&&canReanimate(s,a.targetId,a.level,c.controller);
  if(a.ground)return inside(a.ground,s.board);
  const target=s.creatures.find(t=>t.id===a.targetId);if(!target?.alive)return false;
- if(a.spell==='Healing Bolt')return !target.undead&&target.kind!=='illusion';
+ if(a.spell==='Healing Bolt')return !target.undead;
  if(a.spell==='Bind')return target.kind!=='wizard'&&target.summonLevel<=a.level&&(target.bindingLevel===null||target.bindingLevel<a.level);
  if(a.spell==='Release')return target.kind!=='wizard'&&target.bindingLevel!==null&&target.bindingLevel<=a.level;
  return true;
@@ -57,7 +58,7 @@ export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if((a.targetId!==null&&!(a.spell==='Reanimate'?s.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
  if(!legalTarget(s,c,a))throw new Error('INVALID_SPELL_TARGET');
  if(a.spell==='Teleport' && (restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,c,a.ground!)||!placement(arenaOf(s),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
- if(a.spell==='Disbelief'&&s.creatures.find(t=>t.id===a.targetId)?.kind==='illusion')throw new Error('ILLUSION_PROVENANCE_NOT_AVAILABLE');
+ if(a.spell==='Healing Bolt'&&knowsIllusion(s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);if(!profile)throw new Error('CONTENT_NOT_AVAILABLE');
   const body=createCreature('$preview',c.controller,a.ground!,profile);
@@ -87,7 +88,7 @@ export function interruptCast(s:GameState,castId:string,events:Event[],reason:st
 export function invalidateCasts(s:GameState,events:Event[]):void {
  for(const cast of [...s.casts]){
   const caster=s.creatures.find(c=>c.id===cast.casterId)!,origin=s.creatures.find(c=>c.id===cast.originId)!;
-  if(!active(caster)||!active(origin)||caster.controller!==cast.controller||origin.controller!==cast.controller||
+  if(caster.kind==='illusion'||!active(caster)||!active(origin)||caster.controller!==cast.controller||origin.controller!==cast.controller||
    (origin.id!==caster.id&&origin.bindingLevel===null)||!equal(caster.centre,cast.casterCentre)||!equal(origin.centre,cast.originCentre))interruptCast(s,cast.id,events,'caster-or-origin-invalid');
  }
 }
@@ -104,6 +105,7 @@ export function concentration(s:GameState,damage:readonly {targetId:string;amoun
 /** Trusted engine entry; optional timing supports scripted ritual scenarios before ritual content exists. */
 export function startCast(s:GameState,c:Creature,a:CastAction,events:Event[],timing:CastingTime=castingTime(a.spell)):void {
  const phase=actionPhase(s),cost=manaCost(a);releaseReservation(s,c.id,cost);
+ if(c.kind==='illusion'){emit(s,events,{type:'CastInvalid',creatureId:c.id});return;}
  if(s.casts.some(cast=>cast.casterId===c.id))return;
  const origin=selectOrigin(s,c,a);
  if(!origin||c.mana<cost){emit(s,events,{type:'CastInvalid',creatureId:c.id});return;}
@@ -123,7 +125,7 @@ function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):bo
  if(a.spell==='Teleport')return !restrained(s,c)&&!castingLocksMovement(s,c)&&fearAllowsStep(s,c,a.ground!)&&placement(arenaOf(s),c,a.ground!).legal;
  return true;
 }
-function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:Event[]):void {
+function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:Event[],actionId:string):void {
  let target=s.creatures.find(t=>t.id===a.targetId);const projectile=a.spell!=='Magic Attack';
  if(projectile){
   const aim=a.ground??nearestPair(footprint(origin.centre,origin.size),footprint(target!.centre,target!.size)).to;
@@ -139,7 +141,7 @@ function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:
   const modifiers=hitModifiers(s,source,victim,{id:'spell',name:a.spell,mode:projectile?'projectile':'direct',range:spellRange(a),minRange:0,radius:0,shots:[]});
   if(active(victim)&&!roll(s,hitChance(c.intelligence,a.spell==='Magic Attack'?victim.intelligence:victim.dex),...modifiers)){emit(s,events,{type:'SpellMissed',creatureId:c.id,targetId:victim.id});continue;}
   const critical=roll(s,5),type=a.spell==='Fire Bolt'?'fire':'magic';
-  const amount=applyDamage(s,victim,[{type,amount:a.level+(a.spell==='Magic Attack'?1:2)}],events,{critical});
+  const amount=applyDamage(s,victim,[{type,amount:a.level+(a.spell==='Magic Attack'?1:2)}],events,{critical,sourceId:c.id,actionId});
   totals.push({targetId:victim.id,amount});
   if(a.spell==='Fire Bolt'&&amount>0&&victim.flammable)addCondition(s,victim,'Burning',c.id,a.level,2,'con');
  }
@@ -152,18 +154,18 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
  s.casts=s.casts.filter(c=>c.id!==castId);occupy(s,c.id,actionPhase(s));
  if(cast.startedTurn!==s.turn||cast.startedPhase!==s.phase)s.spentActions.push(c.id);
  const valid=validCompletion(s,c,origin,a);
- const success=valid&&(a.spell==='Disbelief'||castingRoll(s,successChance(a,s.balanceUnits)));
+ const success=valid&&(a.spell==='Disbelief'||a.variant==='illusion'||castingRoll(s,successChance(a,s.balanceUnits)));
  s.balanceUnits+=alignment(a.spell)*a.level*(success?2:1);
  emit(s,events,{type:success?'CastSucceeded':'CastFailed',creatureId:c.id,action:a.spell});
  if(!success)return;
  if(isSummon(a)){
-  const creature=createCreature(allocateId(s,'summon'),a.variant==='bound'?cast.controller:null,a.ground!,{...summonProfile(a.spell,a.level)!,readyTurn:s.turn+1,bindingLevel:a.variant==='bound'?a.level:null,createdSequence:s.nextEntityId});
+  const creature=createCreature(allocateId(s,'summon'),a.variant!=='unbound'?cast.controller:null,a.ground!,{...summonProfile(a.spell,a.level)!,...(a.variant==='illusion'?{kind:'illusion' as const,creatorId:c.id,knownIllusionBy:[cast.controller],mana:0,maxMana:0,manaRegen:0,spellbook:[],spellLevelCap:0,corpseEligible:false}:{}),readyTurn:s.turn+1,bindingLevel:a.variant!=='unbound'?a.level:null,createdSequence:s.nextEntityId});
   s.creatures.push(creature);emit(s,events,{type:'CreatureSummoned',creatureId:creature.id});
  }else if(a.spell==='Reanimate'){
   const servant=reanimate(s,a.targetId!,a.level,cast.controller,allocateId(s,'reanimated'));
   emit(s,events,{type:'CreatureReanimated',creatureId:servant.id,targetId:a.targetId!});
- }else if(['Magic Bolt','Fire Bolt','Magic Attack'].includes(a.spell))spellDamage(s,c,origin,a,events);
- else if(a.spell==='Healing Bolt')heal(s,s.creatures.find(t=>t.id===a.targetId)!,a.level+3,events);
+ }else if(['Magic Bolt','Fire Bolt','Magic Attack'].includes(a.spell))spellDamage(s,c,origin,a,events,cast.id);
+ else if(a.spell==='Healing Bolt')heal(s,s.creatures.find(t=>t.id===a.targetId)!,a.level+3,events,'ordinary',c.id);
  else if(a.spell==='Teleport'){const from={...c.centre};c.centre={...a.ground!};if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});}
  else if(a.spell==='Bind'||a.spell==='Release'){
   const target=s.creatures.find(t=>t.id===a.targetId)!;
@@ -178,7 +180,10 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
    emit(s,events,{type:'BindingChanged',creatureId:target.id});invalidateCasts(s,events);
   }else emit(s,events,{type:'SpellResisted',creatureId:c.id,targetId:target.id});
  }
- // Disbelief on real creatures intentionally has no effect. Illusion creation/removal is Stage 6.
+ if(a.spell==='Disbelief'){
+  const target=s.creatures.find(t=>t.id===a.targetId)!;
+  if(target.kind==='illusion'){target.alive=false;target.hp=-target.maxHp;cleanupDeaths(s,events);}
+ }
 }
 export function forceMove(s:GameState,c:Creature,to:Creature['centre'],events:Event[]):void {
  if(!placement(arenaOf(s),c,to).legal)throw new Error('INVALID_FORCED_DESTINATION');

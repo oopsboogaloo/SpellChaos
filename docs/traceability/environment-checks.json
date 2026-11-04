@@ -1,8 +1,8 @@
 {
   "stage": 6,
   "status": "in-progress",
-  "scope": "Reanimation, swarm lifecycle/combat and wall-layout primitives; not full Stage 6 acceptance",
-  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22; MVP swarms, D07",
+  "scope": "Reanimation, swarm lifecycle/combat, illusion provenance/Disbelief/privacy and wall-layout primitives; not full Stage 6 acceptance",
+  "source": "Specification v0.9 Bodies and necromancy; MVP reanimation; wall geometry; portable snapshots; D22; MVP swarms, D07; MVP illusions, D16",
   "checks": [
     {
       "id": "REANIMATE-001",
@@ -525,14 +525,266 @@
       "testNames": [
         "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness"
       ]
+    },
+    {
+      "id": "ILLUSION-001",
+      "requirement": "has half rounded mana and guaranteed success at level %i",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "has half rounded mana and guaranteed success at level %i"
+      ]
+    },
+    {
+      "id": "ILLUSION-002",
+      "requirement": "summons an illusion without a roll, shifts balance once and keeps the claimed familiar profile",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "summons an illusion without a roll, shifts balance once and keeps the claimed familiar profile"
+      ]
+    },
+    {
+      "id": "ILLUSION-003",
+      "requirement": "adds at most two movement steps per turn, including Dash, without changing public Move",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "adds at most two movement steps per turn, including Dash, without changing public Move"
+      ]
+    },
+    {
+      "id": "ILLUSION-004",
+      "requirement": "cannot cast, supply familiar origins, regenerate mana or grant a familiar mana bonus",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "cannot cast, supply familiar origins, regenerate mana or grant a familiar mana bonus"
+      ]
+    },
+    {
+      "id": "ILLUSION-005",
+      "requirement": "blocks ordinary movement through belief but allows Int 0 passage",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "blocks ordinary movement through belief but allows Int 0 passage"
+      ]
+    },
+    {
+      "id": "ILLUSION-006",
+      "requirement": "Disbelief removes an illusion, restores surviving damage, costs two mana and rolls no dice",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "Disbelief removes an illusion, restores surviving damage, costs two mana and rolls no dice"
+      ]
+    },
+    {
+      "id": "ILLUSION-007",
+      "requirement": "ends an illusion on its original caster death even after release or transfer",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "ends an illusion on its original caster death even after release or transfer"
+      ]
+    },
+    {
+      "id": "ILLUSION-008",
+      "requirement": "restores only the removing source and preserves real damage and other illusions",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "restores only the removing source and preserves real damage and other illusions"
+      ]
+    },
+    {
+      "id": "ILLUSION-009",
+      "requirement": "heals oldest reversible damage before real damage and cannot double-restore healed loss",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "heals oldest reversible damage before real damage and cannot double-restore healed loss"
+      ]
+    },
+    {
+      "id": "ILLUSION-010",
+      "requirement": "caps reversal at maximum HP even for trusted scenarios with separately adjusted HP",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "caps reversal at maximum HP even for trusted scenarios with separately adjusted HP"
+      ]
+    },
+    {
+      "id": "ILLUSION-011",
+      "requirement": "restores damage-incapacitated survivors but never revives shock deaths",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "restores damage-incapacitated survivors but never revives shock deaths"
+      ]
+    },
+    {
+      "id": "ILLUSION-012",
+      "requirement": "freezes simultaneous deaths independently of ID ordering %s/%s",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "freezes simultaneous deaths independently of ID ordering %s/%s"
+      ]
+    },
+    {
+      "id": "ILLUSION-013",
+      "requirement": "keeps mutual illusion kills permanent while reversing both sources on surviving creatures",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "keeps mutual illusion kills permanent while reversing both sources on surviving creatures"
+      ]
+    },
+    {
+      "id": "ILLUSION-014",
+      "requirement": "allows illusions to damage other illusions and restoration to regrow a surviving swarm legally",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "allows illusions to damage other illusions and restoration to regrow a surviving swarm legally"
+      ]
+    },
+    {
+      "id": "ILLUSION-015",
+      "requirement": "records post-defence amounts and action provenance for each hit of a multiattack",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "records post-defence amounts and action provenance for each hit of a multiattack"
+      ]
+    },
+    {
+      "id": "ILLUSION-016",
+      "requirement": "preserves real poison when overlapping illusory poison is removed and never doubles ticks",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "preserves real poison when overlapping illusory poison is removed and never doubles ticks"
+      ]
+    },
+    {
+      "id": "ILLUSION-017",
+      "requirement": "refreshes only the matching illusion condition and reverses its ongoing damage",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "refreshes only the matching illusion condition and reverses its ongoing damage"
+      ]
+    },
+    {
+      "id": "ILLUSION-018",
+      "requirement": "removes illusory bleeding, restraint and grapples while retaining real holds and conditions",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "removes illusory bleeding, restraint and grapples while retaining real holds and conditions"
+      ]
+    },
+    {
+      "id": "ILLUSION-019",
+      "requirement": "blocks all illusory damage and secondary restraints against Int 0 creatures",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "blocks all illusory damage and secondary restraints against Int 0 creatures"
+      ]
+    },
+    {
+      "id": "ILLUSION-020",
+      "requirement": "cannot burn real corpses or structures, but illusory fire still suppresses current-turn regeneration",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "cannot burn real corpses or structures, but illusory fire still suppresses current-turn regeneration"
+      ]
+    },
+    {
+      "id": "ILLUSION-021",
+      "requirement": "regenerates only its own HP and cannot heal or perform real-resource aid actions",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "regenerates only its own HP and cannot heal or perform real-resource aid actions"
+      ]
+    },
+    {
+      "id": "ILLUSION-022",
+      "requirement": "considers every remaining Fear source after an illusory Fear is removed",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "considers every remaining Fear source after an illusory Fear is removed"
+      ]
+    },
+    {
+      "id": "ILLUSION-023",
+      "requirement": "preserves the immutable v7 %s fixture and exact continuation",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "preserves the immutable v7 %s fixture and exact continuation"
+      ]
+    },
+    {
+      "id": "ILLUSION-024",
+      "requirement": "preserves permanent wizard elimination after illusion reversal and rejects tampered resurrection",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "preserves permanent wizard elimination after illusion reversal and rejects tampered resurrection"
+      ]
+    },
+    {
+      "id": "ILLUSION-025",
+      "requirement": "projects the same apparent stats, species and events until a player learns the truth",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "projects the same apparent stats, species and events until a player learns the truth"
+      ]
+    },
+    {
+      "id": "ILLUSION-026",
+      "requirement": "does not reveal an enemy illusion by rejecting Healing Bolt before casting",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "does not reveal an enemy illusion by rejecting Healing Bolt before casting"
+      ]
+    },
+    {
+      "id": "ILLUSION-027",
+      "requirement": "restores multi-hit provenance and Disbelief identically at every boundary over generated seeds",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "restores multi-hit provenance and Disbelief identically at every boundary over generated seeds"
+      ]
+    },
+    {
+      "id": "ILLUSION-028",
+      "requirement": "rejects missing sources, invalid remaining loss and leaked player references without replacing a save",
+      "status": "verified",
+      "testFile": "tests/illusions.test.ts",
+      "testNames": [
+        "rejects missing sources, invalid remaining loss and leaked player references without replacing a save"
+      ]
     }
   ],
   "browserChecks": [
     "tests/browser/reanimation.spec.ts",
-    "tests/browser/swarms.spec.ts"
+    "tests/browser/swarms.spec.ts",
+    "tests/browser/illusions.spec.ts"
   ],
   "remaining": [
-    "Illusion provenance, reversal and player-specific detection",
     "Wall spell casting, hazard movement and structural targeting",
     "Darkness and Tangleweed",
     "Full Stage 6 interaction and replay acceptance"

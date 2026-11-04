@@ -8,7 +8,7 @@ import { stepLegality, placement, type ArenaGeometry } from '../../geometry/src/
 export function effectiveMove(c: Creature): number { return c.move === 0 ? 0 : slowed(c) ? Math.max(1, Math.floor(c.move / 2)) : c.move; }
 export function movementAllowance(c: Creature, order: Order): number {
   if (c.restrained || incapacitated(c) || !c.alive || order.early === 'TotalDefence' || order.late === 'TotalDefence') return 0;
-  return effectiveMove(c) * (order.early === 'Dash' ? 2 : 1);
+  return effectiveMove(c) * (order.early === 'Dash' ? 2 : 1) + (c.kind==='illusion'?2:0);
 }
 export function defaultOrder(creatureId: string): Order { return { creatureId, path: [], early: 'TotalDefence', late: null }; }
 export function arenaOf(state: GameState): ArenaGeometry {

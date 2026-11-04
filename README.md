@@ -45,8 +45,8 @@ legal regrowth, coverage restraint and per-enemy attacks. Run
 
 ## Saves
 
-Current saves use schema 6 / rules `environment-0.2` / content `swarm-integration-0.1`.
-Foundation schema-1, orders schema-2, combat schema-3 casting schema-4 and environment schema-5 have explicit migration functions; normal
+Current saves use schema 7 / rules `environment-0.3` / content `illusion-integration-0.1`.
+Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 and swarm schema-6 have explicit migration functions; normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -76,3 +76,14 @@ becomes `originalSize`; swarm maximum HP remains fixed when current Size changes
 Published schema-5 fixtures and validators are frozen. Four schema-6 fixtures
 cover planning, movement coverage, per-victim attack continuation and blocked
 regrowth. Old saves are never silently loaded under current rules.
+
+
+Illusion summons, Disbelief and damage reversal now run in the engine. Run
+`node tools/run-illusions.mjs` to verify survivor restoration and permanent shock
+deaths. Damage history, source-tagged conditions, creator identity and private
+illusion knowledge are portable state. Schema 6 upgrades explicitly through
+`migrateSwarmSnapshot`; historical wounds are a real baseline because that version
+did not enable illusion casting. Schema-6 fixtures and validators remain frozen.
+Player events omit authoritative sequence numbers to avoid revealing private
+notifications through gaps; their array order is the permitted playback order.
+Wall casting, Darkness and Tangleweed remain Stage 6 work.

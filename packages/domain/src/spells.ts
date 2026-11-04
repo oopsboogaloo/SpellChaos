@@ -5,7 +5,7 @@ export const summonFamilies=['Cat','Serpent','Goblin','Dragon','Spirit','Plant',
 export const spellFamilies=['Summon Cat','Summon Serpent','Summon Goblin','Summon Dragon','Summon Spirit','Summon Plant','Summon Archer','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport','Wall','Tangleweed','Darkness','Reanimate'] as const;
 export const spellSchema=z.enum(spellFamilies);
 export type SpellFamily=z.infer<typeof spellSchema>;
-export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right'])}).superRefine((action,ctx)=>{
+export const castActionSchema=z.strictObject({type:z.literal('Cast'),spell:spellSchema,level:z.number().int().min(1).max(8),variant:z.enum(['bound','unbound','illusion']),targetId:id.nullable(),ground:hex.nullable(),side:z.enum(['left','right'])}).superRefine((action,ctx)=>{
  const groundOnly=action.spell.startsWith('Summon ')||action.spell==='Teleport';
  const projectile=action.spell==='Magic Bolt'||action.spell==='Fire Bolt';
  const targeted=['Bind','Release','Disbelief','Magic Attack','Healing Bolt','Reanimate'].includes(action.spell);
@@ -18,7 +18,7 @@ export const castSchema=z.strictObject({id,casterId:id,controller:id,originId:id
  const ritual=cast.timing.startsWith('ritual'),slow=cast.timing==='slow';
  const dueTurn=cast.startedTurn+(ritual?Number(cast.timing.slice(-1))-1:slow&&cast.startedPhase==='late'?1:0);
  const duePhase=ritual?'late':slow?(cast.startedPhase==='early'?'late':'early'):cast.startedPhase;
- const cost=cast.action.spell==='Disbelief'?2:cast.action.spell.startsWith('Summon ')&&cast.action.variant==='unbound'?Math.ceil(5*cast.action.level/2):5*cast.action.level;
+ const cost=cast.action.spell==='Disbelief'?2:cast.action.spell.startsWith('Summon ')&&cast.action.variant!=='bound'?Math.ceil(5*cast.action.level/2):5*cast.action.level;
  if((ritual&&cast.startedPhase!=='early')||cast.dueTurn!==dueTurn||cast.duePhase!==duePhase||cast.paid!==cost)ctx.addIssue({code:'custom',message:'INVALID_CAST_SCHEDULE_OR_PAYMENT'});
 });
 export type Cast=z.infer<typeof castSchema>;
