@@ -1,3 +1,4 @@
+import { stateSchema as quarrySchema } from '../../domain/src/legacy-v13.js';
 import { stateSchema as onHitSchema } from '../../domain/src/legacy-v12.js';
 import { stateSchema as traitsV3Schema } from '../../domain/src/legacy-v11.js';
 import { stateSchema as traitsV2Schema } from '../../domain/src/legacy-content-traits-v2.js';
@@ -117,7 +118,7 @@ export function migrateTangleweedSnapshot(text:string):GameState {
 
 function parseUpgrade(value: unknown): GameState {
  const old=value as GameState;
- return stateSchema.parse({...old,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
+ return stateSchema.parse({...old,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,reload:c.reload??null,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
 }
 /** Legacy content had no attack traits; do not infer new abilities from species. */
 export function migrateWallSnapshot(text:string):GameState {
@@ -134,5 +135,10 @@ export function migrateAttackTraitContent(text:string):GameState {
 
 export function migrateOnHitSnapshot(text:string):GameState {
  const old=onHitSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+export function migrateQuarrySnapshot(text:string):GameState {
+ const old=quarrySchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

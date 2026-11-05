@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 13, rules: 'roster-0.3', content: 'marked-quarry-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 14, rules: 'roster-0.4', content: 'siege-reload-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -39,6 +39,7 @@ export const creatureSchema = z.strictObject({
   defences: z.array(z.strictObject({type:damageTypeSchema,multiplier:z.union([z.literal(0),z.literal(0.25),z.literal(0.5),z.literal(1.5),z.literal(2)])})),
   undead:z.boolean(), undeadClass:z.enum(['none','zombie','skeleton','higher','exception']), construct:z.boolean(), plant:z.boolean(), flammable:z.boolean(),
   attackTraits:z.strictObject({aim:z.boolean(),brace:z.boolean(),ambush:z.boolean(),closeDisadvantageBelow:uint,receivesRally:z.boolean(),rallySource:z.boolean()}),
+  reload:z.strictObject({loaded:z.boolean(),lastFiredTurn:uint.min(1).nullable(),lastReloadTurn:uint.min(1).nullable()}).nullable(),
   canMarkQuarry:z.boolean(),quarryTargetId:id.nullable(),
   bristles:uint.max(1000000),lifeDrain:uint.max(1000000),
   packTactics:z.boolean(), regeneration:uint, regenerationBlockedTurn:uint.nullable(), fireAcidDamage:uint,
@@ -139,6 +140,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
           if(action.targetIds.some(id=>!creatures.includes(id)) || (action.ground && !inside(action.ground,state.board)))invalid('INVALID_ORDER_TARGET');
           if(attack && !validAttackTargets(attack,action))invalid('INVALID_ORDER_TARGET');
         }else if(action.targetId!==null&&!creatures.includes(action.targetId))invalid('INVALID_ORDER_TARGET');
+      }else if(action.type==='Reload'){
+        if(creature.reload===null)invalid('INVALID_RELOAD_ORDER');
       }else if(action.type==='MarkQuarry'){
         if(!creature.canMarkQuarry||action.targetId===creature.id||!creatures.includes(action.targetId))invalid('INVALID_QUARRY_ORDER');
       }else if(!creatures.includes(action.targetId) && !(action.type==='Extinguish'&&(state.walls.some(w=>w.id===action.targetId)||state.destroyedWallIds.includes(action.targetId))))invalid('INVALID_ORDER_TARGET');
@@ -181,6 +184,9 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     if((pending.areaVictims!==null&&!unique(pending.areaVictims))||!unique(pending.damageByTarget.map(d=>d.targetId)))invalid('DUPLICATE_ATTACK_VICTIM');
     if(!['early','movement','late'].includes(state.phase) || (pending.source==='action' && (state.phase==='movement' || current?.creatureId!==pending.attackerId)))invalid('INVALID_ATTACK_CONTINUATION');
     if(!attack || !validAttackTargets(attack,pending.action,pending.source) || pending.shotIndex>attack.shots.length || pending.victimIndex>(pending.areaVictims?.length ?? 0) || pending.action.targetIds.some(id=>!creatures.includes(id)) || pending.damageByTarget.some(d=>!creatures.includes(d.targetId)) || pending.areaVictims?.some(id=>!creatures.includes(id))) invalid('INVALID_PENDING_ATTACK');
+  }
+  for(const c of state.creatures)if(c.reload){const r=c.reload;
+   if((r.lastReloadTurn!==null&&r.lastFiredTurn===null)||(r.lastFiredTurn??0)>state.turn||(r.lastReloadTurn??0)>state.turn||(r.lastFiredTurn!==null&&r.lastFiredTurn===r.lastReloadTurn)||(!r.loaded&&(r.lastFiredTurn===null||(r.lastReloadTurn??0)>r.lastFiredTurn))||(r.loaded&&r.lastFiredTurn!==null&&(r.lastReloadTurn??0)<=r.lastFiredTurn))invalid('INVALID_RELOAD_STATE');
   }
   if(state.creatures.some(c=>c.quarryTargetId!==null&&(!c.canMarkQuarry||c.quarryTargetId===c.id||!state.creatures.some(t=>t.id===c.quarryTargetId&&t.alive))))invalid('INVALID_QUARRY');
   if(!unique(state.actedThisPhase)||state.actedThisPhase.some(id=>!creatures.includes(id)))invalid('INVALID_PHASE_ACTIVITY');

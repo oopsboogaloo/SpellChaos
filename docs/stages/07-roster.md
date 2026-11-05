@@ -232,3 +232,44 @@ Verification: 565 headless tests, type checking, production build and all nine C
 scenarios pass. The existing 16 browser checks and three new quarry checks pass
 (19 total). The remaining 36 profiles and other listed Stage 7 mechanics remain
 in progress; this is not a completed MVP or a deployment.
+
+## Siege reload and area Guard
+
+Catapult and Thunder Trebuchet are enabled (22 profiles total). Siege weapons
+start loaded. A committed firing attempt consumes readiness; Reload is an explicit
+action. Neither reload-after-fire nor fire-after-reload is allowed in the same
+turn, including Double Action attempts. Readiness persists across turns and
+restoration, so a normal cycle is fire turn 1, reload turn 2, fire turn 3.
+
+Implementation timing choice: accepted firing attempts consume readiness even
+if their target becomes invalid at resolution. Invalid planning commands do not.
+Declaring Guard does not consume a shot; its qualifying reaction does. Area Guard
+rechecks its triggering creature and locks the impact to the nearest occupied
+hex, storing that ground point in the pending attack. Ordinary walls and creatures
+do not intercept arcing shots; Energy blocks them. Areas damage each intersected
+creature once, including allies, using resistance rather than hit/critical rolls.
+
+Fixed a related area-resolution edge case: after a real blast has started, its
+remaining victims still resolve if controller death unbinds its source. Otherwise
+a blast killing both wizards could incorrectly stop after the first death.
+Destroyed illusions stop their remaining attacks and retain damage reversal and
+permanent shock-death rules. Tests distinguish the real draw from the illusory
+winner case and restore between every atomic step.
+
+Schema 14 / rules `roster-0.4` / content `siege-reload-0.1` stores loaded state and
+last-fired/last-reloaded turns. Validation rejects contradictory histories and
+unsupported Reload orders. Schema-13 state and combat validators are frozen;
+`migrateQuarrySnapshot` adds no reload capability to existing creatures. Earlier
+migration entry points still upgrade explicitly. Owner views expose independent
+copies of reload state and quarry selection; opponent views omit those fields.
+
+Four permanent fixtures cover firing, planning Reload, planning a subsequent shot
+and a pending area Guard attack. Four Chromium cases match Node state, events and
+permitted views while restoring at each boundary. Mixed fire/physical explosions
+also verify that swarm fire/area vulnerability is applied only once per component.
+
+Verification: 584 headless tests, type checking, production build, 23 Chromium
+tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-14
+fingerprint is `fnv1a32-v1:5e1eb7f0`. Ballista and Siege Catapult remain gated for
+penetration and structural-damage rules respectively. The remaining 34 profiles
+and other Stage 7 work are still outstanding.

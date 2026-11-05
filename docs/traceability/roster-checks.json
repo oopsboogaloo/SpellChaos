@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; twenty enabled profiles; attack traits, control/casters, on-hit traits and Marked Quarry integrated",
+  "scope": "56 blueprints; twenty-two enabled profiles; siege reload, area Guard and prior creature mechanics integrated",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty-two supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -143,14 +143,30 @@
         "permanent %s fixture resumes identically at every atomic boundary",
         "schema-12 migration preserves existing on-hit state without granting Marked Quarry"
       ]
+    },
+    {
+      "id": "ROSTER-014",
+      "requirement": "Siege reload cycle, area Guard, arcing and typed area damage, owner views, schema migration and atomic continuation",
+      "testFile": "tests/reload.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "fire/reload/fire uses three turns and restores exactly at every attack boundary",
+        "area Guard shoots the first qualifying entrant and retains its locked impact through restore",
+        "Double Action cannot bypass the fire/reload exclusion",
+        "real explosions finish after controller death; dispelled illusion attacks stop (%s)",
+        "permanent %s fixture resumes identically through every atomic step",
+        "schema-13 migration retains quarry state and grants no reload capability",
+        "owner views expose independent reload state while opponents receive no private readiness or quarry state"
+      ]
     }
   ],
   "pending": [
     "Additional special-action and cooldown state, migrations and continuation fixtures",
     "Movement and attack passives, special actions, flight/mounts and detection",
-    "Cooldowns, breath, reload, siege penetration, False King and constriction",
+    "Cooldowns, breath, siege penetration/structural bonuses, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 36 profiles only after their complete engine tests",
+    "Enable remaining 34 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

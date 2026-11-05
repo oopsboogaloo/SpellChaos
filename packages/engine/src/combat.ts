@@ -24,16 +24,22 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
  const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
  if(targetIds.some(id=>{const t=s.creatures.find(c=>c.id===id);return t&&!visibleTo(s,t,c.controller!);}))throw new Error('UNKNOWN_TARGET');
+ if(a.type==='Reload'){
+  if(!c.reload)throw new Error('NO_RELOAD');
+  if(c.reload.loaded)throw new Error('ALREADY_LOADED');
+  if(c.reload.lastFiredTurn===s.turn)throw new Error('CANNOT_RELOAD_FIRING_TURN');
+  return;
+ }
  if(a.type==='MarkQuarry'){
   if(!c.canMarkQuarry)throw new Error('NO_MARKED_QUARRY');
   if(a.targetId===c.id||!s.creatures.some(t=>t.id===a.targetId&&t.alive))throw new Error('INVALID_QUARRY_TARGET');
   return;
  }
  if(a.type==='Attack' || a.type==='Guard'){
+  if(c.reload&&(!c.reload.loaded||c.reload.lastReloadTurn===s.turn))throw new Error('RELOAD_REQUIRED');
   const attack=c.attacks.find(x=>x.id===a.attackId); if(!attack)throw new Error('UNKNOWN_ATTACK');
   if(a.type==='Guard'){
    if(a.area.some(h=>!inside(h,s.board)))throw new Error('INVALID_GUARD_AREA');
-   if(attack.mode==='area')throw new Error('AREA_GUARD_UNSUPPORTED');
    if(a.targetId!==null&&!s.creatures.some(x=>x.id===a.targetId))throw new Error('UNKNOWN_TARGET');
   }else{
    if(!validAttackTargets(attack,a))throw new Error('INVALID_ATTACK_TARGETS');
@@ -69,15 +75,28 @@ export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefi
  const p=pair(a,b),obscured=!a.ignoresDarknessDisadvantage&&(a.darknessSightRange===0||p.distance>a.darknessSightRange)&&darkRay(s,p.from,p.to,side);
  return [advantage,defended||threatened||has(a,'Fear')||obscured];
 }
-export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard'):void {
+/** Guard follows the triggering creature until commitment, then locks an area
+ * impact to its nearest occupied hex. The pending action serialises that point. */
+export function guardReactionAction(s:GameState,a:Creature,targetId:string,attackId:string):AttackAction|null {
+ const attack=a.attacks.find(x=>x.id===attackId),target=s.creatures.find(c=>c.id===targetId);
+ if(!attack||!target||!active(a)||a.controller===null||!inReach(s,a,target,attack))return null;
+ return {type:'Attack',attackId,targetIds:attack.mode==='area'?[]:[targetId],ground:attack.mode==='area'?pair(a,target).to:null,side:'left'};
+}
+export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard',events:Event[]=[]):void {
  if(source==='action'&&!s.actedThisPhase.includes(c.id))s.actedThisPhase.push(c.id);
  s.pendingAttack={actionId:`attack-${s.nextEntityId++}`,attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
+ if(c.reload){
+  if(!c.reload.loaded||c.reload.lastReloadTurn===s.turn||c.reload.lastFiredTurn===s.turn){s.pendingAttack.shotIndex=c.attacks.find(a=>a.id===action.attackId)!.shots.length;emit(s,events,{type:'AttackInvalid',creatureId:c.id});return;}
+  c.reload.loaded=false;c.reload.lastFiredTurn=s.turn;emit(s,events,{type:'WeaponDischarged',creatureId:c.id});
+ }
+
 }
 /** One hit/victim per atomic step; aggregate damage survives snapshots for concentration. */
 export function stepAttack(s:GameState,events:Event[]):boolean {
  const p=s.pendingAttack!;const a=s.creatures.find(c=>c.id===p.attackerId)!;
  const attack=a.attacks.find(x=>x.id===p.action.attackId)!;
- if(!active(a)||a.controller===null||p.shotIndex>=attack.shots.length){
+ const committedArea=attack.mode==='area'&&p.areaVictims!==null&&a.kind!=='illusion';
+ if((!committedArea&&(!active(a)||a.controller===null))||p.shotIndex>=attack.shots.length){
   emit(s,events,{type:'AttackFinished',creatureId:a.id,damageByTarget:p.damageByTarget});concentration(s,p.damageByTarget,events);s.pendingAttack=null;return true;
  }
  const strike=attack.shots[p.shotIndex]!;
@@ -157,12 +176,16 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
+ if(action.type==='Reload'){
+  if(!c.reload||c.reload.loaded||c.reload.lastFiredTurn===s.turn){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
+  c.reload.loaded=true;c.reload.lastReloadTurn=s.turn;emit(s,events,{type:'WeaponReloaded',creatureId:c.id});return;
+ }
  if(action.type==='MarkQuarry'){
   const target=s.creatures.find(t=>t.id===action.targetId&&t.alive);
   if(!c.canMarkQuarry||!target||target.id===c.id||!c.controller||!visibleTo(s,target,c.controller)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
   c.quarryTargetId=target.id;emit(s,events,{type:'QuarryMarked',creatureId:c.id,targetId:target.id});return;
  }
- if(action.type==='Attack'){beginAttack(s,c,action,'action');return;}
+ if(action.type==='Attack'){beginAttack(s,c,action,'action',events);return;}
  if(action.type==='Guard'){
   s.guards=s.guards.filter(g=>g.creatureId!==c.id);
   s.guards.push({creatureId:c.id,attackId:action.attackId,targetId:action.targetId,area:action.area,attacked:[],spent:false});return;
@@ -188,7 +211,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
 export function enqueueGuards(s:GameState,mover:Creature,from:Creature['centre']):void {
  const candidates=s.guards.filter(g=>{
   const c=s.creatures.find(c=>c.id===g.creatureId)!;const attack=c.attacks.find(a=>a.id===g.attackId)!;
-  return !g.spent&&!g.attacked.includes(mover.id)&&active(c)&&enemies(c,mover)&&(!g.targetId||g.targetId===mover.id)&&
+  return !g.spent&&!g.attacked.includes(mover.id)&&active(c)&&(!c.reload||(c.reload.loaded&&c.reload.lastReloadTurn!==s.turn))&&enemies(c,mover)&&(!g.targetId||g.targetId===mover.id)&&
    (!g.area.length||footprint(mover.centre,mover.size).some(h=>g.area.some(a=>equal(a,h))))&&inReach(s,c,mover,attack)&&!inReach(s,c,{...mover,centre:from},attack);
  });
  const queue=buildQueue(candidates.map(g=>{const c=s.creatures.find(c=>c.id===g.creatureId)!;const wizard=s.creatures.find(w=>w.kind==='wizard'&&w.controller===c.controller);return {creatureId:c.id,dex:c.dex,move:c.move,size:c.size,slowed:c.slowed||has(c,'Slowed'),quick:false,wizardDistance:wizard?pair(c,wizard).distance:0};}),s.random.resolution,false);

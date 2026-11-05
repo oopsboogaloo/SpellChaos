@@ -5,7 +5,7 @@ import { startCast, completeCast, invalidateCasts, concentration, castingLocksMo
 import { awardAndRegenerate } from './spellbooks.js';
 import { compareEntries } from './queue.js';
 import { active, restrained, slowed, subdued, fearAllowsStep } from './status.js';
-import { beginAttack, stepAttack, resolveCombatAction, enqueueGuards } from './combat.js';
+import { beginAttack, guardReactionAction, stepAttack, resolveCombatAction, enqueueGuards } from './combat.js';
 import { ongoingDamage, cleanupDeaths, recover, expireConditions } from './lifecycle.js';
 import type { Creature, GameState } from '../../domain/src/state.js';
 import { nearestPair, footprint } from '../../geometry/src/hex.js';
@@ -67,7 +67,8 @@ export function advanceAtomicStep(state: GameState): Transition {
   } else if (next.reactions.length) {
     const reaction = next.reactions.shift()!;
     const attacker = next.creatures.find(c=>c.id===reaction.attackerId)!;
-    beginAttack(next,attacker,{type:'Attack',attackId:reaction.attackId,targetIds:[reaction.targetId],ground:null,side:'left'},'guard');
+    const action=guardReactionAction(next,attacker,reaction.targetId,reaction.attackId);
+    if(action)beginAttack(next,attacker,action,'guard',events);else emit(next,events,{type:'AttackInvalid',creatureId:attacker.id});
   } else if (!next.cursor.initialized) initialize(next, events);
   else if (next.cursor.index === next.cursor.entries.length) {
     if(next.phase!=='movement' && next.quickQueue===null){
