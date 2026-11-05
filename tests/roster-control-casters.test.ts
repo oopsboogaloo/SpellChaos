@@ -62,8 +62,9 @@ it('Spectre crosses creatures and ordinary walls in transit, but not Energy wall
 it('explicitly migrates content v2 without changing creature data, RNG, pending attack or phase activity',async()=>{
  const {readFileSync}=await import('node:fs');const {migrateAttackTraitContent}=await import('../packages/persistence/src/migration.js');
  const text=readFileSync('tests/fixtures/traits-content-v2-guard.json','utf8'),old=JSON.parse(text),next=migrateAttackTraitContent(text);
- expect(()=>restoreSnapshot(text)).toThrow();expect(next.contentVersion).toBe('attack-traits-0.3');
- for(const key of ['creatures','random','pendingAttack','actedThisPhase'] as const)expect(next[key]).toEqual(old[key]);
+ expect(()=>restoreSnapshot(text)).toThrow();expect(next.contentVersion).toBe('retaliation-drain-0.1');
+ for(const key of ['random','pendingAttack','actedThisPhase'] as const)expect(next[key]).toEqual(old[key]);
+ expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,bristles:0,lifeDrain:0})));
  const direct=structuredClone(next),restored=restoreSnapshot(encodeSnapshot(next));stepAttack(direct,[]);stepAttack(restored,[]);expect(encodeSnapshot(restored)).toBe(encodeSnapshot(direct));
  expect(()=>migrateAttackTraitContent(JSON.stringify({...old,contentVersion:'unknown'}))).toThrow();
 });

@@ -165,3 +165,37 @@ Verification: 538 headless tests, type checking, production build, 16 Chromium
 tests and all nine CLI scenarios pass. Stage 7 is still incomplete: special
 active abilities, flight transitions, mounts, cooldowns and other listed work
 remain outstanding.
+
+## Bristles and life drain
+
+Thorn bush and Wraith are now enabled (19 total). Creature state has bounded
+`bristles` and `lifeDrain` amounts. A positive damaging melee hit triggers one
+physical Bristles retaliation, even if the hit is lethal to the defender. This
+is damage, not a new attack, so it cannot recursively trigger Bristles. Retaliation
+uses the defender as its source and contributes to the original action's damage
+aggregation for concentration. Incapacitating the attacker stops later compound
+attack hits.
+
+Wraith heals 2 after damaging a living real target, including living plants but
+excluding undead, constructs and illusions. Zero damage gives no healing. Healing
+is capped at maximum HP. Illusory Wraith can heal only itself; its attack damage
+remains reversible. Its physical immunity prevents ordinary Bristles damage.
+
+Timing decision for these on-hit effects: apply original damage, then life drain,
+then Bristles, then existing secondary effects and death cleanup. Retaliation
+never starts another attack or grants an action. All of this occurs within the
+existing atomic hit step, so there is no partially applied hit to serialise.
+
+Schema 12 / rules `roster-0.2` / content `retaliation-drain-0.1` stores both traits.
+The schema-11 content-v3 validator is frozen in `legacy-v11.ts`; supported older
+migrations supply zero-valued on-hit traits instead of inferring new powers from
+species. Prior fixtures remain untouched. Two new schema-12 fixtures capture
+pending retaliation and life-drain attacks. A derived content-v3 Guard fixture
+checks old data and RNG preservation through migration.
+
+Verification: 554 headless tests, type checking, production build and 16 Chromium
+tests pass. Tests cover trigger boundaries, lethal retaliation, no loops,
+compound-attack interruption, real/illusory targets, immunity, healing caps,
+provenance reversal, malformed state, migration and exact per-hit continuation.
+The remaining 37 profiles and earlier listed Stage 7 tasks are still outstanding.
+All nine existing CLI scenarios also pass with the new state version.

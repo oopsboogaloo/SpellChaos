@@ -1,3 +1,4 @@
+import { stateSchema as traitsV3Schema } from '../../domain/src/legacy-v11.js';
 import { stateSchema as traitsV2Schema } from '../../domain/src/legacy-content-traits-v2.js';
 import { stateSchema as traitsV1Schema } from '../../domain/src/legacy-content-traits-v1.js';
 import { stateSchema as wallSchema } from '../../domain/src/legacy-v10.js';
@@ -115,7 +116,7 @@ export function migrateTangleweedSnapshot(text:string):GameState {
 
 function parseUpgrade(value: unknown): GameState {
  const old=value as GameState;
- return stateSchema.parse({...old,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
+ return stateSchema.parse({...old,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
 }
 /** Legacy content had no attack traits; do not infer new abilities from species. */
 export function migrateWallSnapshot(text:string):GameState {
@@ -123,9 +124,9 @@ export function migrateWallSnapshot(text:string):GameState {
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }
 
-/** Explicit content-only upgrade; the portable schema remains version 11. */
+/** Upgrade supported schema-11 content snapshots to the current schema and content. */
 export function migrateAttackTraitContent(text:string):GameState {
  const input=JSON.parse(text);
- const old=(input.contentVersion==='attack-traits-0.2'?traitsV2Schema:traitsV1Schema).parse(input);
- return stateSchema.parse({...old,contentVersion:VERSION.content});
+ const old=(input.contentVersion==='attack-traits-0.3'?traitsV3Schema:input.contentVersion==='attack-traits-0.2'?traitsV2Schema:traitsV1Schema).parse(input);
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

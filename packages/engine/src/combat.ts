@@ -11,7 +11,7 @@ import { affectedCreatures, traceProjectile } from '../../geometry/src/occupancy
 import { clearSight, clearProjectile } from '../../geometry/src/walls.js';
 import { arenaOf } from './orders.js';
 import { active, has } from './status.js';
-import { addCondition, applyDamage, effectChance, escapeChance, hitChance, roll } from './damage.js';
+import { addCondition, applyDamage, heal, effectChance, escapeChance, hitChance, roll } from './damage.js';
 import { cleanupDeaths } from './lifecycle.js';
 import { emit, type Event } from './events.js';
 import { buildQueue } from './queue.js';
@@ -126,6 +126,15 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});
+ if(damage>0){
+  if(a.lifeDrain>0&&!target.undead&&!target.construct&&target.kind!=='illusion')heal(s,a,a.lifeDrain,events,'regeneration',a.id);
+  if(target.bristles>0&&melee(attack)){
+   const reflected=applyDamage(s,a,[{type:'physical',amount:target.bristles}],events,{sourceId:target.id,actionId:p.actionId});
+   const prior=p.damageByTarget.find(d=>d.targetId===a.id);
+   if(prior)prior.amount+=reflected;else if(reflected)p.damageByTarget.push({targetId:a.id,amount:reflected});
+  }
+ }
+
  for(const effect of strike.secondary){
   if(effect.requiresDamage&&!damage)continue;
   const resistance=effect.resistance==='con'?target.con:effect.resistance==='physical'?2*target.size:target.intelligence;

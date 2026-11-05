@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; seventeen enabled profiles; combat traits, Hydra/tiger, control creatures and creature spellcasters verified",
+  "scope": "56 blueprints; nineteen enabled profiles; attack traits, control/casters, Bristles and life drain integrated",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Seventeen supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Nineteen supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -115,6 +115,20 @@
         "%s level %i pays from its own mana, respects its cap and restores its pending cast",
         "explicitly migrates content v2 without changing creature data, RNG, pending attack or phase activity"
       ]
+    },
+    {
+      "id": "ROSTER-012",
+      "requirement": "Bristles retaliation and life drain with provenance, immunity, compound attacks, schema migration and restoration",
+      "testFile": "tests/on-hit-traits.test.ts",
+      "status": "verified",
+      "testNames": [
+        "Bristles triggers only on a damaging melee hit (%s)",
+        "Bristles still retaliates against a lethal damaging hit, and illusion retaliation reverses",
+        "Wraith drains only damaging hits on a living real target (%s)",
+        "permanent %s fixture resumes exactly through all attack boundaries",
+        "Bristles incapacitation stops remaining compound-attack bites without another retaliation loop",
+        "schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work"
+      ]
     }
   ],
   "pending": [
@@ -122,7 +136,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Cooldowns, breath, reload, siege penetration, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 39 profiles only after their complete engine tests",
+    "Enable remaining 37 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }
