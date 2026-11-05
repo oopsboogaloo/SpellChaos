@@ -1,3 +1,4 @@
+import { stateSchema as traitsV1Schema } from '../../domain/src/legacy-content-traits-v1.js';
 import { stateSchema as wallSchema } from '../../domain/src/legacy-v10.js';
 import { stateSchema as weedSchema } from '../../domain/src/legacy-v9.js';
 import { stateSchema as darknessSchema } from '../../domain/src/legacy-v8.js';
@@ -119,4 +120,10 @@ function parseUpgrade(value: unknown): GameState {
 export function migrateWallSnapshot(text:string):GameState {
  const old=wallSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Explicit content-only upgrade; the portable schema remains version 11. */
+export function migrateAttackTraitContent(text:string):GameState {
+ const old=traitsV1Schema.parse(JSON.parse(text));
+ return stateSchema.parse({...old,contentVersion:VERSION.content});
 }

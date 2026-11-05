@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; ten enabled profiles; five combat trait rules integrated",
+  "scope": "56 blueprints; twelve enabled profiles; combat traits and Hydra/tiger specialist interactions verified",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Ten supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twelve supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -91,6 +91,18 @@
         "Ambush sees phase-local activity, survives restore and resets at the phase boundary",
         "pending attack fixtures retain traits and phase history through exact continuation"
       ]
+    },
+    {
+      "id": "ROSTER-010",
+      "requirement": "Hydra multiattack, regeneration, vulnerabilities and restoration; tiger Bleeding and illusion reversal; explicit content migration",
+      "testFile": "tests/roster-specialists.test.ts",
+      "status": "verified",
+      "testNames": [
+        "Hydra resolves three bites as one action, wasting invalid subtargets without replacement",
+        "Hydra vulnerability and %s suppress regeneration for only that turn",
+        "Hydra can regenerate from incapacitation but never from death; reanimation removes regeneration",
+        "sabre-toothed tiger applies persistent Bleeding with correct illusion provenance (%s)"
+      ]
     }
   ],
   "pending": [
@@ -98,7 +110,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Cooldowns, breath, reload, siege penetration, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 46 profiles only after their complete engine tests",
+    "Enable remaining 44 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

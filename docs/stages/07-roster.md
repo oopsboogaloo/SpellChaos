@@ -112,3 +112,29 @@ passes 522 tests and the production build passes.
 Final integration verification also passed all 16 Chromium tests and all nine CLI
 scenarios. The Wall scenario retains wizard HP 4 and crystal HP 11; its fingerprint
 is now `fnv1a32-v1:9d33ec62` because the versioned state includes the new fields.
+
+## Hydra and sabre-toothed tiger
+
+Two more approved profiles are enabled (12 total). Their required mechanics use
+existing production paths, now covered with profile-specific regression tests:
+Hydra's three independently targeted bites form one action, invalid subtargets
+are wasted, each pending hit survives restore, regeneration restores 3 HP even
+from incapacitation, fire/acid vulnerability suppresses regeneration for that
+turn, death prevents recovery, and reanimation strips regeneration. Tiger retains
+15% Crit and cold resistance; its bite applies persistent Bleeding through the
+secondary-effect resistance roll. An illusory tiger's Bleeding and both attack
+and ongoing damage reverse with their source.
+
+The schema remains 11 because no fields changed. Content is now
+`attack-traits-0.2`. `legacy-content-traits-v1.ts` freezes the prior content
+validator/availability; `migrateAttackTraitContent` explicitly upgrades older
+schema-11 saves without changing their creatures, RNG, phase activity or pending
+attacks. The two original trait fixtures remain unchanged and are now exercised
+through that migration. Direct loading of the old content version is rejected.
+
+The remaining 44 profiles stay gated. Special actions, flight transitions,
+mounts, cooldowns and the other previously listed Stage 7 work remain open.
+
+Verification: 528 headless tests and type checking pass. The production build,
+16 Chromium tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11;
+the content-version change gives fingerprint `fnv1a32-v1:de43dea3`.

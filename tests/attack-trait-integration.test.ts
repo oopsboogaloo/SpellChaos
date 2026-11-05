@@ -1,3 +1,4 @@
+import { migrateAttackTraitContent } from '../packages/persistence/src/migration.js';
 import { startScenarioTurn } from '../packages/scenario/src/casting.js';
 import { expect,it } from 'vitest';
 import { createMatch,createCreature } from '../packages/engine/src/index.js';
@@ -42,7 +43,7 @@ it('pending attack fixtures retain traits and phase history through exact contin
  const {readFileSync}=await import('node:fs');
  for(const name of ['guard','ambush']){
   const text=readFileSync(`tests/fixtures/traits-v11-${name}.json`,'utf8').trim();
-  const a=restoreSnapshot(text),b=restoreSnapshot(encodeSnapshot(a));expect(encodeSnapshot(a)).toBe(text);
+  const a=migrateAttackTraitContent(text),b=restoreSnapshot(encodeSnapshot(a));expect(()=>restoreSnapshot(text)).toThrow();
   for(let n=0;a.pendingAttack;n++){if(n>10)throw new Error('ATTACK_LOOP');const ea:import('../packages/engine/src/events.js').Event[]=[],eb:import('../packages/engine/src/events.js').Event[]=[];stepAttack(a,ea);stepAttack(b,eb);expect(ea).toEqual(eb);expect(encodeSnapshot(a)).toBe(encodeSnapshot(b));}
  }
 });
