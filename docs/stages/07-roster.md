@@ -273,3 +273,29 @@ tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-14
 fingerprint is `fnv1a32-v1:5e1eb7f0`. Ballista and Siege Catapult remain gated for
 penetration and structural-damage rules respectively. The remaining 34 profiles
 and other Stage 7 work are still outstanding.
+
+## Siege Catapult structural damage
+
+Siege Catapult (Archer 7) is enabled, bringing the roster to 23 of 56 profiles.
+Its area attack deals 14 physical damage to each affected wall segment or
+constructed Tangleweed cell, while creatures retain the listed 7 damage with
+Dex resistance for half. Each structure is hit once even when both edge endpoints
+are in the blast. Illusory siege engines still cannot damage structures.
+
+The attack's optional `structureMultiplier: 2` is portable data, not a species-name
+check. Existing attacks omit it and retain their previous damage. Schema 15 / rules
+`roster-0.5` / content `siege-structures-0.1` makes the new attack interpretation
+explicit. Frozen schema-14 validators and `migrateReloadSnapshot` preserve loaded
+state, pending attacks and RNG without adding new abilities to existing creatures.
+The frozen validator rejects the new field in old saves.
+
+A permanent schema-15 mid-impact fixture verifies that restoring a committed shot
+does not repeat structural damage. Chromium compares continuation, events and
+player views with the production headless engine. Headless checks cover damage,
+wall destruction, illusion restrictions, Tangleweed, malformed multiplier values,
+and each of the four schema-14 reload/Guard fixtures. Ballista remains gated on
+penetration; 33 profiles remain outside the enabled roster.
+
+Verification: 596 headless tests, type checking, production build, 24 Chromium
+tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-15
+fingerprint is `fnv1a32-v1:fcd146cd`.

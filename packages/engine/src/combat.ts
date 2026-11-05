@@ -117,7 +117,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(origin.distance<attack.minRange||origin.distance>attack.range||!clearProjectile(origin.from,ground,p.action.side,s.walls,true)){
    emit(s,events,{type:'AttackInvalid',creatureId:a.id});p.shotIndex++;p.areaVictims=null;return false;
   }
-  if(p.areaVictims===null){p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));damageWeed(s,disk(ground,attack.radius),strike.components,events,a.id);damageAreaWalls(s,disk(ground,attack.radius),strike.components,events,a.id);}
+  if(p.areaVictims===null){p.areaVictims=affectedCreatures(disk(ground,attack.radius),s.creatures.filter(c=>c.alive));const structureComponents=strike.components.map(c=>({...c,amount:c.amount*(attack.structureMultiplier??1)}));damageWeed(s,disk(ground,attack.radius),structureComponents,events,a.id);damageAreaWalls(s,disk(ground,attack.radius),structureComponents,events,a.id);}
   if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
   const targetId=p.areaVictims[p.victimIndex++];
   target=s.creatures.find(c=>c.id===targetId);

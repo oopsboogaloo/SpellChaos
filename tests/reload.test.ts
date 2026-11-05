@@ -1,3 +1,4 @@
+import {migrateReloadSnapshot} from '../packages/persistence/src/migration.js';
 import {expect,it} from 'vitest';
 import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
 import {summonProfile} from '../packages/content/src/summons.js';
@@ -66,11 +67,11 @@ it.each([false,true])('real explosions finish after controller death; dispelled 
  if(illusion)expect(a.state.creatures.find(c=>c.id==='wizard-1')!.hp).toBe(10);
 });
 it.each(['firing','reload-planning','refire-planning','guard'])('permanent %s fixture resumes identically through every atomic step',async name=>{
- const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/reload-v14-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(encodeSnapshot(s)).toBe(text);const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
+ const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/reload-v14-${name}.json`,'utf8').trim(),s=migrateReloadSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(s.creatures).toEqual(JSON.parse(text).creatures);const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
 });
 it('schema-13 migration retains quarry state and grants no reload capability',async()=>{
  const {readFileSync}=await import('node:fs');const {migrateQuarrySnapshot}=await import('../packages/persistence/src/migration.js');
- const text=readFileSync('tests/fixtures/quarry-v13-attack.json','utf8'),old=JSON.parse(text),next=migrateQuarrySnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(14);expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null})));expect(next.pendingAttack).toEqual(old.pendingAttack);expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
+ const text=readFileSync('tests/fixtures/quarry-v13-attack.json','utf8'),old=JSON.parse(text),next=migrateQuarrySnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(15);expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null})));expect(next.pendingAttack).toEqual(old.pendingAttack);expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
 });
 it('Trebuchet fire plus physical area damage uses swarm vulnerability only once per component',()=>{
  let s=setup(8);s.creatures=s.creatures.filter(c=>!['target','ally'].includes(c.id));s.creatures.push(createCreature('swarm','b',{q:14,r:5},summonProfile('Summon Serpent',3)!));s=startScenarioTurn(s);s.random.resolution=4;

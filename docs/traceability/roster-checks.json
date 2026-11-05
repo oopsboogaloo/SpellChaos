@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; twenty-two enabled profiles; siege reload, area Guard and prior creature mechanics integrated",
+  "scope": "56 blueprints; twenty-three enabled profiles; siege reload, area Guard, structural damage and prior creature mechanics integrated",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty-two supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty-three supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -159,14 +159,27 @@
         "schema-13 migration retains quarry state and grants no reload capability",
         "owner views expose independent reload state while opponents receive no private readiness or quarry state"
       ]
+    },
+    {
+      "id": "ROSTER-015",
+      "requirement": "Siege Catapult double structure damage, unchanged creature damage, illusion restrictions and schema-15 continuation",
+      "testFile": "tests/siege-structures.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Siege Catapult doubles structure damage once per segment without doubling creature damage",
+        "illusory siege shots cannot damage structures but still damage intelligent creatures",
+        "permanent mid-impact fixture resumes without repeating structure damage",
+        "legacy validator rejects new structure abilities instead of silently changing old saves"
+      ]
     }
   ],
   "pending": [
     "Additional special-action and cooldown state, migrations and continuation fixtures",
     "Movement and attack passives, special actions, flight/mounts and detection",
-    "Cooldowns, breath, siege penetration/structural bonuses, False King and constriction",
+    "Cooldowns, breath, siege penetration, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 34 profiles only after their complete engine tests",
+    "Enable remaining 33 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

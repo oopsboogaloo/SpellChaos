@@ -1,3 +1,4 @@
+import { stateSchema as reloadSchema } from '../../domain/src/legacy-v14.js';
 import { stateSchema as quarrySchema } from '../../domain/src/legacy-v13.js';
 import { stateSchema as onHitSchema } from '../../domain/src/legacy-v12.js';
 import { stateSchema as traitsV3Schema } from '../../domain/src/legacy-v11.js';
@@ -140,5 +141,11 @@ export function migrateOnHitSnapshot(text:string):GameState {
 
 export function migrateQuarrySnapshot(text:string):GameState {
  const old=quarrySchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Explicit upgrade preserves committed siege shots and readiness without adding abilities. */
+export function migrateReloadSnapshot(text:string):GameState {
+ const old=reloadSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

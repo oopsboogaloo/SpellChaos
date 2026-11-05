@@ -117,7 +117,7 @@ function siege(name:string,skill:number,damage:number,range:number,minRange:numb
  return a;
 }
 add('Archer',6,'Catapult',[4,7,1,1,0],[siege('Stone',5,5,12,4,1)],construct([defence('physical',.5),defence('poison',0),defence('fire',1.5)]),[ability('reload'),ability('arcing')]);
-add('Archer',7,'Siege Catapult',[5,8,1,1,0],[siege('Stone',6,7,15,5,1)],construct([defence('physical',.5),defence('poison',0),defence('fire',1.5),defence('acid',1.5)]),[ability('reload'),ability('arcing'),ability('structure-damage',{multiplier:2})]);
+add('Archer',7,'Siege Catapult',[5,8,1,1,0],[{...siege('Stone',6,7,15,5,1),structureMultiplier:2}],construct([defence('physical',.5),defence('poison',0),defence('fire',1.5),defence('acid',1.5)]),[ability('reload'),ability('arcing'),ability('structure-damage',{multiplier:2})]);
 add('Archer',8,'Thunder Trebuchet',[6,8,0,1,0],[siege('Explosive shot',6,6,18,6,2,6)],construct([defence('physical',.5),defence('poison',0),defence('fire',2)]),[ability('reload'),ability('arcing')]);
 
 // Explicit runtime assignments; reanimation uses its own stripped profile.
