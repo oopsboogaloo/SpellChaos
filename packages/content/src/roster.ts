@@ -92,7 +92,7 @@ const wither=melee('Touch',6,4,'magic');wither.shots[0]!.secondary.push({kind:'S
 add('Spirit',4,'Spectre',[2,5,5,7,5],[wither],spirit(4,{incorporeal:true,defences:spiritDefences(0)}));
 add('Spirit',5,'Wraith',[2,6,5,7,6],[melee('Touch',7,5,'magic')],spirit(5,{lifeDrain:2,incorporeal:true,defences:[...spiritDefences(0),defence('necrotic',.5)]}),[ability('drain',{healing:2,requires:'living-real-damaged'})]);
 add('Spirit',6,'Banshee',[2,5,4,6,8],[melee('Touch',6,3,'magic')],spirit(6,{incorporeal:true,defences:[...spiritDefences(0,2),defence('cold',.5)]}),[ability('wail',{radius:3,damage:5,type:'magic',potency:6,fearPotency:6,fearDuration:2,cooldown:3,targets:'all-others',damageResistance:'dex',fearResistance:'int'})]);
-add('Spirit',7,'Dread revenant',[3,7,3,5,8],[melee('Blade',8,7,'magic')],spirit(7,{defences:[...spiritDefences(0),defence('necrotic',.5)]}),[ability('weapons'),ability('marked-quarry',{skill:2,selection:'action',duration:'until-target-death'})]);
+add('Spirit',7,'Dread revenant',[3,7,3,5,8],[melee('Blade',8,7,'magic')],spirit(7,{canMarkQuarry:true,defences:[...spiritDefences(0),defence('necrotic',.5)]}),[ability('weapons'),ability('marked-quarry',{skill:2,selection:'action',duration:'until-target-death'})]);
 add('Spirit',8,'The Pale Monarch',[3,8,4,7,10],[melee('Sceptre',9,8,'magic')],spirit(8,{...caster(40,6,['Reanimate','Release','Darkness']),incorporeal:true,defences:[...spiritDefences(0,2),defence('necrotic',0)]}));
 
 const plant = (extra:Partial<Creature> = {}):Partial<Creature> => ({plant:true,corpseEligible:false,reanimationAttackIds:[],...extra});

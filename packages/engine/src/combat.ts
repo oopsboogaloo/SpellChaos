@@ -24,6 +24,11 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
  const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
  if(targetIds.some(id=>{const t=s.creatures.find(c=>c.id===id);return t&&!visibleTo(s,t,c.controller!);}))throw new Error('UNKNOWN_TARGET');
+ if(a.type==='MarkQuarry'){
+  if(!c.canMarkQuarry)throw new Error('NO_MARKED_QUARRY');
+  if(a.targetId===c.id||!s.creatures.some(t=>t.id===a.targetId&&t.alive))throw new Error('INVALID_QUARRY_TARGET');
+  return;
+ }
  if(a.type==='Attack' || a.type==='Guard'){
   const attack=c.attacks.find(x=>x.id===a.attackId); if(!attack)throw new Error('UNKNOWN_ATTACK');
   if(a.type==='Guard'){
@@ -48,12 +53,13 @@ function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:
   (!melee(attack)||clearProjectile(p.from,p.to,side,s.walls));
 }
 export function creatureAttackModifiers(s:GameState,a:Creature,b:Creature,source:'action'|'guard') {
- return attackTraitModifiers(a.attackTraits,{
+ const result=attackTraitModifiers(a.attackTraits,{
   plannedMovement:!!s.orders.find(o=>o.creatureId===a.id)?.path.length,
   movedThisTurn:s.moved.includes(a.id),phase:s.phase==='movement'?'movement':s.phase==='late'?'late':'early',source,
   distance:pair(a,b).distance,targetActedThisPhase:s.actedThisPhase.includes(b.id),
   activeAdjacentRallySources:s.creatures.filter(c=>c.id!==a.id&&a.controller!==null&&c.controller===a.controller&&c.attackTraits.rallySource&&active(c)&&c.height===a.height&&pair(c,a).distance===1).length,
  });
+ return {...result,skill:result.skill+(a.canMarkQuarry&&a.quarryTargetId===b.id?2:0)};
 }
 export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):[boolean,boolean]{
  const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
@@ -151,6 +157,11 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
+ if(action.type==='MarkQuarry'){
+  const target=s.creatures.find(t=>t.id===action.targetId&&t.alive);
+  if(!c.canMarkQuarry||!target||target.id===c.id||!c.controller||!visibleTo(s,target,c.controller)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
+  c.quarryTargetId=target.id;emit(s,events,{type:'QuarryMarked',creatureId:c.id,targetId:target.id});return;
+ }
  if(action.type==='Attack'){beginAttack(s,c,action,'action');return;}
  if(action.type==='Guard'){
   s.guards=s.guards.filter(g=>g.creatureId!==c.id);

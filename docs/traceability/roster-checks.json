@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; nineteen enabled profiles; attack traits, control/casters, Bristles and life drain integrated",
+  "scope": "56 blueprints; twenty enabled profiles; attack traits, control/casters, on-hit traits and Marked Quarry integrated",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Nineteen supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -129,6 +129,20 @@
         "Bristles incapacitation stops remaining compound-attack bites without another retaliation loop",
         "schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work"
       ]
+    },
+    {
+      "id": "ROSTER-013",
+      "requirement": "D01 Marked Quarry action cost, selected attack bonus, persistence, visibility, cleanup and versioned continuation",
+      "testFile": "tests/marked-quarry.test.ts",
+      "browserTestFile": "tests/browser/marked-quarry.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "selection costs the normal action and survives every atomic boundary and the next turn",
+        "changing quarry replaces the bonus; losing a target clears it without selecting another",
+        "the selected bonus affects production hit rolls, not merely the preview",
+        "permanent %s fixture resumes identically at every atomic boundary",
+        "schema-12 migration preserves existing on-hit state without granting Marked Quarry"
+      ]
     }
   ],
   "pending": [
@@ -136,7 +150,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Cooldowns, breath, reload, siege penetration, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 37 profiles only after their complete engine tests",
+    "Enable remaining 36 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

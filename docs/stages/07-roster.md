@@ -199,3 +199,36 @@ compound-attack interruption, real/illusory targets, immunity, healing caps,
 provenance reversal, malformed state, migration and exact per-hit continuation.
 The remaining 37 profiles and earlier listed Stage 7 tasks are still outstanding.
 All nine existing CLI scenarios also pass with the new state version.
+
+## Marked Quarry
+
+Dread revenant is enabled (20 profiles total). `MarkQuarry` is an explicit action
+that selects or changes one visible living creature. It consumes the normal action
+budget and grants +2 attack Skill only against that creature, including Guard.
+The mark persists across turns until the quarry dies; cleanup clears it without
+choosing a replacement. A selection that becomes invalid or hidden before
+resolution wastes its action and preserves any previous valid mark.
+
+D01 supplies the action cost and lifetime. Selection uses the controlling player's
+permitted visibility and introduces no additional range limit (none was specified
+for this selection ability); subsequent attacks still obey their normal range,
+sight and interception rules. The mark does not reveal its target through Darkness.
+Illusory revenants retain this combat ability without modifying target truth.
+
+Schema 13 / rules `roster-0.3` / content `marked-quarry-0.1` adds explicit capability
+and quarry identifiers plus the command variant. Validation rejects unsupported
+planned use, self/unknown references and forged persistent marks. Schema 12 is
+frozen in `legacy-v12.ts`. `migrateOnHitSnapshot` preserves existing data while
+supplying no quarry capability or target. Earlier migrations also produce schema
+13 without inferring new powers from old species names.
+
+Three permanent fixtures cover planning, an active mark and a pending attack.
+Eleven headless checks verify action cost, persistence, replacement, death cleanup,
+actual hit probability, invalid/hidden targets, illusion use, malformed saves and
+migration. Three Chromium checks compare full state, events and player views with
+Node while restoring at each atomic boundary.
+
+Verification: 565 headless tests, type checking, production build and all nine CLI
+scenarios pass. The existing 16 browser checks and three new quarry checks pass
+(19 total). The remaining 36 profiles and other listed Stage 7 mechanics remain
+in progress; this is not a completed MVP or a deployment.

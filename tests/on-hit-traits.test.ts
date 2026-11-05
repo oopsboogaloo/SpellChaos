@@ -1,3 +1,4 @@
+import {migrateOnHitSnapshot} from '../packages/persistence/src/migration.js';
 import {expect,it} from 'vitest';
 import {createMatch,createCreature} from '../packages/engine/src/index.js';
 import {summonProfile} from '../packages/content/src/summons.js';
@@ -46,7 +47,7 @@ it('new on-hit state rejects negative values and reanimation does not gain life 
 });
 it.each(['bristles','drain'])('permanent %s fixture resumes exactly through all attack boundaries',async name=>{
  const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/onhit-v12-${name}.json`,'utf8').trim();
- const a=restoreSnapshot(text);let b=restoreSnapshot(text);expect(encodeSnapshot(a)).toBe(text);
+ const a=migrateOnHitSnapshot(text);let b=restoreSnapshot(encodeSnapshot(a));expect(()=>restoreSnapshot(text)).toThrow();
  while(a.pendingAttack){const ea:Event[]=[],eb:Event[]=[];stepAttack(a,ea);b=restoreSnapshot(encodeSnapshot(b));stepAttack(b,eb);expect(ea).toEqual(eb);expect(encodeSnapshot(a)).toBe(encodeSnapshot(b));}
  expect(a.creatures.find(c=>c.id==='attacker')!.hp).toBe(name==='bristles'?9:8);
 });
@@ -61,7 +62,7 @@ it('Bristles incapacitation stops remaining compound-attack bites without anothe
 it('schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work',async()=>{
  const {readFileSync}=await import('node:fs');const {migrateAttackTraitContent}=await import('../packages/persistence/src/migration.js');
  const text=readFileSync('tests/fixtures/traits-content-v3-guard.json','utf8'),old=JSON.parse(text),next=migrateAttackTraitContent(text);
- expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(12);expect(next.random).toEqual(old.random);expect(next.pendingAttack).toEqual(old.pendingAttack);
- expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,bristles:0,lifeDrain:0})));
+ expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(13);expect(next.random).toEqual(old.random);expect(next.pendingAttack).toEqual(old.pendingAttack);
+ expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,canMarkQuarry:false,quarryTargetId:null,bristles:0,lifeDrain:0})));
  expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
 });

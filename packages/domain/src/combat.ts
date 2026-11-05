@@ -18,7 +18,7 @@ export type AttackAction=z.infer<typeof attackActionSchema>;
 export const combatActionSchema=z.union([
  attackActionSchema,
  z.strictObject({type:z.literal('Guard'),attackId:id,targetId:id.nullable(),area:z.array(hex)}),
- z.strictObject({type:z.literal('Grapple'),targetId:id}),
+ z.strictObject({type:z.enum(['Grapple','MarkQuarry']),targetId:id}),
  z.strictObject({type:z.enum(['Treat','Wake','Extinguish']),targetId:id}),
 ]);
 export const guardSchema=z.strictObject({creatureId:id,attackId:id,targetId:id.nullable(),area:z.array(hex),attacked:z.array(id),spent:z.boolean()});
