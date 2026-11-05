@@ -73,3 +73,11 @@ restoration. This pure calculation is not yet connected to attack resolution:
 phase-local action history and authoritative trait state must be added with the
 next schema migration before these creatures can be enabled. This does not claim
 mid-resolution save coverage for those pending fields.
+
+Forced-movement prerequisite: the production relocation helper now records actual
+movement in the existing serialised `moved` history, once per creature. This fixes
+missing input for Aim and the existing Subdued movement/action restriction.
+Invalid destinations leave state untouched; no-op relocation does not count as
+movement. Three regression tests cover these cases and identical continuation
+following snapshot restoration. No new schema field is introduced. Attack-trait
+integration and phase-local action history remain pending.
