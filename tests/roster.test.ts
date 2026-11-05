@@ -56,13 +56,13 @@ describe('approved MVP roster data (runtime ability integration remains gated)',
   expect(c('Dragon',8).attacks[0]!.shots[0]!.components[0]!.amount).toBe(4);
   expect(approvedBlueprint('Dragon',8)!.abilities[1]!.parameters.damage).toBe(8);
  });
- it('matches the six already-enabled engine creatures without enabling unfinished profiles',()=>{
+ it('matches the enabled engine creatures without enabling unfinished profiles',()=>{
   let enabled=0;
   for(const family of summonFamilies)for(let level=1;level<=8;level++){
    const profile=summonProfile(`Summon ${family}` as SpellFamily,level);
    if(profile){enabled++;expect(createCreature('subject','a',{q:10,r:10},profile)).toEqual(c(family,level));}
   }
-  expect(enabled).toBe(6);
+  expect(enabled).toBe(10);
  });
  it('preserves the four explicit caster pools, caps and spell lists',()=>{
   const casters=approvedRoster().filter(r=>r.profile.mana).map(r=>({name:r.profile.species,mana:r.profile.mana,cap:r.profile.spellLevelCap,regen:r.profile.manaRegen,spells:r.profile.spellbook}));

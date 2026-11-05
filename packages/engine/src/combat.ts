@@ -1,3 +1,4 @@
+import { attackTraitModifiers } from './attack-traits.js';
 import { structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
@@ -46,6 +47,14 @@ function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:
   (!melee(attack)||a.height===b.height) && (sight(s,a,p.from,p.to,side)||(p.distance<=1&&clearSight(p.from,p.to,side,s.walls))) &&
   (!melee(attack)||clearProjectile(p.from,p.to,side,s.walls));
 }
+export function creatureAttackModifiers(s:GameState,a:Creature,b:Creature,source:'action'|'guard') {
+ return attackTraitModifiers(a.attackTraits,{
+  plannedMovement:!!s.orders.find(o=>o.creatureId===a.id)?.path.length,
+  movedThisTurn:s.moved.includes(a.id),phase:s.phase==='movement'?'movement':s.phase==='late'?'late':'early',source,
+  distance:pair(a,b).distance,targetActedThisPhase:s.actedThisPhase.includes(b.id),
+  activeAdjacentRallySources:s.creatures.filter(c=>c.id!==a.id&&a.controller!==null&&c.controller===a.controller&&c.attackTraits.rallySource&&active(c)&&c.height===a.height&&pair(c,a).distance===1).length,
+ });
+}
 export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):[boolean,boolean]{
  const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
  const advantage=allies.some(x=>a.packTactics||(pair(a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
@@ -55,6 +64,7 @@ export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefi
  return [advantage,defended||threatened||has(a,'Fear')||obscured];
 }
 export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard'):void {
+ if(source==='action'&&!s.actedThisPhase.includes(c.id))s.actedThisPhase.push(c.id);
  s.pendingAttack={actionId:`attack-${s.nextEntityId++}`,attackerId:c.id,action,source,shotIndex:0,victimIndex:0,areaVictims:null,damageByTarget:[]};
 }
 /** One hit/victim per atomic step; aggregate damage survives snapshots for concentration. */
@@ -104,13 +114,15 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   }
  }
  if(!target?.alive){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
- const [advantage,disadvantage]=hitModifiers(s,a,target,attack,p.action.side);
+ const [baseAdvantage,baseDisadvantage]=hitModifiers(s,a,target,attack,p.action.side);
+ const modifiers=creatureAttackModifiers(s,a,target,p.source);
+ const advantage=baseAdvantage||modifiers.advantage,disadvantage=baseDisadvantage||modifiers.disadvantage;
  const area=attack.mode==='area';
- const hit=area || !active(target) || roll(s,hitChance(strike.skill,target.dex),advantage,disadvantage);
+ const hit=area || !active(target) || roll(s,hitChance(strike.skill+modifiers.skill,target.dex),advantage,disadvantage);
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
- const damage=applyDamage(s,target,strike.components,events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
+ const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:component.amount+(index===0?modifiers.damage:0)})),events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});

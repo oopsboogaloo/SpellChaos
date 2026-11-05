@@ -1,24 +1,104 @@
 {
   "stage": 7,
-  "status": "in-progress-content-checkpoint",
-  "scope": "56 approved blueprints; runtime availability remains the six Stage 6 profiles",
-  "source": "Specification v0.9 approved MVP profiles; accepted D01–D22",
+  "status": "in-progress-attack-traits",
+  "scope": "56 blueprints; ten enabled profiles; five combat trait rules integrated",
+  "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
-    {"id":"ROSTER-001","requirement":"Seven complete eight-level families, exact ratings and ordinary attack values","testFile":"tests/roster.test.ts","testNames":["contains exactly seven families and eight unique named profiles per family","<family> level %i preserves approved ratings and portable core data"],"status":"content-verified"},
-    {"id":"ROSTER-002","requirement":"Independent portable blueprint copies and invalid-level rejection","testFile":"tests/roster.test.ts","testNames":["returns isolated copies and rejects unknown levels without falling back to a generic creature"],"status":"content-verified"},
-    {"id":"ROSTER-003","requirement":"Existing six summons retain production data; new profiles remain gated","testFile":"tests/roster.test.ts","testNames":["matches the six already-enabled engine creatures without enabling unfinished profiles"],"status":"verified"},
-    {"id":"ROSTER-004","requirement":"Explicit creature caster pools, caps and spell lists","testFile":"tests/roster.test.ts","testNames":["preserves the four explicit caster pools, caps and spell lists"],"status":"content-verified"},
-    {"id":"ROSTER-005","requirement":"Multiattacks, independent breath types, D01–D08 requirements","testFile":"tests/roster.test.ts","testNames":["keeps compound attacks in one action and alternative breaths out of bite sequences","records D01–D08 ability choices rather than losing them in generic attacks"],"status":"content-verified-runtime-pending"},
-    {"id":"ROSTER-006","requirement":"Undead/corpse exceptions and reanimation attack stripping","testFile":"tests/roster.test.ts","testNames":["retains physical immunity exceptions and corpse exclusions","does not turn magical projectiles or poison production into reanimated body attacks"],"status":"content-verified"},
-    {"id":"ROSTER-007","requirement":"Siege attack values, minimum ranges, split damage and immobility","testFile":"tests/roster.test.ts","testNames":["keeps siege minimum ranges, areas, components and immobility distinct"],"status":"content-verified-runtime-pending"},
-    {"id":"ROSTER-008","requirement":"Every named special ability has an explicit integration requirement","testFile":"tests/roster.test.ts","testNames":["has an explicit integration requirement for every special ability"],"status":"content-verified-runtime-pending"}
+    {
+      "id": "ROSTER-001",
+      "requirement": "Seven complete eight-level families, exact ratings and ordinary attack values",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "contains exactly seven families and eight unique named profiles per family",
+        "<family> level %i preserves approved ratings and portable core data"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-002",
+      "requirement": "Independent portable blueprint copies and invalid-level rejection",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "returns isolated copies and rejects unknown levels without falling back to a generic creature"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-003",
+      "requirement": "Ten supported summon profiles use approved production data; unfinished profiles remain gated",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "matches the enabled engine creatures without enabling unfinished profiles"
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "ROSTER-004",
+      "requirement": "Explicit creature caster pools, caps and spell lists",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "preserves the four explicit caster pools, caps and spell lists"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-005",
+      "requirement": "Multiattacks, independent breath types, D01\u2013D08 requirements",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "keeps compound attacks in one action and alternative breaths out of bite sequences",
+        "records D01\u2013D08 ability choices rather than losing them in generic attacks"
+      ],
+      "status": "content-verified-runtime-pending"
+    },
+    {
+      "id": "ROSTER-006",
+      "requirement": "Undead/corpse exceptions and reanimation attack stripping",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "retains physical immunity exceptions and corpse exclusions",
+        "does not turn magical projectiles or poison production into reanimated body attacks"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-007",
+      "requirement": "Siege attack values, minimum ranges, split damage and immobility",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "keeps siege minimum ranges, areas, components and immobility distinct"
+      ],
+      "status": "content-verified-runtime-pending"
+    },
+    {
+      "id": "ROSTER-008",
+      "requirement": "Every named special ability has an explicit integration requirement",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "has an explicit integration requirement for every special ability"
+      ],
+      "status": "content-verified-runtime-pending"
+    },
+    {
+      "id": "ROSTER-009",
+      "requirement": "Aim, Brace, Ambush, Rally and close-range disadvantage use authoritative portable context; schema 11 migrates legacy saves explicitly",
+      "testFile": "tests/attack-trait-integration.test.ts",
+      "status": "verified",
+      "testNames": [
+        "Brace deals two additional Guard damage through the production attack resolver and restore",
+        "Aim and longbow close disadvantage read planned and actual movement and target distance",
+        "Rally excludes self, enemies and incapacitated sources and never stacks",
+        "Ambush sees phase-local activity, survives restore and resets at the phase boundary",
+        "pending attack fixtures retain traits and phase history through exact continuation"
+      ]
+    }
   ],
   "pending": [
-    "Versioned runtime ability state, migration and atomic continuation fixtures",
+    "Additional special-action and cooldown state, migrations and continuation fixtures",
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Cooldowns, breath, reload, siege penetration, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 50 profiles only after their complete engine tests",
+    "Enable remaining 46 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

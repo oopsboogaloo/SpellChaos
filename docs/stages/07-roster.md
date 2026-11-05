@@ -81,3 +81,34 @@ Invalid destinations leave state untouched; no-op relocation does not count as
 movement. Three regression tests cover these cases and identical continuation
 following snapshot restoration. No new schema field is introduced. Attack-trait
 integration and phase-local action history remain pending.
+
+## Runtime attack-trait integration
+
+Schema 11 (`roster-0.1`, `attack-traits-0.1`) adds explicit creature attack traits
+and unique `actedThisPhase` identifiers. Combat now applies Aim, Brace, Ambush,
+Rally and close-range disadvantage. Actual action starts/completions record phase
+activity; phase transitions clear it independently of turn-wide action history.
+Rally excludes the attacker, enemies, inactive sources and different heights,
+and multiple eligible sources still grant only one point. Brace adds damage
+before criticals and defences. Reanimation retains ordinary attack traits but
+removes Rally's command aura. Illusions retain the copied combat traits.
+
+Adder, Hobgoblin, Bowman and Longbowman are now enabled, bringing the runtime
+roster to ten profiles. Goblin king remains gated pending Command, although its
+Rally aura can be tested in scripted scenarios. Other creature abilities and
+flight/mount/cooldown work remain incomplete.
+
+Schema-10 validators and content-availability checks are frozen. The explicit
+`migrateWallSnapshot` migration supplies neutral traits without inferring new
+abilities from old species names. Earlier migration entry points also produce
+schema 11. Old fixtures remain unchanged and unsupported raw snapshots are
+rejected. New permanent fixtures capture pending Guard and Ambush attacks.
+
+`tests/attack-trait-integration.test.ts` verifies production damage, authoritative
+context, phase resets, aura eligibility, malformed state, command-aura stripping
+and exact event/state continuation from the new fixtures. Full headless validation
+passes 522 tests and the production build passes.
+
+Final integration verification also passed all 16 Chromium tests and all nine CLI
+scenarios. The Wall scenario retains wizard HP 4 and crystal HP 11; its fingerprint
+is now `fnv1a32-v1:9d33ec62` because the versioned state includes the new fields.

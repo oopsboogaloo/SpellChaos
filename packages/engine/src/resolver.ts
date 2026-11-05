@@ -31,7 +31,7 @@ function initialize(state: GameState, events: Event[]): void {
   emit(state, events, { type: 'PhaseStarted' });
 }
 function finishPhase(state: GameState, events: Event[]): void {
-  state.quickQueue=null;
+  state.quickQueue=null; state.actedThisPhase=[];
   emit(state, events, { type: 'PhaseEnded' });
   if (checkVictory(state, events)) return;
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
@@ -42,7 +42,7 @@ function finishPhase(state: GameState, events: Event[]): void {
 function finishTurn(state: GameState, events: Event[]): void {
   awardAndRegenerate(state); state.castOccupied=[]; state.quickQueue=null;
   state.wallCrossings=[];state.weedAttempts=[];state.movementSpent=[];
-  state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
+  state.actedThisPhase=[];state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
   regrowSwarms(state,events);
@@ -111,12 +111,12 @@ export function advanceAtomicStep(state: GameState): Transition {
     } else {
       const phase=next.phase as 'early'|'late';
       const completing=next.casts.find(cast=>cast.casterId===c.id&&cast.timing!=='quick'&&cast.dueTurn===next.turn&&cast.duePhase===phase);
-      if(completing){completeCast(next,completing.id,events);advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
+      if(completing){if(!next.actedThisPhase.includes(c.id))next.actedThisPhase.push(c.id);completeCast(next,completing.id,events);advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
       if(slotOccupied(next,c,phase)){advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
       if(subdued(c) && (next.moved.includes(c.id) || next.spentActions.includes(c.id))) { advanceActor(); return {state:next,events,acknowledgedRevision:next.revision}; }
       const action = next.phase === 'early' ? order.early : order.late;
       if (action === 'Dash') next.dashed.push(c.id);
-      if(action) next.spentActions.push(c.id);
+      if(action){next.spentActions.push(c.id);if(!next.actedThisPhase.includes(c.id))next.actedThisPhase.push(c.id);}
       if(action&&typeof action==='object'&&action.type==='Cast') startCast(next,c,action,events);
       else resolveCombatAction(next,c,action,events);
       if (action) emit(next, events, { type: 'ActionResolved', creatureId: c.id, action: typeof action === 'string' ? action : action.type });

@@ -27,6 +27,7 @@ export function reanimatedProfile(body: Creature, skeletal: boolean): Partial<Cr
   intelligence: body.intelligence, height: body.height, summonLevel: body.summonLevel,
   attacks, reanimationAttackIds: attacks.map(a => a.id), defences: structuredClone(body.defences),
   undead: true, undeadClass: skeletal ? 'skeleton' : 'zombie', restorationUsed: true,
+  attackTraits: {...body.attackTraits,rallySource:false},
   packTactics: body.packTactics, grappleLimbs: body.grappleLimbs, grappleEqualSize: body.grappleEqualSize,
   flammable: body.flammable,
   // The factory supplies no mana, familiar origin, regeneration, escape power or spellbook.

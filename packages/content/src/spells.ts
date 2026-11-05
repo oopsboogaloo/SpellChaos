@@ -3,7 +3,7 @@ export const guaranteed:SpellFamily[]=['Disbelief','Bind','Release'];
 export const startingPool=spellFamilies.filter(s=>!guaranteed.includes(s));
 export const damageSpells:SpellFamily[]=['Magic Bolt','Fire Bolt','Magic Attack'];
 export const utilitySpells:SpellFamily[]=['Healing Bolt','Teleport','Wall','Tangleweed','Darkness','Reanimate'];
-export const implementedSpells:SpellFamily[]=['Summon Cat','Summon Serpent','Summon Dragon','Summon Plant','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport','Reanimate','Darkness','Tangleweed','Wall'];
+export const implementedSpells:SpellFamily[]=['Summon Goblin','Summon Archer','Summon Cat','Summon Serpent','Summon Dragon','Summon Plant','Disbelief','Bind','Release','Magic Bolt','Fire Bolt','Magic Attack','Healing Bolt','Teleport','Reanimate','Darkness','Tangleweed','Wall'];
 export function alignment(spell:SpellFamily,level=1):number {
  if(spell==='Wall')return [1,1,1,1,0,-1,1,-1][level-1]!;
  if(['Summon Cat','Summon Plant','Summon Archer','Bind','Healing Bolt','Tangleweed'].includes(spell))return 1;
