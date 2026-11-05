@@ -138,3 +138,30 @@ mounts, cooldowns and the other previously listed Stage 7 work remain open.
 Verification: 528 headless tests and type checking pass. The production build,
 16 Chromium tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11;
 the content-version change gives fingerprint `fnv1a32-v1:de43dea3`.
+
+## Control creatures and creature spellcasters
+
+Grasping vine, Spectre, Goblin shaman, Ancient treant and The Pale Monarch are now
+enabled: 17 profiles total. Ten new checks exercise the production mechanics
+against these profiles: two independent equal-size grapples at reach two, Escape
+releasing one hold, larger-target rejection, Wither only after positive damage,
+reversible illusion provenance, physical immunity/light vulnerability, incorporeal
+transit versus Energy and occupied endpoints, and the three caster profiles' own
+mana pools, level caps, illusion exclusions and pending-cast continuation.
+
+No replacement mechanics were introduced; these profiles use the tested existing
+grapple, condition, defence, movement and casting implementations. The remaining
+39 profiles stay gated while their missing interactions are implemented.
+
+Content is `attack-traits-0.3`, still schema 11. The previous content-v2 validator
+and summon availability are frozen in `legacy-content-traits-v2.ts`.
+`migrateAttackTraitContent` now accepts either supported old content version,
+validates it first, and preserves all stored creature and pending-effect data.
+A permanent v2 Guard fixture (same state as the earlier Guard fixture, labelled
+with the supported v2 content version) checks migration, rejection of unknown
+versions, and identical continued attacks after loading.
+
+Verification: 538 headless tests, type checking, production build, 16 Chromium
+tests and all nine CLI scenarios pass. Stage 7 is still incomplete: special
+active abilities, flight transitions, mounts, cooldowns and other listed work
+remain outstanding.

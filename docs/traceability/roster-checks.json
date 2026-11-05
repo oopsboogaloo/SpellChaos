@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; twelve enabled profiles; combat traits and Hydra/tiger specialist interactions verified",
+  "scope": "56 blueprints; seventeen enabled profiles; combat traits, Hydra/tiger, control creatures and creature spellcasters verified",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twelve supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Seventeen supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -103,6 +103,18 @@
         "Hydra can regenerate from incapacitation but never from death; reanimation removes regeneration",
         "sabre-toothed tiger applies persistent Bleeding with correct illusion provenance (%s)"
       ]
+    },
+    {
+      "id": "ROSTER-011",
+      "requirement": "Vine grappling and escape, Spectre Wither and incorporeality, three creature caster pools/caps and restoration, explicit content-v2 migration",
+      "testFile": "tests/roster-control-casters.test.ts",
+      "status": "verified",
+      "testNames": [
+        "vine uses two distinct tendrils at reach two against equal-sized targets and cannot take a third hold",
+        "Spectre Wither requires damage and retains reversible illusion provenance (%s)",
+        "%s level %i pays from its own mana, respects its cap and restores its pending cast",
+        "explicitly migrates content v2 without changing creature data, RNG, pending attack or phase activity"
+      ]
     }
   ],
   "pending": [
@@ -110,7 +122,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Cooldowns, breath, reload, siege penetration, False King and constriction",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 44 profiles only after their complete engine tests",
+    "Enable remaining 39 profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }
