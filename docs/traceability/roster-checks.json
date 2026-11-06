@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "56 blueprints; twenty-four enabled profiles; siege reload, area Guard, structural damage, Ballista penetration and prior creature mechanics integrated",
+  "scope": "40 MVP profiles across five families; 22 implemented in scope including Elven Archer; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty-four supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty-five implemented including three deferred profiles; twenty-two in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -186,14 +186,39 @@
         "ranged Guard uses the same two-body ray and spends only one loaded bolt",
         "permanent second-hit fixture resumes exactly and rejects extra or self victims"
       ]
+    },
+    {
+      "id": "ROSTER-017",
+      "requirement": "Elven Archer explicit arrow choices, defences, Darkness, Guard, illusions, reanimation and portable continuation",
+      "testFile": "tests/elven-archer.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "selected %s arrow uses its own damage type with exact continuation",
+        "physical arrows can outperform magic arrows against magic resistance",
+        "Darkness attack disadvantage is ignored without granting visibility through the area",
+        "reanimation retains physical archery but removes magical arrows",
+        "permanent %s arrow fixture retains the chosen shot across restore"
+      ]
+    },
+    {
+      "id": "ROSTER-018",
+      "requirement": "Owner-approved deferral of Goblin and Dragon; five-family books, awards and summon-order gating",
+      "testFile": "tests/mvp-scope.test.ts",
+      "status": "verified",
+      "testNames": [
+        "five-family MVP retains 40 profiles and 12 non-summoning families",
+        "new spellbooks and repeated awards never include deferred families",
+        "%s cannot start a new cast even if retained in an old spellbook"
+      ]
     }
   ],
   "pending": [
     "Additional special-action and cooldown state, migrations and continuation fixtures",
     "Movement and attack passives, special actions, flight/mounts and detection",
-    "Cooldowns, breath, False King and constriction",
+    "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 32 profiles only after their complete engine tests",
+    "Enable remaining 18 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

@@ -1,12 +1,12 @@
-import {migrateReloadSnapshot,migrateSiegeSnapshot} from '../../packages/persistence/src/migration.js';
+import {migrateReloadSnapshot,migrateSiegeSnapshot,migrateBallistaSnapshot} from '../../packages/persistence/src/migration.js';
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {restoreSnapshot,encodeSnapshot} from '../../packages/persistence/src/snapshot.js';
 import {startScenarioTurn} from '../../packages/scenario/src/casting.js';
 import {advanceAtomicStep} from '../../packages/engine/src/resolver.js';
 import {projectView} from '../../packages/views/src/index.js';
-for(const name of ['firing','reload-planning','refire-planning','guard','structure-impact','ballista-second-hit'])test(`Node and Chromium agree on siege ${name} continuation`,async({page})=>{
- const initial=name==='ballista-second-hit'?readFileSync('tests/fixtures/ballista-v16-second-hit.json','utf8'):name==='structure-impact'?encodeSnapshot(migrateSiegeSnapshot(readFileSync('tests/fixtures/siege-v15-impact.json','utf8'))):encodeSnapshot(migrateReloadSnapshot(readFileSync(`tests/fixtures/reload-v14-${name}.json`,'utf8')));let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);const events=[];
+for(const name of ['firing','reload-planning','refire-planning','guard','structure-impact','ballista-second-hit','elven-basic','elven-physical-arrow'])test(`Node and Chromium agree on siege ${name} continuation`,async({page})=>{
+ const initial=name.startsWith('elven-')?readFileSync(`tests/fixtures/elven-v17-${name.slice(6)}.json`,'utf8'):name==='ballista-second-hit'?encodeSnapshot(migrateBallistaSnapshot(readFileSync('tests/fixtures/ballista-v16-second-hit.json','utf8'))):name==='structure-impact'?encodeSnapshot(migrateSiegeSnapshot(readFileSync('tests/fixtures/siege-v15-impact.json','utf8'))):encodeSnapshot(migrateReloadSnapshot(readFileSync(`tests/fixtures/reload-v14-${name}.json`,'utf8')));let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);const events=[];
  for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(s);s=r.state;events.push(...r.events);}
  await page.goto('/');const actual=await page.evaluate(async({root,initial})=>{
   const persistence=await import(root+'/packages/persistence/src/snapshot.ts');const scenario=await import(root+'/packages/scenario/src/casting.ts');const resolver=await import(root+'/packages/engine/src/resolver.ts');const views=await import(root+'/packages/views/src/index.ts');

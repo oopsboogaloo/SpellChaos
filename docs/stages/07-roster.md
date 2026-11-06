@@ -336,3 +336,56 @@ and other Stage 7 abilities are still outstanding.
 Verification: 615 headless tests, type checking, production build, 25 Chromium
 tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-16
 fingerprint is `fnv1a32-v1:eeb12ce7`.
+
+## Elven Archer arrow selection
+
+Elven Archer (Archer 4) is enabled, bringing the roster to 25 of 56 profiles.
+Its magic arrow (`basic`) and physical arrow (`physical-arrow`) are two explicit
+projectile attacks with the approved Skill 7, damage 3, range 9 and default Crit 5%.
+Orders and Guard select an attack identifier; revision replaces that choice without
+spending mana. Normal interception, hit rolls and damage defences apply to both.
+Darkness attack disadvantage is ignored, but Darkness still blocks visibility.
+
+Both attack choices are visible as public creature statistics and are copied into
+illusions; illusion damage remains reversible. Reanimation keeps the physical bow
+attack and removes magical arrows through explicit body-attack metadata. This
+uses the existing rule that magical powers do not become undead basic attacks.
+
+Schema 17 / rules `roster-0.7` / content `mvp-five-families-0.1` records the expanded
+content availability. No new resolver action or outcome rule is needed. Frozen
+schema-16 validators and `migrateBallistaSnapshot` preserve historical attack lists,
+committed targets, random state and reload history without adding abilities to
+existing creatures. Two permanent fixtures cover the chosen magic and physical
+shots, with atomic continuation checked in the headless engine and Chromium.
+
+Coverage includes physical immunity, magic resistance, friendly interception,
+order revision, invalid attack identifiers, Darkness, Guard, reanimation, illusion
+reversal, public-view copy isolation and legacy continuation. The remaining 31
+profiles and other Stage 7 abilities are still outstanding.
+
+## Approved MVP reduction — 6 November 2026
+
+The owner deferred both Goblin and Dragon families in full to the next version.
+This supersedes earlier Stage 7 completion targets. MVP now contains Cat, Serpent,
+Spirit, Plant and Archer: 40 profiles with the same 12 non-summoning spell families.
+There are 22 implemented profiles in this scope, including Elven Archer, and 18
+left. The implemented Hobgoblin, Goblin shaman and Dragonet familiar remain in the
+catalogue with their regression tests, but are outside the MVP release roster.
+
+Starting books and turn-three awards select only the 17 retained spell families
+(14 random candidates plus the three guaranteed extras). New Goblin/Dragon summon
+orders are rejected even if an older save retains their spellbook entries. Existing
+creatures, portable identifiers and already committed casts are preserved rather
+than deleting historical state. The full 56-profile data catalogue remains intact.
+
+Remaining MVP creatures: Cougar, Lion, Fey leopard, Gryphon, Giant puma, Bobby;
+Basilisk, Amphiptere, World Serpent; Wisp, Haunting shade, Ghost, Banshee;
+Walking mushroom, Walking tree, Treant, Walking Forest; Shepherd. Goblin Command,
+Rally, False King, Dragon breaths/Scorch and their family-specific work no longer
+block MVP. Shared flight/mount/condition mechanics needed by retained profiles
+still do. New scope tests cover pool sizes, retained roster counts, generated
+starting books, repeated awards, and rejection of both deferred summon families.
+
+Verification for Elven Archer and the five-family scope: 635 headless tests,
+type checking, production build, 27 Chromium tests and all nine CLI scenarios
+pass. Wall outcomes remain HP 4/11; current fingerprint is `fnv1a32-v1:22e42cb6`.

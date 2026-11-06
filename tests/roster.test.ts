@@ -25,7 +25,7 @@ const expectedAttacks = {
  Dragon:['4/1','5/3','6/3,5/2','6/4','7/6','7/6','8/8','8/4,8/4,8/4'],
  Spirit:['3/1','4/2','5/3','6/4','7/5','6/3','8/7','9/8'],
  Plant:['3/1','4/2','5/3','5/4','7/6','6/3','8/8','8/6'],
- Archer:['4/1','5/2','6/3','7/3','7/7','5/5','6/7','6/6+6'],
+ Archer:['4/1','5/2','6/3','7/3;7/3','7/7','5/5','6/7','6/6+6'],
 };
 const c = (family: typeof summonFamilies[number], level: number) => createCreature('subject','a',{q:10,r:10},approvedBlueprint(family,level)!.profile);
 
@@ -62,7 +62,7 @@ describe('approved MVP roster data (runtime ability integration remains gated)',
    const profile=summonProfile(`Summon ${family}` as SpellFamily,level);
    if(profile){enabled++;expect(createCreature('subject','a',{q:10,r:10},profile)).toEqual(c(family,level));}
   }
-  expect(enabled).toBe(24);
+  expect(enabled).toBe(25);
  });
  it('preserves the four explicit caster pools, caps and spell lists',()=>{
   const casters=approvedRoster().filter(r=>r.profile.mana).map(r=>({name:r.profile.species,mana:r.profile.mana,cap:r.profile.spellLevelCap,regen:r.profile.manaRegen,spells:r.profile.spellbook}));

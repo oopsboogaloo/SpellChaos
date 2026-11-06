@@ -1,3 +1,4 @@
+import {stateSchema as ballistaSchema} from '../../domain/src/legacy-v16.js';
 import {stateSchema as siegeSchema} from '../../domain/src/legacy-v15.js';
 import { stateSchema as reloadSchema } from '../../domain/src/legacy-v14.js';
 import { stateSchema as quarrySchema } from '../../domain/src/legacy-v13.js';
@@ -153,5 +154,11 @@ export function migrateReloadSnapshot(text:string):GameState {
 
 export function migrateSiegeSnapshot(text:string):GameState {
  const old=siegeSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Content-only upgrade: preserve existing attack choices and committed shots. */
+export function migrateBallistaSnapshot(text:string):GameState {
+ const old=ballistaSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

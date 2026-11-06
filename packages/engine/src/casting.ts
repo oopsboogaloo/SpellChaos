@@ -6,7 +6,7 @@ import { canReanimate, reanimate } from './reanimation.js';
 import { randomBelow } from '../../domain/src/random.js';
 import type { Creature,GameState,Order } from '../../domain/src/state.js';
 import type { Cast,CastAction,CastingTime } from '../../domain/src/spells.js';
-import { alignment,castingTime,completionAt,implementedSpells,manaCost,spellRange,successChance } from '../../content/src/spells.js';
+import { mvpSpellFamilies,alignment,castingTime,completionAt,implementedSpells,manaCost,spellRange,successChance } from '../../content/src/spells.js';
 import { summonProfile } from '../../content/src/summons.js';
 import { footprint,nearestPair,equal,inside,overlap,distance } from '../../geometry/src/hex.js';
 import { placement,traceProjectile,stepLegality } from '../../geometry/src/occupancy.js';
@@ -61,7 +61,7 @@ export function selectOrigin(s:GameState,c:Creature,a:CastAction):Creature|null 
 }
 export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if(c.kind==='illusion'||!c.spellbook.includes(a.spell)||a.level>c.spellLevelCap)throw new Error('SPELL_NOT_KNOWN');
- if(!implementedSpells.includes(a.spell))throw new Error('CONTENT_NOT_AVAILABLE');
+ if(!mvpSpellFamilies.includes(a.spell)||!implementedSpells.includes(a.spell))throw new Error('CONTENT_NOT_AVAILABLE');
  if(!isSummon(a)&&a.variant!=='bound')throw new Error('INVALID_SPELL_VARIANT');
  const groundOnly=isSummon(a)||['Teleport','Darkness','Tangleweed','Wall'].includes(a.spell),projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
  if(groundOnly?(a.ground===null||a.targetId!==null):projectile?(Number(a.ground!==null)+Number(a.targetId!==null)+Number(a.structure!==undefined)!==1):(a.targetId===null||a.ground!==null))throw new Error('INVALID_SPELL_TARGET');

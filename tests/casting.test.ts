@@ -39,7 +39,7 @@ describe('spell formulas and books',()=>{
   const s=fresh();s.random.resolution=1;expect(castingRoll(s,27.0368)).toBe(false);s.random.resolution=1;expect(castingRoll(s,27.037)).toBe(true);
  });
  it('uniformly samples only valid ten-family subsets plus guaranteed extras',()=>{
-  expect(startingPool).toHaveLength(16);
+  expect(startingPool).toHaveLength(14);
   for(let seed=1;seed<=200;seed++){
    const {book}=startingBook(seed);expect(book).toHaveLength(13);expect(new Set(book).size).toBe(13);
    expect(book).toEqual(expect.arrayContaining(['Bind','Release','Disbelief']));expect(book.filter(s=>s.startsWith('Summon ')).length).toBeGreaterThanOrEqual(2);
@@ -217,7 +217,7 @@ describe('casting portability and privacy',()=>{
  });
  it('explicitly migrates legacy combat saves without silently changing their version',()=>{
   const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(16);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(17);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
 
