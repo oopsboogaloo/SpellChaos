@@ -389,3 +389,28 @@ starting books, repeated awards, and rejection of both deferred summon families.
 Verification for Elven Archer and the five-family scope: 635 headless tests,
 type checking, production build, 27 Chromium tests and all nine CLI scenarios
 pass. Wall outcomes remain HP 4/11; current fingerprint is `fnv1a32-v1:22e42cb6`.
+
+## Treant
+
+Treant (Plant 5) is enabled, bringing the current MVP to 23 of 40 implemented
+profiles, with 17 left. The three already implemented deferred Goblin/Dragon
+profiles remain preserved separately. Treant uses the approved Size 4, Con 7,
+Move 3, Dex 3, Int 6, HP 28; Skill 7 / physical damage 6 Branch attack at reach 2;
+physical/cold resistance, fire vulnerability, flammability and regeneration 2.
+
+No new combat rule is introduced: tests exercise the production reach, defence,
+regeneration and illusion machinery against this profile. Its documented objects
+and wood-weapon capabilities retain their existing equipment deferral; the listed
+Branch attack is usable without introducing an inventory system. Plants remain
+immune to poison/disease and leave no reanimatable corpse. Intelligent Treants
+can be fooled by illusions, and illusory regeneration heals only the illusion.
+
+Schema 18 / rules `roster-0.7` / content `treant-0.1` records new summon availability.
+Frozen schema-17 validators and `migrateFiveFamilySnapshot` preserve existing
+creature data, orders, random state and pending arrows without granting abilities.
+A permanent pending Treant attack fixture verifies mid-resolution continuation
+and recovery in the headless engine and Chromium.
+
+Verification: 652 headless tests, type checking, production build, 28 Chromium
+tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-18
+fingerprint is `fnv1a32-v1:f4f692e8`.

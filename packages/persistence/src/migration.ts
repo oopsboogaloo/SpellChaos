@@ -1,3 +1,4 @@
+import {stateSchema as fiveFamilySchema} from '../../domain/src/legacy-v17.js';
 import {stateSchema as ballistaSchema} from '../../domain/src/legacy-v16.js';
 import {stateSchema as siegeSchema} from '../../domain/src/legacy-v15.js';
 import { stateSchema as reloadSchema } from '../../domain/src/legacy-v14.js';
@@ -160,5 +161,11 @@ export function migrateSiegeSnapshot(text:string):GameState {
 /** Content-only upgrade: preserve existing attack choices and committed shots. */
 export function migrateBallistaSnapshot(text:string):GameState {
  const old=ballistaSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve historical profile data when enabling Treant for new summons. */
+export function migrateFiveFamilySnapshot(text:string):GameState {
+ const old=fiveFamilySchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }
