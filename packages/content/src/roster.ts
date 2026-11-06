@@ -110,7 +110,7 @@ add('Archer',2,'Bowman',[2,4,4,5,4],[shot('Bow',5,2,7)],{},[ability('aim',{skill
 add('Archer',3,'Longbowman',[2,4,3,6,4],[shot('Longbow',6,3,10)],{},[ability('aim',{skill:2}),ability('close-disadvantage',{range:3})]);
 add('Archer',4,'Elven Archer',[2,4,5,8,6],[shot('Bow',7,3,9,'magic')],{ignoresDarknessDisadvantage:true,defences:[defence('magic',.5)]},[ability('arrow-type',{alternative:'physical'})]);
 const construct = (defences:Creature['defences']):Partial<Creature> => ({reload:{loaded:true,lastFiredTurn:null,lastReloadTurn:null},construct:true,corpseEligible:false,reanimationAttackIds:[],defences});
-add('Archer',5,'Ballista',[3,7,1,1,0],[shot('Bolt',7,7,12)],construct([defence('physical',.5),defence('poison',0),defence('fire',1.5),defence('acid',1.5)]),[ability('reload'),ability('penetration',{maxTargets:2,secondDamage:4,separateHitRoll:true,continuesOnMiss:true})]);
+add('Archer',5,'Ballista',[3,7,1,1,0],[{...shot('Bolt',7,7,12),penetration:2}],construct([defence('physical',.5),defence('poison',0),defence('fire',1.5),defence('acid',1.5)]),[ability('reload'),ability('penetration',{maxTargets:2,secondDamage:4,separateHitRoll:true,continuesOnMiss:true})]);
 function siege(name:string,skill:number,damage:number,range:number,minRange:number,radius:number,fire=0) {
  const a=attack('basic',name,skill,damage,'physical',range,'area',0);a.minRange=minRange;a.radius=radius;
  if(fire)a.shots[0]!.components.push({type:'fire',amount:fire});

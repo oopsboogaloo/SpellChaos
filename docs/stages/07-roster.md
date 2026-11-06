@@ -299,3 +299,40 @@ penetration; 33 profiles remain outside the enabled roster.
 Verification: 596 headless tests, type checking, production build, 24 Chromium
 tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-15
 fingerprint is `fnv1a32-v1:fcd146cd`.
+
+## Ballista penetration
+
+Ballista (Archer 5) is enabled, bringing the roster to 24 of 56 profiles. Its bolt
+follows the selected exact ray, attacks at most two creatures, and can intercept
+allies. It skips the remaining occupied hexes of the first footprint before
+selecting the next body. Each victim gets a separate hit and critical roll; an
+initial miss does not stop penetration. The second strike uses 4 physical base
+damage (ceil(7/2)) before target defences. Reload and ranged Guard use the same
+committed projectile mechanics.
+
+Implementation choices completing D05: the ray continues to the original weapon
+range even when aimed at an empty nearer hex. It keeps target height and the
+attacker's chosen boundary side throughout. A solid wall stops penetration; if
+encountered before any creature it takes the ordinary bolt damage, while a wall
+after the first body stops the follow-through without another structure strike.
+Bodies overlapping the first footprint are skipped until the ray exits it.
+These choices are explicit geometry rules, not new general projectile behaviour.
+
+Schema 16 / rules `roster-0.6` / content `ballista-0.1` adds the optional portable
+attack capability `penetration: 2`. The existing pending victim list and cursor
+store the committed two-body path, so death or a first miss cannot change the
+second target. A real committed bolt finishes if its controller dies; destroying
+its illusion source ends the attack and retains the usual reversal rules.
+Frozen schema-15 validators and `migrateSiegeSnapshot` preserve older attacks,
+reload state, random state and pending impacts without granting penetration.
+
+Tests cover footprint exclusion, range, walls, height, both ray sides, allies,
+separate hit rolls, rounding before resistance, invalid orders at resolution,
+Guard, illusions, mindless targets, controller death, malformed state and migration.
+A permanent mid-shot fixture resumes immediately before the second strike and
+matches Node/Chromium state, events and filtered views. The remaining 32 profiles
+and other Stage 7 abilities are still outstanding.
+
+Verification: 615 headless tests, type checking, production build, 25 Chromium
+tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-16
+fingerprint is `fnv1a32-v1:eeb12ce7`.

@@ -1,5 +1,5 @@
 import { attackTraitModifiers } from './attack-traits.js';
-import { structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
+import { structureReach,structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
 import { concentration } from './casting.js';
@@ -7,7 +7,7 @@ import { validAttackTargets } from '../../domain/src/combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
 import type { AttackAction, AttackDefinition } from '../../domain/src/combat.js';
 import { footprint, nearestPair, disk, equal, oppositeSectors, inside } from '../../geometry/src/hex.js';
-import { affectedCreatures, traceProjectile } from '../../geometry/src/occupancy.js';
+import { affectedCreatures, traceProjectile, tracePenetratingProjectile } from '../../geometry/src/occupancy.js';
 import { clearSight, clearProjectile } from '../../geometry/src/walls.js';
 import { arenaOf } from './orders.js';
 import { active, has } from './status.js';
@@ -95,13 +95,31 @@ export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'a
 export function stepAttack(s:GameState,events:Event[]):boolean {
  const p=s.pendingAttack!;const a=s.creatures.find(c=>c.id===p.attackerId)!;
  const attack=a.attacks.find(x=>x.id===p.action.attackId)!;
- const committedArea=attack.mode==='area'&&p.areaVictims!==null&&a.kind!=='illusion';
+ const committedArea=(attack.mode==='area'||attack.penetration===2)&&p.areaVictims!==null&&a.kind!=='illusion';
  if((!committedArea&&(!active(a)||a.controller===null))||p.shotIndex>=attack.shots.length){
   emit(s,events,{type:'AttackFinished',creatureId:a.id,damageByTarget:p.damageByTarget});concentration(s,p.damageByTarget,events);s.pendingAttack=null;return true;
  }
  const strike=attack.shots[p.shotIndex]!;
  let target:Creature|undefined;
- if(p.action.structure){
+ let penetrationSecond=false;
+ if(attack.penetration===2){
+  if(p.areaVictims===null){
+   if(p.action.structure&&!structureCells(s,p.action.structure).length){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
+   const selected=s.creatures.find(c=>c.id===p.action.targetIds[0]);
+   const aim=p.action.structure?nearestPair(footprint(a.centre,a.size),structureCells(s,p.action.structure)).to:p.action.ground??(selected?pair(a,selected).to:null);
+   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(footprint(a.centre,a.size),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&inReach(s,a,selected,attack,p.action.side);
+   if(!aim||!valid){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
+   const trace=tracePenetratingProjectile(arenaOf(s),a,aim,selected?.height??'ground',p.action.side,attack.range,selected?.id);
+   p.areaVictims=trace.hits;
+   if(!trace.hits.length){
+    if(trace.blockedBy)damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);
+    else if(p.action.structure)damageStructure(s,p.action.structure,strike.components,events,a.id);
+    else if(p.action.ground)damageWeed(s,[p.action.ground],strike.components,events,a.id);
+   }
+  }
+  if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;return false;}
+  penetrationSecond=p.victimIndex===1;const victimId=p.areaVictims[p.victimIndex++];target=s.creatures.find(c=>c.id===victimId);
+ }else if(p.action.structure){
   p.shotIndex++;
   const result=strikeStructure(s,a,p.action.structure,attack,p.action.side,strike.components,events,a.id);
   if(result.kind==='invalid'){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
@@ -147,7 +165,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
- const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:component.amount+(index===0?modifiers.damage:0)})),events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
+ const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:(penetrationSecond?Math.ceil(component.amount/2):component.amount)+(index===0?modifiers.damage:0)})),events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});

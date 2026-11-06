@@ -5,7 +5,7 @@ import {summonProfile} from '../packages/content/src/summons.js';
 import {startScenarioTurn} from '../packages/scenario/src/casting.js';
 import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
 import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import {migrateReloadSnapshot} from '../packages/persistence/src/migration.js';
+import {migrateReloadSnapshot,migrateSiegeSnapshot} from '../packages/persistence/src/migration.js';
 import type {GameState} from '../packages/domain/src/state.js';
 import type {Event} from '../packages/engine/src/events.js';
 function setup(illusion=false){
@@ -43,6 +43,6 @@ it.each([false,true])('siege damage to constructed Tangleweed respects illusion 
  const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.state.tangleweed[0]!.cells[0]!.hp).toBe(illusion?24:10);
 });
 it('permanent mid-impact fixture resumes without repeating structure damage',()=>{
- const text=readFileSync('tests/fixtures/siege-v15-impact.json','utf8').trim(),s=restoreSnapshot(text);expect(encodeSnapshot(s)).toBe(text);expect(s.walls[0]!.hp).toBe(15);
+ const text=readFileSync('tests/fixtures/siege-v15-impact.json','utf8').trim(),s=migrateSiegeSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(s.walls[0]!.hp).toBe(15);
  const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.state.walls[0]!.hp).toBe(15);expect(a.events.some(e=>e.type==='WallDamaged')).toBe(false);
 });
