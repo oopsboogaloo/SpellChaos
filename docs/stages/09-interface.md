@@ -23,3 +23,19 @@ new-game difficulty; IndexedDB autosave/recovery; filtered event log and replay
 seeking; full-match acceptance, screenshots, touch and pen workflows. The current
 map shows creature positions only and is not yet a tactical terrain renderer.
 Remote play remains deferred under docs/remote/REMOTE-PLAY-SPEC.md.
+
+## Tactical-board checkpoint
+
+PR #43 merged with owner approval at `41c54ca`. The next checkpoint replaces its
+position sketch with Canvas rendering over the filtered view: canonical offset
+hexes, visible occupied footprints, player numbers, airborne labels, health bands,
+wall edges by material, Tangleweed and Darkness coverage. Selection and numbered
+draft routes are overlaid. Explicit select/target, path and pan modes use Pointer
+Events, pointer capture/cancellation, two-pointer zoom and dedicated zoom/reset
+controls. Coordinate editing remains available independently of Canvas hit targets.
+Path input only appends adjacent cells; engine validation still decides legality.
+
+Browser regression cases exercise mouse/touch/pen hex targeting, draft submission
+and pan-mode separation. These synthetic pointer tests do not claim physical-device
+coverage. Full spell/special-action editors, autosave/recovery, timers, event/replay
+controls and full-match acceptance remain outstanding. Stage 9 is still partial.
