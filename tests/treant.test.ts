@@ -1,0 +1,27 @@
+import {migrateTreantSnapshot} from '../packages/persistence/src/migration.js';
+import {it,expect} from 'vitest';
+import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
+import {summonProfile} from '../packages/content/src/summons.js';
+import {startScenarioTurn} from '../packages/scenario/src/casting.js';
+import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
+import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
+import {applyDamage,addCondition} from '../packages/engine/src/damage.js';
+import {active} from '../packages/engine/src/status.js';
+import {recover,cleanupDeaths} from '../packages/engine/src/lifecycle.js';
+import {reverseIllusion} from '../packages/engine/src/illusions.js';
+import type {GameState} from '../packages/domain/src/state.js';
+import type {Event} from '../packages/engine/src/events.js';
+function setup(){const s=createMatch('treant',['a','b'],456);s.creatures[0]!.centre={q:2,r:2};s.creatures[1]!.centre={q:20,r:15};s.creatures.push(createCreature('treant','a',{q:6,r:5},summonProfile('Summon Plant',5)!),createCreature('target','b',{q:9,r:5},{con:20,incapacitated:true}));return s;}
+const tree=(s:GameState)=>s.creatures.find(c=>c.id==='treant')!;
+function attack(s:GameState){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'a',turn:1,commandId:'attack',expectedRevision:s.revision,order:{creatureId:'treant',path:[],early:{type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'},late:null}}).state;}
+function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
+it('Treant reaches two hexes from its footprint and restores every atomic step',()=>{const s=setup();tree(s).attacks[0]!.shots[0]!.crit=0;tree(s).hp=20;const ready=startScenarioTurn(attack(s)),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(a.state.creatures.find(c=>c.id==='target')!.hp).toBe(34);expect(tree(a.state).hp).toBe(22);});
+it.each(['wall','range','height'])('Treant reach respects %s restrictions',kind=>{const s=setup();if(kind==='wall')s.walls.push({id:'wall',edge:{a:{q:7,r:5},b:{q:8,r:5}},material:'stone',hp:20,maxHp:20,burning:null});if(kind==='range')s.creatures.find(c=>c.id==='target')!.centre={q:10,r:5};if(kind==='height')s.creatures.find(c=>c.id==='target')!.height='air';const r=run(startScenarioTurn(attack(s)),true);expect(r.state.creatures.find(c=>c.id==='target')!.hp).toBe(40);});
+it.each([['physical',3],['cold',3],['fire',9],['magic',6]] as const)('%s damage uses the approved Treant defence', (type,damage)=>{const s=setup();expect(applyDamage(s,tree(s),[{type,amount:6}],[])).toBe(damage);});
+it.each(['fire','acid'] as const)('%s suppresses regeneration only for the damaged turn',type=>{const s=setup();tree(s).hp=10;applyDamage(s,tree(s),[{type,amount:2}],[]);const hp=tree(s).hp;recover(s,[]);expect(tree(s).hp).toBe(hp);s.turn++;recover(s,[]);expect(tree(s).hp).toBe(hp+2);});
+it('regeneration revives damage incapacitation, caps health and never restores dead Treants',()=>{const s=setup();tree(s).hp=0;expect(active(tree(s))).toBe(false);recover(s,[]);expect(tree(s).hp).toBe(2);expect(active(tree(s))).toBe(true);tree(s).hp=27;recover(s,[]);expect(tree(s).hp).toBe(28);tree(s).hp=-28;cleanupDeaths(s,[]);recover(s,[]);expect(tree(s).alive).toBe(false);expect(s.corpses.some(c=>c.creatureId==='treant')).toBe(false);});
+it('intelligent Treants take illusion damage that reverses for survivors',()=>{const s=setup();s.creatures.push(createCreature('fake','b',{q:12,r:5},{kind:'illusion',creatorId:'wizard-1',knownIllusionBy:['b']}));expect(tree(s).intelligence).toBe(6);applyDamage(s,tree(s),[{type:'magic',amount:6}],[],{sourceId:'fake'});expect(tree(s).hp).toBe(22);reverseIllusion(s,'fake',[]);expect(tree(s).hp).toBe(28);});
+it('illusory regeneration restores only the illusion itself',()=>{const s=setup();Object.assign(tree(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a'],hp:20});s.creatures[0]!.hp=5;recover(s,[]);expect(tree(s).hp).toBe(22);expect(s.creatures[0]!.hp).toBe(5);});
+it('plant immunity blocks poison and disease without granting undead status',()=>{const s=setup();for(const kind of ['Poisoned','Disease'] as const)addCondition(s,tree(s),kind,'wizard-1',8,3,'con');expect(tree(s).conditions).toEqual([]);expect(tree(s).undead).toBe(false);});
+it('permanent Treant attack fixture restores the pending hit and subsequent regeneration',async()=>{const {readFileSync}=await import('node:fs');const text=readFileSync('tests/fixtures/treant-v18-attack.json','utf8').trim(),s=migrateTreantSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(tree(a.state).hp).toBe(22);});
+it.each(['basic','physical-arrow'])('schema-17 %s migration preserves attacks, random state and continuation',async id=>{const {readFileSync}=await import('node:fs');const {migrateFiveFamilySnapshot}=await import('../packages/persistence/src/migration.js');const text=readFileSync(`tests/fixtures/elven-v17-${id}.json`,'utf8'),old=JSON.parse(text),s=migrateFiveFamilySnapshot(text);expect(s.creatures).toEqual(old.creatures);expect(s.pendingAttack).toEqual(old.pendingAttack);expect(s.random).toEqual(old.random);expect(run(s,true)).toEqual(run(s));});

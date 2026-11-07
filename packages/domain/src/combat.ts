@@ -11,14 +11,15 @@ export type Condition=z.infer<typeof conditionSchema>;
 export const componentSchema=z.strictObject({type:damageTypeSchema,amount:uint});
 export type DamageComponent=z.infer<typeof componentSchema>;
 export const strikeSchema=z.strictObject({skill:uint,crit:z.number().min(0).max(100),components:z.array(componentSchema).min(1),secondary:z.array(secondarySchema)});
-export const attackDefinitionSchema=z.strictObject({id,name:z.string(),mode:z.enum(['melee','projectile','direct','area','swarm']),range:uint.min(1),minRange:uint,radius:uint,shots:z.array(strikeSchema).min(1).max(3)});
+export const attackDefinitionSchema=z.strictObject({id,name:z.string(),mode:z.enum(['melee','projectile','direct','area','swarm']),range:uint.min(1),minRange:uint,radius:uint,penetration:z.literal(2).optional(),structureMultiplier:z.literal(2).optional(),shots:z.array(strikeSchema).min(1).max(3)});
 export type AttackDefinition=z.infer<typeof attackDefinitionSchema>;
 export const attackActionSchema=z.strictObject({type:z.literal('Attack'),attackId:id,targetIds:z.array(id).max(3),ground:hex.nullable(),side:z.enum(['left','right']),structure:structureTargetSchema.optional()});
 export type AttackAction=z.infer<typeof attackActionSchema>;
 export const combatActionSchema=z.union([
  attackActionSchema,
+ z.strictObject({type:z.literal('Reload')}),
  z.strictObject({type:z.literal('Guard'),attackId:id,targetId:id.nullable(),area:z.array(hex)}),
- z.strictObject({type:z.literal('Grapple'),targetId:id}),
+ z.strictObject({type:z.enum(['Grapple','MarkQuarry']),targetId:id}),
  z.strictObject({type:z.enum(['Treat','Wake','Extinguish']),targetId:id}),
 ]);
 export const guardSchema=z.strictObject({creatureId:id,attackId:id,targetId:id.nullable(),area:z.array(hex),attacked:z.array(id),spent:z.boolean()});

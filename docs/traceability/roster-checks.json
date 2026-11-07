@@ -1,0 +1,249 @@
+{
+  "stage": 7,
+  "status": "in-progress-attack-traits",
+  "scope": "40 MVP profiles across five families; 24 implemented in scope including Haunting Shade; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
+  "checks": [
+    {
+      "id": "ROSTER-001",
+      "requirement": "Seven complete eight-level families, exact ratings and ordinary attack values",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "contains exactly seven families and eight unique named profiles per family",
+        "<family> level %i preserves approved ratings and portable core data"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-002",
+      "requirement": "Independent portable blueprint copies and invalid-level rejection",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "returns isolated copies and rejects unknown levels without falling back to a generic creature"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-003",
+      "requirement": "Twenty-seven implemented including three deferred profiles; twenty-four in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "matches the enabled engine creatures without enabling unfinished profiles"
+      ],
+      "status": "verified"
+    },
+    {
+      "id": "ROSTER-004",
+      "requirement": "Explicit creature caster pools, caps and spell lists",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "preserves the four explicit caster pools, caps and spell lists"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-005",
+      "requirement": "Multiattacks, independent breath types, D01\u2013D08 requirements",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "keeps compound attacks in one action and alternative breaths out of bite sequences",
+        "records D01\u2013D08 ability choices rather than losing them in generic attacks"
+      ],
+      "status": "content-verified-runtime-pending"
+    },
+    {
+      "id": "ROSTER-006",
+      "requirement": "Undead/corpse exceptions and reanimation attack stripping",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "retains physical immunity exceptions and corpse exclusions",
+        "does not turn magical projectiles or poison production into reanimated body attacks"
+      ],
+      "status": "content-verified"
+    },
+    {
+      "id": "ROSTER-007",
+      "requirement": "Siege attack values, minimum ranges, split damage and immobility",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "keeps siege minimum ranges, areas, components and immobility distinct"
+      ],
+      "status": "content-verified-runtime-pending"
+    },
+    {
+      "id": "ROSTER-008",
+      "requirement": "Every named special ability has an explicit integration requirement",
+      "testFile": "tests/roster.test.ts",
+      "testNames": [
+        "has an explicit integration requirement for every special ability"
+      ],
+      "status": "content-verified-runtime-pending"
+    },
+    {
+      "id": "ROSTER-009",
+      "requirement": "Aim, Brace, Ambush, Rally and close-range disadvantage use authoritative portable context; schema 11 migrates legacy saves explicitly",
+      "testFile": "tests/attack-trait-integration.test.ts",
+      "status": "verified",
+      "testNames": [
+        "Brace deals two additional Guard damage through the production attack resolver and restore",
+        "Aim and longbow close disadvantage read planned and actual movement and target distance",
+        "Rally excludes self, enemies and incapacitated sources and never stacks",
+        "Ambush sees phase-local activity, survives restore and resets at the phase boundary",
+        "pending attack fixtures retain traits and phase history through exact continuation"
+      ]
+    },
+    {
+      "id": "ROSTER-010",
+      "requirement": "Hydra multiattack, regeneration, vulnerabilities and restoration; tiger Bleeding and illusion reversal; explicit content migration",
+      "testFile": "tests/roster-specialists.test.ts",
+      "status": "verified",
+      "testNames": [
+        "Hydra resolves three bites as one action, wasting invalid subtargets without replacement",
+        "Hydra vulnerability and %s suppress regeneration for only that turn",
+        "Hydra can regenerate from incapacitation but never from death; reanimation removes regeneration",
+        "sabre-toothed tiger applies persistent Bleeding with correct illusion provenance (%s)"
+      ]
+    },
+    {
+      "id": "ROSTER-011",
+      "requirement": "Vine grappling and escape, Spectre Wither and incorporeality, three creature caster pools/caps and restoration, explicit content-v2 migration",
+      "testFile": "tests/roster-control-casters.test.ts",
+      "status": "verified",
+      "testNames": [
+        "vine uses two distinct tendrils at reach two against equal-sized targets and cannot take a third hold",
+        "Spectre Wither requires damage and retains reversible illusion provenance (%s)",
+        "%s level %i pays from its own mana, respects its cap and restores its pending cast",
+        "explicitly migrates content v2 without changing creature data, RNG, pending attack or phase activity"
+      ]
+    },
+    {
+      "id": "ROSTER-012",
+      "requirement": "Bristles retaliation and life drain with provenance, immunity, compound attacks, schema migration and restoration",
+      "testFile": "tests/on-hit-traits.test.ts",
+      "status": "verified",
+      "testNames": [
+        "Bristles triggers only on a damaging melee hit (%s)",
+        "Bristles still retaliates against a lethal damaging hit, and illusion retaliation reverses",
+        "Wraith drains only damaging hits on a living real target (%s)",
+        "permanent %s fixture resumes exactly through all attack boundaries",
+        "Bristles incapacitation stops remaining compound-attack bites without another retaliation loop",
+        "schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work"
+      ]
+    },
+    {
+      "id": "ROSTER-013",
+      "requirement": "D01 Marked Quarry action cost, selected attack bonus, persistence, visibility, cleanup and versioned continuation",
+      "testFile": "tests/marked-quarry.test.ts",
+      "browserTestFile": "tests/browser/marked-quarry.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "selection costs the normal action and survives every atomic boundary and the next turn",
+        "changing quarry replaces the bonus; losing a target clears it without selecting another",
+        "the selected bonus affects production hit rolls, not merely the preview",
+        "permanent %s fixture resumes identically at every atomic boundary",
+        "schema-12 migration preserves existing on-hit state without granting Marked Quarry"
+      ]
+    },
+    {
+      "id": "ROSTER-014",
+      "requirement": "Siege reload cycle, area Guard, arcing and typed area damage, owner views, schema migration and atomic continuation",
+      "testFile": "tests/reload.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "fire/reload/fire uses three turns and restores exactly at every attack boundary",
+        "area Guard shoots the first qualifying entrant and retains its locked impact through restore",
+        "Double Action cannot bypass the fire/reload exclusion",
+        "real explosions finish after controller death; dispelled illusion attacks stop (%s)",
+        "permanent %s fixture resumes identically through every atomic step",
+        "schema-13 migration retains quarry state and grants no reload capability",
+        "owner views expose independent reload state while opponents receive no private readiness or quarry state"
+      ]
+    },
+    {
+      "id": "ROSTER-015",
+      "requirement": "Siege Catapult double structure damage, unchanged creature damage, illusion restrictions and schema-15 continuation",
+      "testFile": "tests/siege-structures.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Siege Catapult doubles structure damage once per segment without doubling creature damage",
+        "illusory siege shots cannot damage structures but still damage intelligent creatures",
+        "permanent mid-impact fixture resumes without repeating structure damage",
+        "legacy validator rejects new structure abilities instead of silently changing old saves"
+      ]
+    },
+    {
+      "id": "ROSTER-016",
+      "requirement": "Ballista two-body penetration, exact geometry, independent rolls, Guard, illusions and versioned continuation",
+      "testFile": "tests/ballista.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "penetration follows one ray, includes allies and never selects a third body",
+        "two victims get independent damage, second base damage rounds up before defence, and restore is exact",
+        "a miss on the first creature still permits an independent second hit",
+        "ranged Guard uses the same two-body ray and spends only one loaded bolt",
+        "permanent second-hit fixture resumes exactly and rejects extra or self victims"
+      ]
+    },
+    {
+      "id": "ROSTER-017",
+      "requirement": "Elven Archer explicit arrow choices, defences, Darkness, Guard, illusions, reanimation and portable continuation",
+      "testFile": "tests/elven-archer.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "selected %s arrow uses its own damage type with exact continuation",
+        "physical arrows can outperform magic arrows against magic resistance",
+        "Darkness attack disadvantage is ignored without granting visibility through the area",
+        "reanimation retains physical archery but removes magical arrows",
+        "permanent %s arrow fixture retains the chosen shot across restore"
+      ]
+    },
+    {
+      "id": "ROSTER-018",
+      "requirement": "Owner-approved deferral of Goblin and Dragon; five-family books, awards and summon-order gating",
+      "testFile": "tests/mvp-scope.test.ts",
+      "status": "verified",
+      "testNames": [
+        "five-family MVP retains 40 profiles and 12 non-summoning families",
+        "new spellbooks and repeated awards never include deferred families",
+        "%s cannot start a new cast even if retained in an old spellbook"
+      ]
+    },
+    {
+      "id": "ROSTER-019",
+      "requirement": "Treant reach, damage defences, regeneration, illusion interactions, plant immunities and portable continuation",
+      "testFile": "tests/treant.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Treant reaches two hexes from its footprint and restores every atomic step",
+        "regeneration revives damage incapacitation, caps health and never restores dead Treants",
+        "intelligent Treants take illusion damage that reverses for survivors"
+      ]
+    },
+    {
+      "id": "ROSTER-020",
+      "requirement": "Haunting Shade creature passage, legal endpoints, walls, Guard, Chill and portable transit",
+      "testFile": "tests/haunting-shade.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Shade crosses %s bodies with exact per-step restoration",
+        "interruption while passing through a body returns to the last legal resting hex",
+        "damaging Chill uses Int resistance and reversible illusion provenance (%s)",
+        "permanent mid-transit fixture restores overlap and continues to a legal endpoint"
+      ]
+    }
+  ],
+  "pending": [
+    "Additional special-action and cooldown state, migrations and continuation fixtures",
+    "Movement and attack passives, special actions, flight/mounts and detection",
+    "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
+    "Every ability's phase, failure, illusion and reanimation interactions",
+    "Enable remaining 16 MVP profiles only after their complete engine tests",
+    "Combined full-roster headless and browser scenario"
+  ]
+}

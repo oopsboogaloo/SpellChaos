@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 10, rules: 'environment-0.6', content: 'wall-integration-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 19, rules: 'roster-0.8', content: 'haunting-shade-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -31,13 +31,17 @@ export const creatureSchema = z.strictObject({
   intelligence: uint, dex: uint, move: uint.max(100), mana: uint.max(100),
   alive: z.boolean(), incapacitated: z.boolean(), restrained: z.boolean(), slowed: z.boolean(), subdued: z.boolean(),
   doubleAction: z.boolean(), readyTurn: uint.min(1),
-  swarm: z.boolean(), originalSize: z.number().int().min(1).max(10), incorporeal: z.boolean(), nimble: z.boolean(),
+  swarm: z.boolean(), originalSize: z.number().int().min(1).max(10), incorporeal: z.boolean(), passCreatures:z.boolean().optional(), nimble: z.boolean(),
   species:z.string(), family:z.enum(summonFamilies).nullable(), summonLevel:z.number().int().min(1).max(8), bindingLevel:z.number().int().min(1).max(8).nullable(), familiar:z.boolean(), createdSequence:uint,
   maxMana:uint.max(100), manaRegen:uint.max(5), spellLevelCap:z.number().int().min(0).max(8), spellbook:z.array(spellSchema),
   con: uint.min(1), hp: z.number().int().min(-1000000).max(1000000), maxHp: uint.min(1),
   attacks: z.array(attackDefinitionSchema), conditions: z.array(conditionSchema),
   defences: z.array(z.strictObject({type:damageTypeSchema,multiplier:z.union([z.literal(0),z.literal(0.25),z.literal(0.5),z.literal(1.5),z.literal(2)])})),
   undead:z.boolean(), undeadClass:z.enum(['none','zombie','skeleton','higher','exception']), construct:z.boolean(), plant:z.boolean(), flammable:z.boolean(),
+  attackTraits:z.strictObject({aim:z.boolean(),brace:z.boolean(),ambush:z.boolean(),closeDisadvantageBelow:uint,receivesRally:z.boolean(),rallySource:z.boolean()}),
+  reload:z.strictObject({loaded:z.boolean(),lastFiredTurn:uint.min(1).nullable(),lastReloadTurn:uint.min(1).nullable()}).nullable(),
+  canMarkQuarry:z.boolean(),quarryTargetId:id.nullable(),
+  bristles:uint.max(1000000),lifeDrain:uint.max(1000000),
   packTactics:z.boolean(), regeneration:uint, regenerationBlockedTurn:uint.nullable(), fireAcidDamage:uint,
   grappleLimbs:uint, grappleEqualSize:z.boolean(), corpseEligible:z.boolean(), restorationUsed:z.boolean(), reanimationAttackIds:z.array(id).nullable(),
 
@@ -67,6 +71,7 @@ export const rawStateSchema = z.strictObject({
   cursor: z.strictObject({ entries: z.array(entrySchema), index: uint, pathIndex: uint, initialized: z.boolean(), activePath: z.array(hexSchema).nullable(), lastRestingCentre: hexSchema.nullable() }),
   defending: z.array(z.strictObject({ creatureId: id, phases: z.array(z.enum(['early','late'])).max(2) })),
   guards:z.array(guardSchema), holds:z.array(holdSchema), reactions:z.array(reactionSchema), pendingAttack:pendingAttackSchema.nullable(),
+  actedThisPhase:z.array(id),
   spentActions:z.array(id), moved:z.array(id), corpses:z.array(corpseSchema), deadHandled:z.array(id), endStep:z.number().int().min(0).max(4),
   result: z.discriminatedUnion('type', [z.strictObject({ type: z.literal('winner'), playerId: id }), z.strictObject({ type: z.literal('draw') })]).nullable(),
   accepted: z.array(z.strictObject({ command: commandSchema, revision: uint.min(1) })),
@@ -135,6 +140,10 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
           if(action.targetIds.some(id=>!creatures.includes(id)) || (action.ground && !inside(action.ground,state.board)))invalid('INVALID_ORDER_TARGET');
           if(attack && !validAttackTargets(attack,action))invalid('INVALID_ORDER_TARGET');
         }else if(action.targetId!==null&&!creatures.includes(action.targetId))invalid('INVALID_ORDER_TARGET');
+      }else if(action.type==='Reload'){
+        if(creature.reload===null)invalid('INVALID_RELOAD_ORDER');
+      }else if(action.type==='MarkQuarry'){
+        if(!creature.canMarkQuarry||action.targetId===creature.id||!creatures.includes(action.targetId))invalid('INVALID_QUARRY_ORDER');
       }else if(!creatures.includes(action.targetId) && !(action.type==='Extinguish'&&(state.walls.some(w=>w.id===action.targetId)||state.destroyedWallIds.includes(action.targetId))))invalid('INVALID_ORDER_TARGET');
     }
     if (order.late === 'Dash' || (['planning','ready'].includes(state.phase) && actions.length > (creature.doubleAction && !creature.subdued ? 2 : 1)) ||
@@ -159,6 +168,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if (['planning','ready','ended'].includes(state.phase) && (state.cursor.entries.length || state.cursor.index || state.cursor.pathIndex)) invalid('UNEXPECTED_CURSOR');
   if (!unique(state.defending.map(d => d.creatureId)) || state.defending.some(d => !creatures.includes(d.creatureId) || !unique(d.phases))) invalid('INVALID_DEFENCE');
   for(const c of state.creatures) {
+    if(c.attacks.some(a=>a.penetration===2&&(a.mode!=='projectile'||a.shots.length!==1)))invalid('INVALID_PENETRATING_ATTACK');
     if(c.reanimationAttackIds!==null&&(!unique(c.reanimationAttackIds)||c.reanimationAttackIds.some(id=>!c.attacks.some(a=>a.id===id))))invalid('INVALID_BODY_ATTACKS');
     if(c.swarm&&(c.size>c.originalSize||c.maxHp!==c.con*c.originalSize))invalid('INVALID_SWARM_SIZE_OR_HP');
     if((c.creatorId!==null&&!creatures.includes(c.creatorId))||!unique(c.knownIllusionBy)||c.knownIllusionBy.some(id=>!players.includes(id)))invalid('INVALID_ILLUSION_KNOWLEDGE');
@@ -172,10 +182,16 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if(state.reactions.some(r=>!creatures.includes(r.attackerId) || !creatures.includes(r.targetId) || !state.creatures.find(c=>c.id===r.attackerId)?.attacks.some(a=>a.id===r.attackId))) invalid('INVALID_REACTION');
   if(state.pendingAttack) {
     const pending=state.pendingAttack, attacker=state.creatures.find(c=>c.id===pending.attackerId), attack=attacker?.attacks.find(a=>a.id===pending.action.attackId);
+    if(attack?.penetration===2&&((pending.areaVictims?.length??0)>2||pending.areaVictims?.includes(pending.attackerId)))invalid('INVALID_PENETRATION_VICTIMS');
     if((pending.areaVictims!==null&&!unique(pending.areaVictims))||!unique(pending.damageByTarget.map(d=>d.targetId)))invalid('DUPLICATE_ATTACK_VICTIM');
     if(!['early','movement','late'].includes(state.phase) || (pending.source==='action' && (state.phase==='movement' || current?.creatureId!==pending.attackerId)))invalid('INVALID_ATTACK_CONTINUATION');
     if(!attack || !validAttackTargets(attack,pending.action,pending.source) || pending.shotIndex>attack.shots.length || pending.victimIndex>(pending.areaVictims?.length ?? 0) || pending.action.targetIds.some(id=>!creatures.includes(id)) || pending.damageByTarget.some(d=>!creatures.includes(d.targetId)) || pending.areaVictims?.some(id=>!creatures.includes(id))) invalid('INVALID_PENDING_ATTACK');
   }
+  for(const c of state.creatures)if(c.reload){const r=c.reload;
+   if((r.lastReloadTurn!==null&&r.lastFiredTurn===null)||(r.lastFiredTurn??0)>state.turn||(r.lastReloadTurn??0)>state.turn||(r.lastFiredTurn!==null&&r.lastFiredTurn===r.lastReloadTurn)||(!r.loaded&&(r.lastFiredTurn===null||(r.lastReloadTurn??0)>r.lastFiredTurn))||(r.loaded&&r.lastFiredTurn!==null&&(r.lastReloadTurn??0)<=r.lastFiredTurn))invalid('INVALID_RELOAD_STATE');
+  }
+  if(state.creatures.some(c=>c.quarryTargetId!==null&&(!c.canMarkQuarry||c.quarryTargetId===c.id||!state.creatures.some(t=>t.id===c.quarryTargetId&&t.alive))))invalid('INVALID_QUARRY');
+  if(!unique(state.actedThisPhase)||state.actedThisPhase.some(id=>!creatures.includes(id)))invalid('INVALID_PHASE_ACTIVITY');
   if(state.spentActions.some(id=>!creatures.includes(id)) || !unique(state.moved) || state.moved.some(id=>!creatures.includes(id))) invalid('INVALID_TURN_ACTIVITY');
   if(!unique(state.deadHandled) || state.deadHandled.some(id=>!creatures.includes(id)) || !unique(state.corpses.map(c=>c.id)) || state.corpses.some(c=>!creatures.includes(c.creatureId))) invalid('INVALID_CORPSE');
   if(state.deadHandled.some(id=>state.creatures.find(c=>c.id===id)?.alive))invalid('REVIVED_PERMANENT_DEATH');

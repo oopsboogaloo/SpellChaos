@@ -1,3 +1,14 @@
+import {stateSchema as treantSchema} from '../../domain/src/legacy-v18.js';
+import {stateSchema as fiveFamilySchema} from '../../domain/src/legacy-v17.js';
+import {stateSchema as ballistaSchema} from '../../domain/src/legacy-v16.js';
+import {stateSchema as siegeSchema} from '../../domain/src/legacy-v15.js';
+import { stateSchema as reloadSchema } from '../../domain/src/legacy-v14.js';
+import { stateSchema as quarrySchema } from '../../domain/src/legacy-v13.js';
+import { stateSchema as onHitSchema } from '../../domain/src/legacy-v12.js';
+import { stateSchema as traitsV3Schema } from '../../domain/src/legacy-v11.js';
+import { stateSchema as traitsV2Schema } from '../../domain/src/legacy-content-traits-v2.js';
+import { stateSchema as traitsV1Schema } from '../../domain/src/legacy-content-traits-v1.js';
+import { stateSchema as wallSchema } from '../../domain/src/legacy-v10.js';
 import { stateSchema as weedSchema } from '../../domain/src/legacy-v9.js';
 import { stateSchema as darknessSchema } from '../../domain/src/legacy-v8.js';
 import { stateSchema as illusionSchema } from '../../domain/src/legacy-v7.js';
@@ -24,7 +35,7 @@ export function migrateFoundationSnapshot(text: string): GameState {
   next.turn = old.turn; next.phase = old.phase; next.revision = old.revision; next.eventSequence = old.revision;
   next.players.forEach((p,i) => { p.locked = old.players[i]!.locked; p.participated = p.locked; });
   next.accepted = old.accepted;
-  return fillBooks(stateSchema.parse(next));
+  return fillBooks(parseUpgrade(next));
 }
 
 /** Explicit v2 -> current upgrade. Frozen v2 fixtures remain readable only through this API. */
@@ -38,17 +49,17 @@ export function migrateOrdersSnapshot(text: string): GameState {
     destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
     guards:[],holds:[],reactions:[],pendingAttack:null,spentActions:[],moved:[],corpses:[],deadHandled:[],endStep:0,
   };
-  return fillBooks(stateSchema.parse(next));
+  return fillBooks(parseUpgrade(next));
 }
 
 function fillBooks(s:GameState):GameState {
  for(const c of s.creatures.filter(c=>c.kind==='wizard')){const draw=startingBook(s.random.setup);s.random.setup=draw.state;c.spellbook=draw.book;}
- return stateSchema.parse(s);
+ return parseUpgrade(s);
 }
 /** Explicit upgrade; legacy combat snapshots and their validators are immutable. */
 export function migrateCombatSnapshot(text:string):GameState {
  const old=combatSchema.parse(JSON.parse(text));
- return fillBooks(stateSchema.parse({...old,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return fillBooks(parseUpgrade({...old,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   balanceUnits:0,casts:[],castOccupied:[],quickQueue:null,nextEntityId:0,
   creatures:old.creatures.map(upgradeCreature),
  }));
@@ -57,7 +68,7 @@ export function migrateCombatSnapshot(text:string):GameState {
 /** Explicit v4 -> current upgrade; no RNG draws, no silent interpretation under new rules. */
 export function migrateCastingSnapshot(text:string):GameState {
  const old=castingSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return parseUpgrade({...old,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   creatures:old.creatures.map(c=>upgradeCreature({...c,
    reanimationAttackIds:c.family==='Dragon'&&c.summonLevel===1?[]:null,
    restorationUsed:c.kind==='reanimated'||old.corpses.some(body=>body.creatureId===c.id&&body.restorationUsed),
@@ -69,7 +80,7 @@ export function migrateCastingSnapshot(text:string):GameState {
 /** The v5 engine never resized swarms; their stored Size becomes originalSize. */
 export function migrateEnvironmentSnapshot(text:string):GameState {
  const old=environmentSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return parseUpgrade({...old,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   creatures:old.creatures.map(upgradeCreature),
  });
 }
@@ -80,7 +91,7 @@ function upgradeCreature(c:Pick<Creature,'id'|'controller'|'centre'> & Partial<O
 /** V6 did not create illusions; historical wounds are an untracked real baseline. */
 export function migrateSwarmSnapshot(text:string):GameState {
  const old=swarmSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
   destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],damageLedger:[],pendingAttack:old.pendingAttack?{...old.pendingAttack,actionId:'legacy-attack'}:null,
   creatures:old.creatures.map(upgradeCreature),
  });
@@ -89,7 +100,7 @@ export function migrateSwarmSnapshot(text:string):GameState {
 /** Explicit v7 upgrade: no Darkness existed in these saves; RNG and pending work survive. */
 export function migrateIllusionSnapshot(text:string):GameState {
  const old=illusionSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old),darkness:[],
  creatures:old.creatures.map(c=>({...c,darknessSightRange:0,ignoresDarknessDisadvantage:false}))});
 }
 
@@ -100,12 +111,68 @@ function legacyMovement(old:{phase:string;cursor:{index:number;pathIndex:number;
 /** V8 had unit-cost movement; preserve the active actor's already paid steps. */
 export function migrateDarknessSnapshot(text:string):GameState {
  const old=darknessSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,
  destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:legacyMovement(old)});
 }
 
 /** Explicit v9 upgrade: historical walls had no caster/network ownership or crossing history. */
 export function migrateTangleweedSnapshot(text:string):GameState {
  const old=weedSchema.parse(JSON.parse(text));
- return stateSchema.parse({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,destroyedWallIds:[],wallCrossings:[]});
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content,destroyedWallIds:[],wallCrossings:[]});
+}
+
+function parseUpgrade(value: unknown): GameState {
+ const old=value as GameState;
+ return stateSchema.parse({...old,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,reload:c.reload??null,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
+}
+/** Legacy content had no attack traits; do not infer new abilities from species. */
+export function migrateWallSnapshot(text:string):GameState {
+ const old=wallSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Upgrade supported schema-11 content snapshots to the current schema and content. */
+export function migrateAttackTraitContent(text:string):GameState {
+ const input=JSON.parse(text);
+ const old=(input.contentVersion==='attack-traits-0.3'?traitsV3Schema:input.contentVersion==='attack-traits-0.2'?traitsV2Schema:traitsV1Schema).parse(input);
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+export function migrateOnHitSnapshot(text:string):GameState {
+ const old=onHitSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+export function migrateQuarrySnapshot(text:string):GameState {
+ const old=quarrySchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Explicit upgrade preserves committed siege shots and readiness without adding abilities. */
+export function migrateReloadSnapshot(text:string):GameState {
+ const old=reloadSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+export function migrateSiegeSnapshot(text:string):GameState {
+ const old=siegeSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Content-only upgrade: preserve existing attack choices and committed shots. */
+export function migrateBallistaSnapshot(text:string):GameState {
+ const old=ballistaSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve historical profile data when enabling Treant for new summons. */
+export function migrateFiveFamilySnapshot(text:string):GameState {
+ const old=fiveFamilySchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Do not infer creature-passage capability for historical profiles. */
+export function migrateTreantSnapshot(text:string):GameState {
+ const old=treantSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

@@ -1,3 +1,5 @@
+import { stateSchema as wallLegacySchema } from '../packages/domain/src/legacy-v10.js';
+import { migrateWallSnapshot } from '../packages/persistence/src/migration.js';
 import { describe,it,expect } from 'vitest';
 import fc from 'fast-check';
 import { readFileSync } from 'node:fs';
@@ -153,7 +155,7 @@ it('refreshes wood burning without multiplying its tick damage',()=>{
  const s=fresh();wall(s);damageStructure(s,{kind:'wall',id:'wall'},[{type:'fire',amount:1}],[],'wizard-0',true);s.turn=2;damageStructure(s,{kind:'wall',id:'wall'},[{type:'fire',amount:1}],[],'wizard-0',true);expect(s.walls[0]!.burning).toEqual({startsTurn:2,endsTurn:4});ongoingDamage(s,[]);expect(s.walls[0]!.hp).toBe(25);s.turn=3;ongoingDamage(s,[]);expect(s.walls[0]!.hp).toBe(23);
 });
 it.each(['planning','casting','crossing','interception','resolved'])('preserves the v10 %s fixture and identical continuation',name=>{
- const text=readFileSync(`tests/fixtures/walls-v10-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(encodeSnapshot(s)).toBe(text);const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
+ const text=readFileSync(`tests/fixtures/walls-v10-${name}.json`,'utf8').trim(),s=migrateWallSnapshot(text);expect(wallLegacySchema.parse(JSON.parse(text))).toEqual(JSON.parse(text));expect(()=>restoreSnapshot(text)).toThrow();const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
 });
 
 it('refreshing a burning creature also retains its already-due tick',()=>{

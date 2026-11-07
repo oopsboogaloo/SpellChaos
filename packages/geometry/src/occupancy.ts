@@ -5,7 +5,7 @@ import { blocksMovement, edge, edgeKey, solid, straddles, type Wall } from './wa
 export interface Occupant {
   id: string; centre: Hex; size: number; controller: string | null;
   height: 'ground' | 'air'; intelligence: number;
-  swarm?: boolean; incorporeal?: boolean; illusion?: boolean; nimble?: boolean;
+  swarm?: boolean; passCreatures?: boolean | undefined; incorporeal?: boolean; illusion?: boolean; nimble?: boolean;
   mountId?: string;
 }
 export interface ArenaGeometry { board: Board; creatures: Occupant[]; walls: Wall[] }
@@ -47,7 +47,7 @@ export function placement(arena: ArenaGeometry, mover: Occupant, centre: Hex, tr
   for (const other of arena.creatures) {
     if (physicalBody(other, arena.creatures).id === body.id || body.swarm || other.swarm ||
         (other.illusion && body.intelligence === 0)) continue;
-    if (transit && (body.height === 'air' || body.incorporeal ||
+    if (transit && (body.height === 'air' || body.incorporeal || body.passCreatures ||
       (body.nimble && body.controller !== null && body.controller === other.controller))) continue;
     if (overlap(cells, occupiedFootprint(other, arena.creatures))) return { legal: false, reason: 'CREATURE' };
   }
@@ -121,3 +121,26 @@ export function nearestLegal(arena: ArenaGeometry, mover: Occupant, around: Hex,
   return candidates[0] ?? null;
 }
 export function emptyArena(): ArenaGeometry { return { board: { ...ARENA }, creatures: [], walls: [] }; }
+
+/** A penetrating bolt keeps the chosen ray to maximum range. A second body must
+ * lie beyond the first footprint; overlapping bodies do not consume another hit. */
+export function tracePenetratingProjectile(arena:ArenaGeometry,origin:Occupant,aim:Hex,targetHeight:Occupant['height'],side:RaySide,range:number,selectedTargetId?:string):{path:Hex[];hits:string[];blockedBy:string|null} {
+ const ownCells=occupiedFootprint(origin,arena.creatures),start=nearestPair(ownCells,[aim]).from;
+ const length=distance(start,aim);
+ if(length===0)return {path:[],hits:[],blockedBy:null};
+ const factor=Math.ceil(range/length),end={q:start.q+(aim.q-start.q)*factor,r:start.r+(aim.r-start.r)*factor};
+ const ray=traceRay(start,end,side),own=new Set(ownCells.map(key)),hits:string[]=[],path:Hex[]=[];
+ let firstCells:Set<string>|null=null;
+ for(let i=0;i<ray.length;i++){
+  const cell=ray[i]!;if(distance(start,cell)>range||!inside(cell,arena.board))break;
+  if(i>0){const crossed=edgeKey(edge(ray[i-1]!,cell)),wall=arena.walls.find(w=>edgeKey(w.edge)===crossed&&solid(w.material));if(wall)return {path,hits,blockedBy:wall.id};}
+  path.push(cell);
+  if(own.has(key(cell))||firstCells?.has(key(cell)))continue;
+  const body=arena.creatures.filter(c=>c.id!==origin.id&&!hits.includes(c.id)&&physicalBody(c,arena.creatures).height===targetHeight&&occupiedFootprint(c,arena.creatures).some(h=>equal(h,cell)))
+   .sort((a,b)=>(a.id===selectedTargetId?-1:b.id===selectedTargetId?1:a.id<b.id?-1:1))[0];
+  if(!body)continue;
+  hits.push(body.id);if(hits.length===2)break;
+  firstCells=new Set(occupiedFootprint(body,arena.creatures).map(key));
+ }
+ return {path,hits,blockedBy:null};
+}

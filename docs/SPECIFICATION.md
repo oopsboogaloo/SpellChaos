@@ -1,4 +1,7 @@
 # Spell Chaos — specification register
+
+> **Approved scope change — 6 November 2026:** Goblin and Dragon are deferred in full to the next version. The MVP now has five summon families (Cat, Serpent, Spirit, Plant, Archer), 40 profiles, and the same 12 non-summoning spell families. This supersedes seven-family/56-profile MVP requirements below; historical profiles and rules remain preserved for later use. Starting spell guarantees use 14 non-guaranteed families.
+
 Working version 0.9 · 2 November 2026
 
 Status: approved user requirements, transcribed into a compact repository reference.

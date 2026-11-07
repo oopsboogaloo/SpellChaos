@@ -1,4 +1,7 @@
 # Spell Chaos — staged implementation plan
+
+> **Approved scope change — 6 November 2026:** Goblin and Dragon are deferred in full to the next version. The MVP now has five summon families (Cat, Serpent, Spirit, Plant, Archer), 40 profiles, and the same 12 non-summoning spell families. This supersedes seven-family/56-profile MVP requirements below; historical profiles and rules remain preserved for later use. Starting spell guarantees use 14 non-guaranteed families.
+
 Version 0.1 · 2 November 2026 · **APPROVED by owner**
 
 ## Authority and execution contract
@@ -6,7 +9,7 @@ The owner approved [DESIGN.md](DESIGN.md), including D01–D22, and requested th
 
 The owner approved implementation on 2 November 2026 and delegated routine decisions. Execute stages in order, commit each completed stage to GitHub and provide its reviewable result, checks and remaining limitations. Unless the owner's approval specifies continuous execution, pause after each stage for review before beginning the next. Routine fixes needed to satisfy a stage belong to that stage and need no additional permission.
 
-No subset of the roster or rules is called the complete MVP. All 56 profiles, all 12 non-summoning families, the three summon variants, required devices and mandatory serialization/testing are release requirements. Optional balance tooling is included as an independently runnable stage because the approved design includes it; it never changes game rules or blocks normal play.
+No subset of the roster or rules is called the complete MVP. All 40 retained MVP profiles, all 12 non-summoning families, the three summon variants, required devices and mandatory serialization/testing are release requirements. Optional balance tooling is included as an independently runnable stage because the approved design includes it; it never changes game rules or blocks normal play.
 
 Implementation commits should be grouped by stage on a working branch with a reviewable pull request. Do not merge implementation PRs until their stage review is accepted, unless plan approval explicitly authorizes merges. Docs in this planning turn are committed to main as requested. Release deployment is Stage 12; no preview should be presented as the finished game.
 
@@ -93,13 +96,13 @@ Reanimation derives profiles with stripped/retained capabilities and accepted bi
 **Review artifact:** bluffing and environment replay fixtures, including hidden-information assertions.
 
 ## Stage 7 — Complete content and all creature-specific interactions
-**Deliverables:** full56 profiles and their attacks, defences, spells and abilities; no generic replacements for named mechanics. All twelve non-summoning spell families enabled at all levels. Complete flight, mount/dismount, Drag and legal rider placement, reload/cooldowns, area siege shots and breath.
+**Deliverables:** all40 retained MVP profiles and their attacks, defences, spells and abilities; no generic replacements for named mechanics. All twelve non-summoning spell families enabled at all levels. Complete flight, mount/dismount, Drag and legal rider placement, reload/cooldowns, area siege shots and other retained-family mechanics. Dragon breath is deferred.
 
 Ability coverage groups:
 - Cat: Nimble, Pounce, Roar, Bleeding, Blink, Dive, Drag, Double Action and detection.
 - Serpent: poison, Ambush, swarms, gaze, spit, Hydra multiattack/regen, World Serpent sweep/constriction.
-- Goblin: vision, Scramble, Brace, caster lists, Rally, Command and False King.
-- Dragon: familiar/spark, Scorch, sting, all breaths/cooldowns, Dread Roar and multiheaded alternatives.
+- Deferred to next version — Goblin: vision, Scramble, Brace, caster lists, Rally, Command and False King.
+- Deferred to next version — Dragon: familiar/spark, Scorch, sting, all breaths/cooldowns, Dread Roar and multiheaded alternatives.
 - Spirit: Haunt, passage exceptions, Chill, Frighten, Wither, drain healing, Wail and Marked Quarry.
 - Plant: Spores, equal-size/two-limb grapples, Bristles, Shove, regeneration, grove, Root Network and cover.
 - Archer: Aim, minimum range, selectable arrow type, Ballista penetration, reload and siege areas/structures.
@@ -134,7 +137,7 @@ PR regression corpus and scheduled expanded soak retain seeds/snapshots/commands
 **Review artifact:** acceptance report, supported-browser matrix, coverage/traceability gaps (must be zero for release scope), performance results and reproducible failures if any.
 
 ## Stage 11 — Optional matchup simulator
-**Deliverables:** CLI selecting full roster or subsets,1596 unordered pairs including mirrors, repeated seeded trials and swapped sides; same engine with scenario-specific termination. Configurable start distance/terrain/control policy/turn and operation limits. Export JSON/CSV and viewable matrix with wins/losses/draws/failures, win-rate denominator, Wilson intervals, health and turn counts, versions and seeds.
+**Deliverables:** CLI selecting full roster or subsets,820 unordered pairs including mirrors, repeated seeded trials and swapped sides; same engine with scenario-specific termination. Configurable start distance/terrain/control policy/turn and operation limits. Export JSON/CSV and viewable matrix with wins/losses/draws/failures, win-rate denominator, Wilson intervals, health and turn counts, versions and seeds.
 
 **Checks:** subset/full enumeration, mirror cases, side swaps, deterministic replay, batch termination, errors separate from draws and confidence interval fixtures. Run small CI smoke; full batches scheduled/manual. Results are scenario-dependent; no automatic stat changes.
 

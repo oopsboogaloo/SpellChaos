@@ -1,4 +1,7 @@
 # Spell Chaos — technical and interaction design
+
+> **Approved scope change — 6 November 2026:** Goblin and Dragon are deferred in full to the next version. The MVP now has five summon families (Cat, Serpent, Spirit, Plant, Archer), 40 profiles, and the same 12 non-summoning spell families. This supersedes seven-family/56-profile MVP requirements below; historical profiles and rules remain preserved for later use. Starting spell guarantees use 14 non-guaranteed families.
+
 Version 0.1 · 2 November 2026 · **APPROVED by owner**
 
 Approval: “Proposals are all good, proceed to plan.” All architecture, interface, verification proposals and decisions D01–D22 are accepted. Historical proposal wording below records the reviewed version; it no longer denotes pending approval. Implementation still requires approval of PLAN.md. The owner authorised planning now; full-source archival remains a pre-code gate in Stage 0.
@@ -11,7 +14,7 @@ The owner's supplied game specification v0.9 is authoritative. Its later MVP bas
 Locked game rules remain locked. Every proposed rule below needs approval as part of design review. Future features receive extension seams, not speculative implementations.
 
 ## 1. Experience and delivery
-MVP is one human versus 1–7 AI wizards, simultaneous planning, on a 30×30 hex arena. All seven enabled summon families and 12 non-summoning families are part of the first complete playable release; an internal increment with fewer features is not the accepted MVP.
+MVP is one human versus 1–7 AI wizards, simultaneous planning, on a 30×30 hex arena. All five retained summon families and 12 non-summoning families are part of the first complete playable release; an internal increment with fewer features is not the accepted MVP.
 
 Proposed hosting: static GitHub Pages at /SpellChaos/, deployed through GitHub Actions after release checks. No backend or paid service is required for local AI play. A browser worker owns authoritative simulation; this is local authority for MVP, not a security boundary against the device owner. Future multiplayer moves the same headless engine behind a server; remote clients receive filtered views only.
 
@@ -52,7 +55,7 @@ Data must represent a rider/mount pair separately while enforcing shared occupan
 
 Content definitions contain explicit attacks/components/ranges/properties, body classification, immunities, spell access, object/riding capability and ability IDs. Generic reusable ability handlers cover common rules; named exceptions such as False King have dedicated tested handlers. Do not build an unrestricted scripting language or encode arbitrary functions in content.
 
-Validate 56 unique family/level entries, maxHP=Size×Con, range/targeting on every ranged action, legal trait references, caster caps and all ability implementations. Preserve distinctions such as Spirit physical exceptions, plant Int0, siege Move0, and multiattack versus alternate attacks.
+Validate all 56 preserved family/level data entries; require complete ability coverage for the 40 MVP entries. Check maxHP=Size×Con, range/targeting on every ranged action, legal trait references, caster caps and all ability implementations. Preserve distinctions such as Spirit physical exceptions, plant Int0, siege Move0, and multiattack versus alternate attacks.
 
 ## 4. Geometry and occupancy
 Proposed representation: pointy-top odd-row offset display coordinates; convert to axial/cube integers for simulation. Flat-to-flat scale remains one metre. Radius footprint = floor((Size−1)/2). Board clipping is never allowed.
@@ -121,7 +124,7 @@ IndexedDB autosave at committed turn boundaries and selected atomic checkpoints;
 Schema migrations are explicit pure transformations with frozen fixtures. Do not silently run old rules on new content. Unsupported rules/content versions produce a clear error until a compatibility package or approved migration exists. Future server command envelopes already contain match/player/turn/revision/idempotency IDs.
 
 ## 10. Verification and release design
-Every requirement receives stable IDs grouped by geometry, orders, spells, conditions, abilities, visibility, saves and workflows. A machine-readable traceability register links source section, interpretation decision, scenario/test IDs and implementation status. Every spell level and all56 profiles have data-driven coverage; named edge cases need explicit expected outcomes rather than snapshots alone.
+Every requirement receives stable IDs grouped by geometry, orders, spells, conditions, abilities, visibility, saves and workflows. A machine-readable traceability register links source section, interpretation decision, scenario/test IDs and implementation status. Every enabled spell level and all 40 MVP profiles require behavioural coverage; all 56 preserved profiles retain data validation; named edge cases need explicit expected outcomes rather than snapshots alone.
 
 Required suites:
 - Unit mathematics/geometry/schema/content and named ability tests.
@@ -139,7 +142,7 @@ Proposed performance targets: p95 visible-input response under100ms; normal fram
 
 CI: typecheck/content validation/unit/scenario/save regression on every change; browser/visual/integration gates on PRs; seeded soak and optional full matchups on schedules/manual runs. Release requires all required suites on the exact commit. Retain failure seeds, snapshots, traces/screenshots and logs; rerun commands documented.
 
-Optional balance mode uses the production engine, all1596 unordered pairings including mirrors for56 profiles, repeated trials with swapped sides. No wizard-elimination shortcut: a dedicated scenario victory policy scores the duel without changing combat rules. Output JSON/CSV matrix, Wilson win-rate intervals, draws/failures separately, turns/remainingHP and full scenario/policy/version metadata. Trials terminate with configurable turn and operation limits.
+Optional balance mode uses the production engine, all820 unordered pairings including mirrors for40 MVP profiles, repeated trials with swapped sides. No wizard-elimination shortcut: a dedicated scenario victory policy scores the duel without changing combat rules. Output JSON/CSV matrix, Wilson win-rate intervals, draws/failures separately, turns/remainingHP and full scenario/policy/version metadata. Trials terminate with configurable turn and operation limits.
 
 ## 11. Proposed decisions requiring review
 These resolve open details, not changes to approved mechanics.
@@ -160,7 +163,7 @@ These resolve open details, not changes to approved mechanics.
 | D12 | No legal dismount on death | Rider dies if no legal placement exists; explicit event and test. Voluntary dismount into no legal space is rejected. |
 | D13 | Resistance advantage | Roll effect success twice; advantage on defender resistance chooses the roll causing failure. Crit remains independent. |
 | D14 | Expiry/victory | Perform extra lifecycle/victory check after expiry, before mana/awards; no rewards after terminal result. |
-| D15 | Starting book | Draw from16 non-guaranteed enabled families; uniformly choose valid10-family subsets satisfying category guarantees. Damage={Magic Bolt,Fire Bolt,Magic Attack}; utility={Healing Bolt,Teleport,Wall,Tangleweed,Darkness,Reanimate}. |
+| D15 | Starting book | Draw from 14 non-guaranteed enabled families; uniformly choose valid10-family subsets satisfying category guarantees. Damage={Magic Bolt,Fire Bolt,Magic Attack}; utility={Healing Bolt,Teleport,Wall,Tangleweed,Darkness,Reanimate}. |
 | D16 | Auto-illusion balance | Successful illusion casts shift balance by family alignment×L, following the general success rule. |
 | D17 | Revealed blocked invisible hex | Reveal to discovering player through end of current phase; contact does not grant global visibility. |
 | D18 | Early Aim | Early attack receives Aim only with zero movement order and no actual movement that turn; later forced movement cannot retroactively change resolved damage. |

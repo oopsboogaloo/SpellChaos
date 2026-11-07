@@ -16,6 +16,7 @@ export function cleanupDeaths(s:GameState,events:Event[]):void {
   // Freeze the whole lethal batch before reversing any damage: shock deaths stay dead.
   for(const c of dying)c.alive=false;
   for(const c of dying){
+   for(const hunter of s.creatures)if(hunter.quarryTargetId===c.id)hunter.quarryTargetId=null;
    c.alive=false;s.deadHandled.push(c.id);for(const w of s.walls.filter(w=>w.casterId===c.id))if(!s.destroyedWallIds.includes(w.id))s.destroyedWallIds.push(w.id);s.walls=s.walls.filter(w=>w.casterId!==c.id);s.darkness=s.darkness.filter(d=>d.casterId!==c.id);s.tangleweed=s.tangleweed.filter(w=>w.casterId!==c.id);pruneWeedHolds(s);
    if(c.corpseEligible && !c.swarm && !c.construct && !c.plant && c.kind!=='illusion')s.corpses.push({id:`corpse:${c.id}`,creatureId:c.id,centre:{...c.centre},size:c.size,con:c.con,maxHp:c.maxHp,fireAcidDamage:c.fireAcidDamage,skeletal:c.fireAcidDamage>=c.maxHp/2,restorationUsed:c.restorationUsed});
    s.guards=s.guards.filter(g=>g.creatureId!==c.id);
