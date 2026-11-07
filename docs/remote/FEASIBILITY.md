@@ -2,6 +2,8 @@
 
 Status: **draft for owner review** · 7 November 2026 · Companion: [REMOTE-PLAY-SPEC.md](REMOTE-PLAY-SPEC.md)
 
+> **Owner decision — 7 November 2026:** a server is required, because asynchronous play needs somewhere to store orders and resolve turns while players are offline. Protection against players who modify the client to cheat is **not a goal**: the game is played for fun among friends. The server still sends each player only their own view, so ordinary play never shows spoilers, but no anti-cheat hardening is built.
+
 ## 1. Question
 
 Can Spell Chaos support remote, asynchronous, turn-based games between friends, with these properties?
@@ -22,23 +24,25 @@ Which hosting approach should be used?
 - The static client stays on GitHub Pages as planned.
 - **Fallback:** Convex, or a small self-hosted Node + SQLite server, both behind the same thin server interface.
 
-**Prerequisites before any public use:**
-- Fix the hidden-information issues from the Stage 1–7 review ([#15](https://github.com/oopsboogaloo/SpellChaos/issues/15)–[#19](https://github.com/oopsboogaloo/SpellChaos/issues/19)).
-- Fix per-player revisions ([#17](https://github.com/oopsboogaloo/SpellChaos/issues/17)).
-- Fix the RNG streams ([#24](https://github.com/oopsboogaloo/SpellChaos/issues/24)).
-
-In local play these leaks are curiosities; online they are exploits.
+**Prerequisites before remote play:**
+- Fix per-player revisions ([#17](https://github.com/oopsboogaloo/SpellChaos/issues/17)). Without this, simultaneous players keep rejecting each other's commands as stale.
+- Fix the RNG streams ([#24](https://github.com/oopsboogaloo/SpellChaos/issues/24)) before AI seats run on the server.
+- Fix the hidden-information issues from the Stage 1–7 review ([#15](https://github.com/oopsboogaloo/SpellChaos/issues/15)–[#19](https://github.com/oopsboogaloo/SpellChaos/issues/19)). These are spoilers, not cheating risks: an honest player sees an ordinary message such as "can't summon there" that gives away a hidden creature.
 
 ## 3. Constraints that decide the architecture
 
-### 3.1 The server must be authoritative
+### 3.1 Why a server resolves the turns
 
-Spell Chaos has persistent hidden state, not just hidden orders: illusion truth, invisible creatures, Darkness occupants, exact HP and mana, and hidden corpses. Any client that runs the full simulation must hold the full state, so that player can read everything.
+The deciding reason is **asynchrony**:
+- Players are rarely online at the same time, so something must store each player's orders until the last one arrives, and store the result until each player returns. Two browsers cannot exchange data unless both are open, so a stored relay is unavoidable.
+- If one player's device resolved the turn, the game would stall after the last lock until that player opened the app. A server resolves immediately, or at the deadline, with nobody online.
+- Once the relay exists, running the engine on it costs almost nothing extra (§3.2).
 
-Three options were considered and rejected:
-- **Peer-to-peer or host-authoritative play:** the host sees all hidden state, and play stops whenever the host is offline. That is fatal for asynchronous play.
-- **Commit–reveal of orders:** this hides orders only; every client would still need the full secret state to resolve the turn.
-- **Client-side resolution with server relay:** same flaw.
+The secondary reason is **hidden information**. Spell Chaos has persistent secrets, not just hidden orders: illusion truth, invisible creatures, Darkness occupants, exact HP and mana, and hidden corpses. Whichever device resolves a turn holds all of them, so a host-resolved game would show the host everything. Deliberate cheating with a modified client is out of scope by owner decision; what matters is that ordinary play does not spoil the bluffing.
+
+Rejected alternatives:
+- **Peer-to-peer or host-resolved play:** stalls on the host, and the host's device holds every secret.
+- **Commit–reveal of orders:** hides orders only; whoever resolves still holds every other secret.
 
 **Conclusion:** a server holds the authoritative state, runs the engine, and sends each player only `projectView` and `projectEvents`.
 
@@ -134,7 +138,7 @@ Lock-in mitigation: the game server is a small adapter (load snapshot → apply 
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Existing hidden-information leaks (#15–#19) become exploits | High | Prerequisite fixes; API-level leak tests (spec §11) |
+| Existing hidden-information leaks (#15–#19) spoil the game for honest players | Medium | Prerequisite fixes; spoiler checks in tests (spec §11) |
 | Very large battles exceed the per-invocation CPU limit | Medium | Chunked resolution by step count and time budget (spec §6.4); performance work in #33 |
 | Engine or content changes break games in progress | Medium | Pin each game to its rules/content version; keep old engine builds bundled, or only ship breaking changes when no games are active (spec §9) |
 | iOS push needs a Home Screen install | Medium | In-app prompt explaining the step; optional email fallback |

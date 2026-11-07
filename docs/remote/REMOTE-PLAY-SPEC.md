@@ -29,6 +29,8 @@ Let friends play Spell Chaos remotely and asynchronously. Each player submits pr
 - Real-time (synchronous) play modes.
 - Paid features.
 
+Fairness stance (REM-003, owner decision 7 November 2026): this is a casual game among friends. Preventing players who modify the client or call the API directly from cheating is **not a goal**. The server still sends each player only their own view, so ordinary play never spoils hidden information, but no anti-cheat hardening is required.
+
 Safeguarding stance (REM-002): the service never introduces strangers to each other. The only user-generated text other players can see is a display name scoped to one game. Personal data is limited to an optional notification email.
 
 ## 2. Architecture summary
@@ -220,10 +222,12 @@ All requests are JSON. Every endpoint except create and join requires `Authoriza
 - **REM-161:** Request bodies are capped at 64 KB, and every body is validated with the engine's Zod schemas before use.
 - **REM-162:** Rate limits are applied per token and per IP address: commands 60/min, reads 120/min, join 10/min.
 
-## 11. Security and fairness
+## 11. Security and spoilers
 
-- **REM-170:** The client receives only projected data (REM-010). An automated test suite runs at the API level: for each endpoint, two server states that differ only in a secret must produce byte-identical responses for every other seat, including error responses and timing-independent fields.
-- **REM-171:** Time-based leaks: response content must not depend on hidden state. Response timing is not considered a secret channel for v1; this is documented as an accepted risk.
+Per REM-003, the aim is to avoid **spoilers in ordinary play** and to protect the service and players' data. It is not to defeat cheaters.
+
+- **REM-170:** The client receives only projected data (REM-010). Tests check that the normal screens, messages and replays of one player never reveal another player's secrets: two server states that differ only in a secret produce the same view for every other seat.
+- **REM-171:** Out of scope: deliberate probing of the API, timing side-channels, modified clients and tampering with local data. No hardening is built for these.
 - **REM-172:** AI seats use the same command interface and see only their own view.
 - **REM-173:** Seat tokens are compared in constant time. Hashes are stored, not tokens.
 - **REM-174:** Logs record command types and error codes, but not command bodies, tokens or emails.
@@ -257,7 +261,7 @@ All requests are JSON. Every endpoint except create and join requires `Authoriza
 - **REM-190:** Server integration tests run on the platform's local runtime (for Cloudflare, Miniflare / the Workers Vitest pool). Covered: create/join/lobby rules, code expiry, host approval, start, every command path, last-lock trigger, deadline trigger, missed-turn surrender on/off, concede, cancel, victory, retention deletion.
 - **REM-191:** Concurrency: simultaneous last locks trigger exactly one resolution, and a command during resolution is rejected.
 - **REM-192:** Crash safety: kill or restart the game object at every chunk boundary of a recorded game; the final state and every player's events must be identical to an uninterrupted run.
-- **REM-193:** Leak suite (REM-170) for every endpoint, plus a generated-command property test over random games.
+- **REM-193:** Spoiler checks (REM-170) for the views, events and error messages the client actually shows, plus a generated-command property test over random games.
 - **REM-194:** Playwright end-to-end tests with three browser contexts: create, join, approve, plan, lock, resolve, replay, and a deadline pass using a fake clock; on phone and desktop viewports.
 - **REM-195:** Load test: 50 concurrent games with 8 seats each, through a full turn, within plan limits; record CPU per turn.
 
@@ -273,4 +277,4 @@ The remote work depends on the engine prerequisites in §6. It can start in para
 | R3 | Client Online area: lobby, game and replay screens against staging | REM-180–184; Playwright 3-player flow passes |
 | R4 | Live pings, Web Push, reminders | REM-140–144 |
 | R5 | AI seats (needs Stage 8) | REM-074, REM-172 |
-| R6 | Hardening: leak suite, rate limits, privacy notice, load test, production deploy | REM-160–175, 193–195; production smoke test |
+| R6 | Hardening: spoiler checks, rate limits, privacy notice, load test, production deploy | REM-160–175, 193–195; production smoke test |
