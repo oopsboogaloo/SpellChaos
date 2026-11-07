@@ -74,7 +74,7 @@ The main problems are:
 
 ## Overall concerns
 
-1. **Stage 0 was skipped.** PLAN requires a verbatim specification archive before application code. Seven stages were built against a condensed register that warns omissions are not permission to drop rules. Either archive the source or formally adopt SPECIFICATION.md as the authority.
+1. **Stage 0 was skipped.** PLAN required a verbatim specification archive before application code, and seven stages were built against the condensed register instead. *Resolved by owner decision: SPECIFICATION.md is now the authority.*
 2. **Hidden information is opt-in.** Views copy fields one at a time, event redaction strips named fields, and planning validators share resolution code. New features leak by default. A single player-knowledge arena for validation, deny-by-default public schemas and a generic "states differing only in a secret look identical" property test would close this structurally.
 3. **Persistence ceremony outweighs protection.** There are no real saves yet, but each schema bump costs a 25–30 KB frozen copy plus migration edits. Meanwhile, what DESIGN §9 actually asks for — a content hash, semantic invariants, clear version errors and a replay format — is missing.
 4. **Evidence is weaker than it looks.** Traceability "requirements" are mostly test titles, many continuation tests compare the code with itself, and line coverage is inflated by dense lines.
@@ -93,13 +93,16 @@ The main problems are:
 - **Saves:** restore is transactional; old saves are never silently migrated; all 73 historical fixtures migrate deterministically and round-trip.
 - **Roster:** all 40 MVP profiles match the specification numerically.
 
-## Questions for the owner
+## Owner decisions (7 November 2026)
 
-1. Can you supply the verbatim v0.9 source, or should SPECIFICATION.md become the authority, with DESIGN/PLAN amended to say so?
-2. Since no real saves exist, may legacy validators and migrations be deleted and the schema restarted at version 1 for release?
-3. Should coverage thresholds and a traceability check become blocking CI gates now?
-4. Is Chromium-only browser testing acceptable until Stage 9?
-5. Do you want real workspace packages with enforced layering and a code formatter?
-6. Please rule on the items in #39 before dependent work continues.
+1. **SPECIFICATION.md is the authority.** No verbatim source archive is required. DESIGN, PLAN and SPECIFICATION carry a banner saying so, and the README is updated. Gaps or ambiguities in the register get a numbered owner ruling. This resolves the Stage 0 part of [#30](https://github.com/oopsboogaloo/SpellChaos/issues/30); the traceability part remains open.
+2. **Old saves may be deleted.** Development saves need no backward compatibility. Legacy schema validators, migration functions and historical save fixtures may be removed, and the schema may restart at version 1 for release ([#31](https://github.com/oopsboogaloo/SpellChaos/issues/31)).
+
+## Open questions for the owner
+
+1. Should coverage thresholds and a traceability check become blocking CI gates now?
+2. Is Chromium-only browser testing acceptable until Stage 9?
+3. Do you want real workspace packages with enforced layering and a code formatter?
+4. Please rule on the items in #39 before dependent work continues.
 
 **Recommended order:** fix #15, #35 and #23, and decide #24, before Stage 8 (AI) or Stage 9 (UI) builds on them.
