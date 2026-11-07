@@ -1,3 +1,4 @@
+import {stateSchema as flightDetectionSchema} from '../../domain/src/legacy-v25.js';
 import {stateSchema as groundSpecialistsSchema} from '../../domain/src/legacy-v24.js';
 import {stateSchema as blinkSporesWailSchema} from '../../domain/src/legacy-v23.js';
 import {stateSchema as conditionActionsSchema} from '../../domain/src/legacy-v22.js';
@@ -215,5 +216,11 @@ export function migrateBlinkSporesWailSnapshot(text:string):GameState {
 /** Preserve committed joint Drag/Sweep/roots without inferring flight, detection or invisibility. */
 export function migrateGroundSpecialistsSnapshot(text:string):GameState {
  const old=groundSpecialistsSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve flight/reveal state and pending work without inferring mounts, riding or Dive. */
+export function migrateFlightDetectionSnapshot(text:string):GameState {
+ const old=flightDetectionSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

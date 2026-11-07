@@ -6,7 +6,7 @@ export interface Occupant {
   id: string; centre: Hex; size: number; controller: string | null;
   height: 'ground' | 'air'; intelligence: number;
   swarm?: boolean; passCreatures?: boolean | undefined; incorporeal?: boolean; illusion?: boolean; nimble?: boolean;
-  mountId?: string;
+  mountId?: string | undefined;
 }
 export interface ArenaGeometry { board: Board; creatures: Occupant[]; walls: Wall[] }
 export type Legality = { legal: true } | { legal: false; reason: 'BOUNDARY' | 'WALL' | 'CREATURE' | 'NON_ADJACENT' };

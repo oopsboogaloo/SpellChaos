@@ -1,7 +1,7 @@
 {
   "stage": 7,
-  "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 38 implemented in scope including Amphiptere, Wisp and Bobby the Master Hunter; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "status": "implemented-awaiting-stage-review",
+  "scope": "40/40 retained MVP profiles implemented across five families; full 56-profile catalogue and deferred Goblin/Dragon content preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -438,13 +438,53 @@
         "a named target lost from detection before execution is wasted without substitution",
         "Bobby reanimation strips detection, Double Action and Darkness immunity"
       ]
+    },
+    {
+      "id": "ROSTER-035",
+      "requirement": "D19 Gryphon Beak/Claws single-action identity, airborne Dive approach/landing, forced-displacement reset, Guard/Bristles/illusion/reanimation and schema-26 continuation",
+      "testFile": "tests/mounts-dive.test.ts",
+      "browserTestFile": "tests/browser/mounts-dive.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Gryphon resolves Beak and Claws as one action and one planned identity",
+        "three airborne approach steps add two only to Beak, followed by legal landing and ground attack",
+        "Dive rechecks the selected target and never boosts Claws or Guard",
+        "Bristles can stop the Gryphon between Beak and Claws",
+        "illusory Dive damage reverses for survivors and cannot harm Int0"
+      ]
+    },
+    {
+      "id": "ROSTER-036",
+      "requirement": "Shepherd Sling, physical rider/object suitability, Mount/Dismount budgets, shared footprints and independent stats, casting/Guard/Drag/hazards and D12 death/fall/placement",
+      "testFile": "tests/mounts-dive.test.ts",
+      "browserTestFile": "tests/browser/mounts-dive.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Mount costs the Shepherd its ordinary action and then the Gryphon supplies movement",
+        "voluntary Dismount costs an action and can precede ordinary movement",
+        "projectiles preserve the explicit %s target at shared interception",
+        "forced carrier movement carries the rider and interrupts its paid cast once",
+        "D12 kills a rider with an explicit event when every legal landing is blocked",
+        "Giant Puma can Drag a held ground mount together with its rider"
+      ]
+    },
+    {
+      "id": "ROSTER-037",
+      "requirement": "Combined all-40-profile legal scenario, production attacks/powers, permanent fixtures, per-atomic Node/Chromium fingerprints, private events/views and frozen schema-25 migration",
+      "testFile": "tests/mounts-dive.test.ts",
+      "browserTestFile": "tests/browser/mounts-dive.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "the full roster scenario is a reproducible legal production setup for all 40 MVP profiles",
+        "permanent %s fixture restores every atomic step with exact continuation",
+        "schema-25 %s migrates without granting mounting or Dive",
+        "D12 no-space death cleanup itself round-trips before replacing the current atomic state"
+      ]
     }
   ],
   "pending": [
-    "Gryphon Dive, mount/rider state, Mount/Dismount actions and legal rider placement including D12 death dismount",
-    "Shepherd riding and object suitability; no future inventory system",
-    "Every remaining ability phase, failure, illusion and reanimation interaction",
-    "Enable remaining 2 MVP profiles only after complete engine tests",
-    "Combined full-roster headless and browser scenario"
+    "Stage 7 checkpoint review and final acceptance audit against authoritative source",
+    "Original verbatim specification archive remains a release gate",
+    "Fair AI and unattended matches, complete browser interface, acceptance/performance/soak hardening and deployment belong to later stages"
   ]
 }

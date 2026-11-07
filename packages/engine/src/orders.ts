@@ -1,3 +1,4 @@
+import {carryingLocked,carryingFearAllows} from './mounts.js';
 import {flightHeight,flightStepLegal} from './flight.js';
 import {canDrag,dragStepLegal,planningDragState} from './drag.js';
 import {blinkLegal,movementStepCost} from './blink.js';
@@ -23,10 +24,14 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (!stored || stored.controller !== playerId) throw new Error('NOT_CONTROLLED');
   // A known Early expiry permits plans for movement/Late after waking, without
   // granting the sleeping creature an Early action or mutating live conditions.
-  const c=afterEarlyWake(stored,state.turn);
-  const wakesEarly=c!==stored;
+  const waking=afterEarlyWake(stored,state.turn);
+  const c=order.early&&typeof order.early==='object'&&order.early.type==='Dismount'?{...waking,centre:order.early.ground}:waking;
+  if(c!==waking)delete c.mountId;
+  const wakesEarly=waking!==stored;
   if(wakesEarly&&order.early!==null)throw new Error('INELIGIBLE_CREATURE');
   if (!active(c) || c.readyTurn > state.turn) throw new Error('INELIGIBLE_CREATURE');
+  if(order.path.length&&(stored.mountId&&c.mountId||order.early&&typeof order.early==='object'&&order.early.type==='Mount'))throw new Error('RIDER_USES_MOUNT_MOVEMENT');
+  if(order.path.length&&carryingLocked(state,c,true))throw new Error('RIDER_IMMOBILE');
   const actions = [order.early, order.late].filter(a => a !== null);
   if (order.late === 'Dash') throw new Error('DASH_EARLY_ONLY');
   if (actions.includes('TotalDefence') && (actions.length !== 1 || order.path.length !== 0)) throw new Error('TOTAL_DEFENCE_WHOLE_TURN');
@@ -52,7 +57,7 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
       const timing=castingTime(action.spell),due=completionAt(state.turn,phase,timing);
       if(phase==='early' && order.path.length && (due.turn>state.turn||due.phase==='late'))throw new Error('CASTING_IMMOBILE');
       if(phase==='early' && order.late && (due.turn>state.turn||due.phase==='late'))throw new Error('CASTING_OCCUPIES_ACTION');
-    }else validateCombatAction(state,c,action);
+    }else validateCombatAction(state,action.type==='Dismount'?stored:c,action);
   }
   if(reservedMana(order)>c.mana)throw new Error('INSUFFICIENT_MANA');
   // Static terrain is known; moving creatures are rechecked at resolution.
@@ -60,7 +65,7 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   let from = order.early && typeof order.early==='object' && order.early.type==='Cast' && order.early.spell==='Teleport' ? order.early.ground! : c.centre;
   const pathActor={...c};
   for (const [i,to] of order.path.entries()) {
-    if (!fearAllowsStep(state,{...c,centre:from},to)) throw new Error('FEAR_APPROACH');
+    if ((!fearAllowsStep(state,{...c,centre:from},to)||!carryingFearAllows(state,{...c,centre:from},to))) throw new Error('FEAR_APPROACH');
     if (!(order.flightSteps?flightStepLegal(state,pathActor,order,i,from,to,true,true):order.dragTargetId!==undefined?dragStepLegal(movementState,c,order,from,to,true):order.blinkIndex===i?blinkLegal(state,c,from,to,true):stepLegality(arena,c,from,to,true).legal)) throw new Error('INVALID_PATH');
     pathActor.height=flightHeight(pathActor,order,i);from = to;
   }

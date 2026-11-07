@@ -1,3 +1,4 @@
+import {bodyFootprint} from './bodies.js';
 import {rootContact,pruneRootNetworks} from './ground-traits.js';
 import type {Creature,GameState} from '../../domain/src/state.js';
 import type {PowerAction} from '../../domain/src/combat.js';
@@ -22,7 +23,7 @@ function definition(actor:Creature,action:PowerAction) {
 const enemy=(actor:Creature,target:Creature)=>actor.id!==target.id&&(actor.controller===null||actor.controller!==target.controller);
 const sporesLiving=(target:Creature)=>!target.undead&&!target.construct&&target.kind!=='illusion';
 function eligibleTarget(s:GameState,actor:Creature,target:Creature,action:PowerAction,range:number,origin:Hex=actor.centre):boolean {
- const p=nearestPair(footprint(origin,actor.size),footprint(target.centre,target.size));
+ const p=nearestPair(bodyFootprint(s,actor,origin),bodyFootprint(s,target));
  if(action.type==='Wail')return target.alive&&target.id!==actor.id&&p.distance<=range;
  return target.alive&&enemy(actor,target)&&p.distance<=range&&!!actor.controller&&visibleTo(s,target,actor.controller)&&sight(s,actor,p.from,p.to,'left')&&(action.type!=='Spores'||sporesLiving(target))&&(action.type!=='RootNetwork'||(target.size<actor.size&&rootContact(s,actor,target)));
 }

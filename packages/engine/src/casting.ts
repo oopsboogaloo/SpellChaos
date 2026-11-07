@@ -1,3 +1,5 @@
+import {riderOf,moveRider,forcedBody,carryingLocked} from './mounts.js';
+import {bodyFootprint} from './bodies.js';
 import {pruneRootNetworks} from './ground-traits.js';
 import { legalCastWall,wallOriginValid,createWall,structureCells,strikeStructure,damageStructure,crossWallHazards } from './walls.js';
 import { legalWeedLayout,createWeed,contactWeed,damageWeed } from './tangleweed.js';
@@ -28,14 +30,14 @@ const actionPhase=(s:GameState):'early'|'late'=>{if(s.phase!=='early'&&s.phase!=
 const isSummon=(a:CastAction)=>a.spell.startsWith('Summon ');
 function legalSummonPlacement(s:GameState,body:Creature):boolean {
  // Summoning requires empty placement even though a swarm may overlap later in movement.
- const cells=footprint(body.centre,body.size);
- return placement(arenaOf(s),body,body.centre).legal&&!s.creatures.some(c=>c.alive&&overlap(cells,footprint(c.centre,c.size)));
+ const cells=bodyFootprint(s,body);
+ return placement(arenaOf(s),body,body.centre).legal&&!s.creatures.some(c=>c.alive&&overlap(cells,bodyFootprint(s,c)));
 }
 function targets(s:GameState,a:CastAction) {
  if(a.structure)return structureCells(s,a.structure);
  if(a.ground)return [a.ground];
  const target=a.spell==='Reanimate'?s.corpses.find(c=>c.id===a.targetId):s.creatures.find(c=>c.id===a.targetId);
- return target?footprint(target.centre,target.size):[];
+ return target?(a.spell==='Reanimate'?footprint(target.centre,target.size):bodyFootprint(s,target as Creature)):[];
 }
 function legalTarget(s:GameState,c:Creature,a:CastAction):boolean {
  if(a.spell==='Wall')return legalCastWall(s,a);
@@ -50,13 +52,13 @@ function legalTarget(s:GameState,c:Creature,a:CastAction):boolean {
  return true;
 }
 function weedOriginValid(s:GameState,origin:Creature,a:CastAction):boolean {
- return (a.hexes??[]).every(h=>{const p=nearestPair(footprint(origin.centre,origin.size),[h]);return p.distance<=spellRange(a)&&sight(s,origin,p.from,p.to,a.side);});
+ return (a.hexes??[]).every(h=>{const p=nearestPair(bodyFootprint(s,origin),[h]);return p.distance<=spellRange(a)&&sight(s,origin,p.from,p.to,a.side);});
 }
 export function selectOrigin(s:GameState,c:Creature,a:CastAction):Creature|null {
  if(!legalTarget(s,c,a))return null;
  const origins=s.creatures.filter(o=>o.id===c.id || (c.kind==='wizard'&&o.familiar&&o.kind!=='illusion'&&o.controller===c.controller&&o.bindingLevel!==null&&active(o)));
  const cells=targets(s,a);
- return origins.map(origin=>({origin,pair:nearestPair(footprint(origin.centre,origin.size),cells)}))
+ return origins.map(origin=>({origin,pair:nearestPair(bodyFootprint(s,origin),cells)}))
   .filter(x=>x.pair.distance<=spellRange(a)&&sight(s,x.origin,x.pair.from,x.pair.to,a.side)&&(a.spell!=='Tangleweed'||weedOriginValid(s,x.origin,a))&&(a.spell!=='Wall'||wallOriginValid(s,x.origin,a)))
   .sort((a,b)=>a.pair.distance-b.pair.distance || Number(b.origin.id===c.id)-Number(a.origin.id===c.id) || a.origin.createdSequence-b.origin.createdSequence || (a.origin.id<b.origin.id?-1:a.origin.id>b.origin.id?1:0))[0]?.origin??null;
 }
@@ -69,7 +71,7 @@ export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if((a.targetId!==null&&!(a.spell==='Reanimate'?s.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
  if(!legalTarget(s,c,a))throw new Error('INVALID_SPELL_TARGET');
  if(a.targetId&&a.spell!=='Reanimate'&&!visibleTo(s,s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
- if(a.spell==='Teleport' && (restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,c,a.ground!)||!placement(arenaOf(s),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
+ if(a.spell==='Teleport' && (c.mountId!==undefined||carryingLocked(s,c)||restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,c,a.ground!)||!placement(arenaOf(s),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
  if(a.spell==='Healing Bolt'&&knowsIllusion(s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);if(!profile)throw new Error('CONTENT_NOT_AVAILABLE');
@@ -129,12 +131,12 @@ export function startCast(s:GameState,c:Creature,a:CastAction,events:Event[],tim
 }
 function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):boolean {
  if(!legalTarget(s,c,a)||(a.spell==='Tangleweed'&&!weedOriginValid(s,origin,a))||(a.spell==='Wall'&&!wallOriginValid(s,origin,a)))return false;
- const pair=nearestPair(footprint(origin.centre,origin.size),targets(s,a));
+ const pair=nearestPair(bodyFootprint(s,origin),targets(s,a));
  if(pair.distance>spellRange(a)||!sight(s,origin,pair.from,pair.to,a.side))return false;
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);return !!profile&&legalSummonPlacement(s,createCreature('$preview',c.controller,a.ground!,profile));
  }
- if(a.spell==='Teleport')return !restrained(s,c)&&!castingLocksMovement(s,c)&&fearAllowsStep(s,c,a.ground!)&&placement(arenaOf(s),c,a.ground!).legal;
+ if(a.spell==='Teleport')return c.mountId===undefined&&!carryingLocked(s,c)&&!restrained(s,c)&&!castingLocksMovement(s,c)&&fearAllowsStep(s,c,a.ground!)&&placement(arenaOf(s),c,a.ground!).legal;
  return true;
 }
 function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:Event[],actionId:string):void {
@@ -144,7 +146,7 @@ function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:
   if(result.kind!=='creature')return;
   target=s.creatures.find(t=>t.id===result.id);
  }else if(projectile){
-  const aim=a.ground??nearestPair(footprint(origin.centre,origin.size),footprint(target!.centre,target!.size)).to;
+  const aim=a.ground??nearestPair(bodyFootprint(s,origin),bodyFootprint(s,target!)).to;
   const trace=traceProjectile(arenaOf(s),origin,aim,target?.height??'ground',a.side,target?.id);
   target=s.creatures.find(t=>t.id===trace.hit);
   if(trace.blockedBy)damageStructure(s,{kind:'wall',id:trace.blockedBy},[{type:a.spell==='Fire Bolt'?'fire':'magic',amount:a.level+2}],events,c.id,a.spell==='Fire Bolt');
@@ -156,7 +158,7 @@ function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:
   if(!t.alive)return false;
   if(t.id===original.id)return true;
   if(t.family!==original.family)return false;
-  const spread=nearestPair(footprint(original.centre,original.size),footprint(t.centre,t.size));
+  const spread=nearestPair(bodyFootprint(s,original),bodyFootprint(s,t));
   return spread.distance<=a.level+3&&!darkRay(s,spread.from,spread.to,a.side)&&clearProjectile(spread.from,spread.to,a.side,s.walls);
  }).sort((a,b)=>a.id<b.id?-1:1):[original];
  const totals:{targetId:string;amount:number}[]=[];
@@ -197,7 +199,7 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
   emit(s,events,{type:'CreatureReanimated',creatureId:servant.id,targetId:a.targetId!});contactWeed(s,servant,events);
  }else if(['Magic Bolt','Fire Bolt','Magic Attack'].includes(a.spell))spellDamage(s,c,origin,a,events,cast.id);
  else if(a.spell==='Healing Bolt')heal(s,s.creatures.find(t=>t.id===a.targetId)!,a.level+3,events,'ordinary',c.id);
- else if(a.spell==='Teleport'){delete c.pounceTrail;const from={...c.centre};c.centre={...a.ground!};pruneRootNetworks(s);if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});contactWeed(s,c,events);}
+ else if(a.spell==='Teleport'){delete c.pounceTrail;delete c.diveTrail;const from={...c.centre};c.centre={...a.ground!};moveRider(s,c,events,true);pruneRootNetworks(s);if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});contactWeed(s,c,events);const rider=riderOf(s,c);if(rider)contactWeed(s,rider,events);}
  else if(a.spell==='Bind'||a.spell==='Release'){
   const target=s.creatures.find(t=>t.id===a.targetId)!;
   if(roll(s,effectChance(a.level,target.intelligence))){
@@ -208,7 +210,7 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
    s.orders=s.orders.map(o=>o.creatureId===target.id?{creatureId:o.creatureId,path:[],early:null,late:null}:o);
    s.guards=s.guards.filter(g=>g.creatureId!==target.id);s.reactions=s.reactions.filter(r=>r.attackerId!==target.id);s.reservations=s.reservations.filter(r=>r.creatureId!==target.id);
    }
-   emit(s,events,{type:'BindingChanged',creatureId:target.id});invalidateCasts(s,events);
+   emit(s,events,{type:'BindingChanged',creatureId:target.id});cleanupDeaths(s,events);invalidateCasts(s,events);
   }else emit(s,events,{type:'SpellResisted',creatureId:c.id,targetId:target.id});
  }
  if(a.spell==='Disbelief'){
@@ -217,19 +219,20 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
  }
 }
 export function forceMove(s:GameState,c:Creature,to:Creature['centre'],events:Event[]):void {
- if(!placement(arenaOf(s),c,to).legal||(distance(c.centre,to)===1&&!stepLegality(arenaOf(s),c,c.centre,to,false).legal))throw new Error('INVALID_FORCED_DESTINATION');
- if(distance(c.centre,to)>0)delete c.pounceTrail;
- const from={...c.centre};c.centre={...to};
+ const body=forcedBody(s,c);
+ if(!placement(arenaOf(s),body,to).legal||(distance(c.centre,to)===1&&!stepLegality(arenaOf(s),body,c.centre,to,false).legal))throw new Error('INVALID_FORCED_DESTINATION');
+ if(distance(c.centre,to)>0)delete c.pounceTrail;delete c.diveTrail;
+ const from={...c.centre};if(c.mountId)delete c.mountId;c.centre={...to};const carried=moveRider(s,c,events,true);
  if(distance(from,to)>0){
   if(!s.moved.includes(c.id))s.moved.push(c.id);
   // Displacement cannot leave a grappling limb holding a body beyond its reach.
   s.holds=s.holds.filter(h=>{
    if(h.grapplerId!==c.id&&h.targetId!==c.id)return true;
    const g=s.creatures.find(x=>x.id===h.grapplerId)!,t=s.creatures.find(x=>x.id===h.targetId)!;
-   const p=nearestPair(footprint(g.centre,g.size),footprint(t.centre,t.size));
+   const p=nearestPair(bodyFootprint(s,g),bodyFootprint(s,t));
    const reach=Math.max(1,...g.attacks.filter(a=>a.mode==='melee').map(a=>a.range));
    return g.height===t.height&&p.distance<=reach&&clearProjectile(p.from,p.to,'left',s.walls);
   });
  }
- emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);invalidateCasts(s,events);
+ emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);if(carried)crossWallHazards(s,carried,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);if(carried)contactWeed(s,carried,events);invalidateCasts(s,events);
 }

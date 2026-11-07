@@ -1,3 +1,4 @@
+import {riderOf} from './mounts.js';
 import type {Creature,GameState,Order} from '../../domain/src/state.js';
 import {add,footprint,overlap,type Hex} from '../../geometry/src/hex.js';
 import {stepLegality} from '../../geometry/src/occupancy.js';
@@ -13,9 +14,10 @@ export function dragTarget(s:GameState,c:Creature,order:Order):Creature|undefine
 }
 export function canDrag(s:GameState,c:Creature,order:Order):boolean {
  const target=dragTarget(s,c,order);
- if(!c.drag||!active(c)||!target?.alive||c.readyTurn>s.turn||!physicalContact(s,c,target,Math.max(1,...c.attacks.filter(a=>a.mode==='melee').map(a=>a.range)))||castingLocksMovement(s,c))return false;
+ if(c.mountId||target?.mountId||!c.drag||!active(c)||!target?.alive||c.readyTurn>s.turn||!physicalContact(s,c,target,Math.max(1,...c.attacks.filter(a=>a.mode==='melee').map(a=>a.range)))||castingLocksMovement(s,c))return false;
  const withoutPair={...s,holds:s.holds.filter(h=>h.grapplerId!==c.id||h.targetId!==target.id)};
- return !restrained(withoutPair,c)&&!restrained(withoutPair,target);
+ const carried=riderOf(s,target);
+ return !restrained(withoutPair,c)&&!restrained(withoutPair,target)&&(!carried||!restrained(withoutPair,carried));
 }
 function targetAt(s:GameState,c:Creature,order:Order,to:Hex):Hex {
  const target=dragTarget(s,c,order)!,anchor=s.creatures.find(a=>a.id===c.id)!;
@@ -26,7 +28,7 @@ export function dragStepLegal(s:GameState,c:Creature,order:Order,from:Hex,to:Hex
  if(!canDrag(s,c,order))return false;
  const target=dragTarget(s,c,order)!,targetFrom=targetAt(s,c,order,from),targetTo=targetAt(s,c,order,to);
  if(overlap(footprint(to,c.size),footprint(targetTo,target.size)))return false;
- const arena={...arenaOf(s),creatures:ignoreCreatures?[]:arenaOf(s).creatures.filter(a=>a.id!==c.id&&a.id!==target.id)};
+ const arena={...arenaOf(s),creatures:ignoreCreatures?[]:arenaOf(s).creatures.filter(a=>a.id!==c.id&&a.id!==target.id&&a.mountId!==c.id&&a.mountId!==target.id)};
  const body=(a:Creature)=>({...a,height:'ground' as const,incorporeal:false,passCreatures:false,nimble:false,swarm:false});
  return stepLegality(arena,body(c),from,to,false).legal&&stepLegality(arena,body(target),targetFrom,targetTo,false).legal;
 }

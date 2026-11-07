@@ -1,3 +1,4 @@
+import {bodyFootprint} from './bodies.js';
 import type { Creature,GameState } from '../../domain/src/state.js';
 import type { CastAction } from '../../domain/src/spells.js';
 import type { StructureTarget } from '../../domain/src/structures.js';
@@ -18,7 +19,7 @@ export function legalCastWall(s:GameState,a:CastAction):boolean {
  return legalWallLayout(arenaOf(s),a.edges??[],wallMaterial(a.level),a.level+2);
 }
 export function wallOriginValid(s:GameState,origin:Creature,a:CastAction):boolean {
- return (a.edges??[]).every(e=>{const p=nearestPair(footprint(origin.centre,origin.size),[e.a,e.b].filter(h=>inside(h,s.board)));return p.distance<=8&&sight(s,origin,p.from,p.to,a.side);});
+ return (a.edges??[]).every(e=>{const p=nearestPair(bodyFootprint(s,origin),[e.a,e.b].filter(h=>inside(h,s.board)));return p.distance<=8&&sight(s,origin,p.from,p.to,a.side);});
 }
 export function createWall(s:GameState,caster:Creature,a:CastAction,networkId:string,events:Event[]):void {
  for(const [i,e] of a.edges!.entries())s.walls.push({id:`${networkId}:${i}`,networkId,casterId:caster.id,edge:edge(e.a,e.b),material:wallMaterial(a.level),hp:5+3*a.level,maxHp:5+3*a.level,burning:null});
@@ -27,7 +28,7 @@ export function createWall(s:GameState,caster:Creature,a:CastAction,networkId:st
 export function crossedBy(s:GameState,c:Creature,from:Hex,to:Hex){
  if(c.height==='air'||distance(from,to)!==1)return [];
  const delta={q:to.q-from.q,r:to.r-from.r};
- const keys=new Set(footprint(from,c.size).map(h=>edgeKey(edge(h,add(h,delta)))));
+ const keys=new Set(bodyFootprint(s,c,from).map(h=>edgeKey(edge(h,add(h,delta)))));
  return s.walls.filter(w=>keys.has(edgeKey(w.edge)));
 }
 export function wallStepCost(s:GameState,c:Creature,from:Hex,to:Hex):number {
@@ -62,7 +63,7 @@ export function damageAreaWalls(s:GameState,cells:readonly Hex[],components:read
 }
 export function structureReach(s:GameState,origin:Creature,target:StructureTarget,range:number,minRange:number,side:'left'|'right',melee=false):boolean {
  const cells=structureCells(s,target);if(!cells.length)return false;
- const p=nearestPair(footprint(origin.centre,origin.size),cells),d=target.kind==='wall'?Math.max(1,p.distance):p.distance;
+ const p=nearestPair(bodyFootprint(s,origin),cells),d=target.kind==='wall'?Math.max(1,p.distance):p.distance;
  return d<=range&&d>=minRange&&(!melee||origin.height==='ground')&&
  (sight(s,origin,p.from,p.to,side)||(melee&&d<=1&&clearSight(p.from,p.to,side,s.walls)));
 }
@@ -70,7 +71,7 @@ export function structureReach(s:GameState,origin:Creature,target:StructureTarge
 export function strikeStructure(s:GameState,origin:Creature,target:StructureTarget,attack:Pick<AttackDefinition,'mode'|'range'|'minRange'>,side:'left'|'right',components:readonly DamageComponent[],events:Event[],sourceId:string,ignite=false):{kind:'invalid'}|{kind:'terrain'}|{kind:'creature';id:string} {
  const melee=attack.mode==='melee';
  if(!structureReach(s,origin,target,attack.range,attack.minRange,side,melee))return {kind:'invalid'};
- const p=nearestPair(footprint(origin.centre,origin.size),structureCells(s,target));
+ const p=nearestPair(bodyFootprint(s,origin),structureCells(s,target));
  if(attack.mode==='projectile'){
   const trace=traceProjectile(arenaOf(s),origin,p.to,'ground',side);
   if(trace.hit)return {kind:'creature',id:trace.hit};

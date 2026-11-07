@@ -29,6 +29,7 @@ export function reanimatedProfile(body: Creature, skeletal: boolean): Partial<Cr
   undead: true, undeadClass: skeletal ? 'skeleton' : 'zombie', restorationUsed: true,
   attackTraits: {...body.attackTraits,rallySource:false},
   packTactics: body.packTactics, grappleLimbs: body.grappleLimbs, grappleEqualSize: body.grappleEqualSize,
+  ...(body.mountable?{mountable:true}:{}),...(body.canRide?{canRide:true}:{}),...(body.handlesObjects?{handlesObjects:true}:{}),
   flammable: body.flammable,
   // The factory supplies no mana, familiar origin, regeneration, escape power or spellbook.
  };

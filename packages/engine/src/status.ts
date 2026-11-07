@@ -1,3 +1,4 @@
+import {bodyFootprint} from './bodies.js';
 import { weedRestrained } from './tangleweed.js';
 import { restrainedBySwarm } from './swarms.js';
 import { footprint, nearestPair } from '../../geometry/src/hex.js';
@@ -23,7 +24,7 @@ export function fearAllowsStep(s:GameState,c:Creature,to:Creature['centre']):boo
  const fears=c.conditions.filter(e=>e.kind==='Fear'&&e.active);
  return fears.every(fear=>{
   const source=s.creatures.find(x=>x.id===fear.sourceId&&x.alive);if(!source)return true;
-  const target=footprint(source.centre,source.size);
-  return nearestPair(footprint(to,c.size),target).distance>=nearestPair(footprint(c.centre,c.size),target).distance;
+  const target=bodyFootprint(s,source);
+  return nearestPair(bodyFootprint(s,c,to),target).distance>=nearestPair(bodyFootprint(s,c),target).distance;
  });
 }

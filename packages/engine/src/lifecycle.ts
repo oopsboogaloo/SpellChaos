@@ -1,3 +1,4 @@
+import {cleanupMounts} from './mounts.js';
 import {physicalContact,pruneRootNetworks} from './ground-traits.js';
 import { pruneWeedHolds } from './tangleweed.js';
 import { invalidateCasts } from './casting.js';
@@ -13,9 +14,10 @@ export function releaseBrokenHolds(s:GameState):void {
 export function cleanupDeaths(s:GameState,events:Event[]):void {
  for(;;){
   const dying=s.creatures.filter(c=>!s.deadHandled.includes(c.id)&&(!c.alive||c.hp<=(c.swarm?0:-c.maxHp))).sort((a,b)=>a.id<b.id?-1:1);
-  if(!dying.length)break;
+  if(!dying.length){if(cleanupMounts(s,events))continue;break;}
   // Freeze the whole lethal batch before reversing any damage: shock deaths stay dead.
   for(const c of dying)c.alive=false;
+  cleanupMounts(s,events);
   for(const c of dying){
    for(const hunter of s.creatures)if(hunter.quarryTargetId===c.id)hunter.quarryTargetId=null;
    c.alive=false;s.deadHandled.push(c.id);for(const w of s.walls.filter(w=>w.casterId===c.id))if(!s.destroyedWallIds.includes(w.id))s.destroyedWallIds.push(w.id);s.walls=s.walls.filter(w=>w.casterId!==c.id);s.darkness=s.darkness.filter(d=>d.casterId!==c.id);s.tangleweed=s.tangleweed.filter(w=>w.casterId!==c.id);pruneWeedHolds(s);

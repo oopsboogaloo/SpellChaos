@@ -34,7 +34,7 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
     destroyedWallIds:[],wallCrossings:[],tangleweed:[],weedAttempts:[],weedHolds:[],movementSpent:[],darkness:[],damageLedger:[], balanceUnits:0, casts:[], castOccupied:[], quickQueue:null, nextEntityId:0,
     board: { columns: 30, rows: 30 }, walls: [],
     players: playerIds.map((id, i) => ({ id, wizardId: `wizard-${i}`, locked: false, participated: false, missedTurns: 0, eliminated: false })),
-    creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard', spellbook:books[i]! })),
+    creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard', canRide:true,handlesObjects:true,spellbook:books[i]! })),
     actedThisPhase:[], orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null }, defending: [], guards: [], holds: [], reactions: [], pendingAttack: null, pendingPower:null, spentActions: [], moved: [], corpses: [], deadHandled: [], endStep: 0, result: null, accepted: [],
   });
 }
