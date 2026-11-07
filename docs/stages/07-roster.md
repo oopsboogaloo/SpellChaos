@@ -895,3 +895,129 @@ Four regressions cover both failures and preserved projectile behavior. Local
 verification: 1,040 headless tests, type checking, build, 54 Chromium tests and
 all nine CLI scenarios passed. PR #12 merged with owner approval at
 `34cf33a137a07edf76ff50dc617198a4fcfbcd46`; PR #13 was retargeted to main.
+
+## Gryphon and Shepherd checkpoint — implementation interpretation
+
+Owner approved merging PRs #12/#13 and progressing the final two profiles.
+PR #13's corrected head passed Verification run 42376526129 and merged at
+`d27bc7f27863f9ac12549c4a50340fb7a4151d91`. Continue from that main on a new branch.
+
+Gryphon Beak and Claws form one action against one planned identity (D19); each
+strike retains its own Skill/damage. Dive adds two only to Beak after three actual
+consecutive airborne horizontal approach steps. Landing at the same centre keeps
+that approach, so the Gryphon may land and attack a ground opponent. Take-off,
+ground movement, retreat/sideways approach, teleport/forced displacement and turn
+start reset or break the approach; Guard never gets Dive. Revalidate the current
+target footprint before each hit. Reanimation retains wings/mount suitability and
+basic attacks but loses Dive; illusions retain apparent flight/attack abilities.
+
+Mount costs the rider one action and requires a real, active, ready, larger suitable
+allied ground mount within one footprint step. One rider per mount; no nested or
+cyclic pairs. Wizards in new matches and Shepherds can ride and handle objects;
+this introduces suitability metadata, not future inventories. Historical creatures
+receive no inferred capabilities. Illusions cannot provide physical riding/support.
+Dismount costs an action and selects a legal adjacent position outside the mount;
+airborne voluntary dismount requires the rider's own flight. Range, sight, projectiles,
+areas and environmental contact use the shared mount footprint, while HP, Size,
+resistance, conditions and actions remain individual. Explicit rider/mount shot
+choice uses the existing geometry tie rule.
+
+Only the mount orders pair movement. Voluntary carrying cannot bypass a rider's
+restraint, Fear, Total Defence, Subdued movement/action limit, or casting/origin
+immobility. Both bodies record actual movement, provoke applicable Guard, and
+contact hazards once each. Forced displacement of a mount carries its rider and
+interrupts immobile casts; a directly displaced rider must legally detach at the
+selected destination. Mounted Teleport is rejected until dismounting; teleporting
+a carrying mount cannot bypass rider locks. Early Mount can precede the mount's
+movement; failed mounting never grants shared movement or a fallback rider path.
+
+D12 death/control-loss dismount detaches before placement and chooses nearest legal
+centre by cube distance then canonical coordinates. Apply Subdued through the next
+turn. Airborne non-flying riders land and take five ordinary physical fall damage;
+flying riders remain airborne. No legal placement kills the rider with an explicit
+event. Death batches remain frozen before any fall/reversal, and rider deaths free
+the seat. Incapacitation alone does not kill or automatically eject a rider.
+
+### Implementation evidence
+
+Gryphon and Shepherd are enabled, so all 40 retained MVP profiles now pass the
+runtime availability gate; the three already implemented deferred profiles and the
+full 56-profile catalogue remain preserved. Gryphon Beak/Claws have explicit
+single-target compound metadata and a portable airborne approach trail. The +2
+Dive bonus applies only to Beak before ordinary critical/damage defences, can follow
+landing, and never applies to Guard or Claws. Forced displacement/Teleport and
+turn start clear the trail. Shepherd uses its listed unlimited-ammunition Sling,
+object-handling suitability and riding capability. New-match wizards have explicit
+riding/object suitability without inferring it for historical wizards.
+
+`mountId` stores the pair link; position and height are kept consistent at each
+atomic boundary, while shared occupancy is derived through `bodyFootprint` and the
+existing geometry physical-body resolver. Combat, casting/origin selection,
+visibility, powers, effects, familiar range, structures and initiative distance
+use that footprint. Individual HP, Size, Dex, Int, action budgets and resistance
+remain independent. Views expose cloned occupied cells and visible mount links,
+while orders, Dive trails, cast continuations and private data remain filtered.
+
+Mount/Dismount use ordinary rider actions and recheck eligibility, reach, walls,
+legal placement and immobility. A dismount can precede ordinary movement; blocked
+execution wastes its action without detaching. Grounded mounts can be dragged
+with their rider without dangling geometry links. Pair movement records both
+bodies, respects rider restraint/Fear/casting/Total Defence/Subdued limits, invokes
+Guard for the mount then rider, and applies wall/weed contact separately. A direct
+force on a rider requires legal detachment. Controller changes dismount atomically;
+incapacitation alone retains the pair. Mounted teleport cannot bypass dismounting
+or a rider's casting lock.
+
+Death cleanup freezes the lethal batch before detachment/fall/reversal, then D12
+places survivors at the nearest legal canonical position, applies Subdued through
+the next turn, and deals five physical damage on non-flying airborne falls. Flying
+riders remain airborne. Explicit no-space death is covered with a fully occupied
+board, including save/restore immediately before cleanup. Rider deaths free the
+seat; reanimation retains physical wings/mount/rider/object suitability and listed
+basic attacks, strips Dive, and never copies an occupied seat.
+
+Schema 26 / rules `roster-0.15` / content `gryphon-shepherd-0.1` freezes schema-25
+validators, attack schema and availability interpretation. The explicit
+`migrateFlightDetectionSnapshot` preserves old flight, reveals, casts, orders,
+RNG and cursors without adding mounting/riding or Dive. Historical fixtures remain
+unchanged. Six new permanent fixtures cover carried flight, Beak-to-Claws
+continuation, a queued rider Guard, death/fall dismount, mounted Sling and a
+combined full-roster turn. The last uses `fullRosterScenario`: all 40 profiles with
+legal occupancy, 40 scripted orders and production combat/powers, with no AI or
+rule substitutes. Node and Chromium compare every atomic fingerprint, event,
+private event projection and final per-player view after fresh-engine restores.
+
+All profiles are implemented; this remains a Stage 7 review checkpoint rather than
+a playable release. AI, the complete responsive UI, acceptance/performance/soak
+hardening and deployment remain later stages. The verbatim original source archive
+remains an outstanding release gate; the condensed register is not that archive.
+
+Checkpoint verification: `pnpm check` passed type checking and all 1,121 headless
+tests, including 81 focused mount/Dive/roster cases. `pnpm build`, all 60 Chromium
+continuation tests and all nine `tools/run-*.mjs` scenarios passed. The full-roster
+turn resolves 279 atomic steps with 40 attack hits, 45 damage applications and six
+powers; all 40 profiles start legally. The schema-26 walls scenario ended at HP
+4/11 with fingerprint `fnv1a32-v1:e32488c8`. New coverage also verifies dismounts
+across bordering walls, Drag of a ridden mount, and simultaneous carrier deaths:
+the whole rider batch detaches before nearest-placement geometry. Historical
+fixtures were not rewritten. Local tools: Node 24.22.1, pnpm 11.25.0, Playwright
+1.56.1; CI remains pinned to Node 24.19.0.
+
+## PR #14 approval and pre-merge review corrections
+
+The owner approved merging PR #14 on 7 November 2026. Review findings posted
+after the initial verification are corrected before the merge: emergency
+footprint changes and forced carrying revalidate affected grapple reach, height
+and wall contact; valid holds remain intact. Mount/Dismount trace the rider's
+physical centre crossings through hazardous walls, preserve per-network
+bookkeeping, and apply damage/healing, death cleanup and concentration before
+Guard. The carrier does not receive the rider's boarding damage.
+
+Eight added headless regressions cover remote/valid holds after death/control loss,
+forced carriage, boarding/leaving across fire/death/thorns, lethal boarding and
+undead healing. Two additional permanent review fixtures cover a grappled death
+dismount and fire-wall boarding; Node and Chromium compare each resumed boundary.
+Historical fixtures are unchanged. Final local checks: 1,129 headless tests (89
+focused), type checking, production build, 62 Chromium tests and all nine CLI
+scenarios passed. Stage 7 implementation is verified and owner-approved; release
+acceptance and the previously recorded source archival gate remain outstanding.

@@ -1,3 +1,5 @@
+import {riderOf,carryingLocked,carryingFearAllows,moveRider} from './mounts.js';
+import {bodyFootprint} from './bodies.js';
 import {flightHeight,flightStepLegal} from './flight.js';
 import {revealBlockedContact,expireReveals} from './detection.js';
 import {canDrag,dragStepLegal,dragTarget,dragDestination} from './drag.js';
@@ -29,7 +31,7 @@ function initialize(state: GameState, events: Event[]): void {
     const player = state.players.find(p => p.id === c.controller);
     const wizard = state.creatures.find(w => w.id === player?.wizardId);
     return { creatureId: c.id, dex: c.dex, move: effectiveMove(c), size: c.size, slowed: slowed(c), quick: false,
-      wizardDistance: wizard ? nearestPair(footprint(c.centre, c.size), footprint(wizard.centre, wizard.size)).distance : 0 };
+      wizardDistance: wizard ? nearestPair(bodyFootprint(state,c), bodyFootprint(state,wizard)).distance : 0 };
   });
   const queue = buildQueue(candidates, state.random.resolution, state.phase === 'movement');
   state.random.resolution = queue.randomState;
@@ -52,7 +54,7 @@ function finishTurn(state: GameState, events: Event[]): void {
   state.wallCrossings=[];state.weedAttempts=[];state.movementSpent=[];
   state.actedThisPhase=[];state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
-  for (const c of state.creatures) delete c.pounceTrail;
+  for (const c of state.creatures){delete c.pounceTrail;delete c.diveTrail;}
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
   regrowSwarms(state,events);
   emit(state, events, { type: 'TurnStarted' });
@@ -96,10 +98,10 @@ export function advanceAtomicStep(state: GameState): Transition {
     const revealContact=(to:Creature['centre'])=>{if(fearAllowsStep(next,c,to)&&(next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to)<=allowance)revealBlockedContact(next,c,to,flightHeight(c,order,next.cursor.pathIndex),events);};
     const advanceActor = () => {
       if(next.phase === 'movement' && c.alive && next.cursor.lastRestingCentre && !placement(arenaOf(next),c,c.centre).legal) {
-        delete c.pounceTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};if(next.cursor.lastRestingHeight)c.height=next.cursor.lastRestingHeight;pruneWeedHolds(next);pruneRootNetworks(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
+        delete c.pounceTrail;delete c.diveTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};if(next.cursor.lastRestingHeight)c.height=next.cursor.lastRestingHeight;moveRider(next,c,events);pruneWeedHolds(next);pruneRootNetworks(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
       next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null;delete next.cursor.lastRestingHeight; };
-    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && ((order.dragTargetId!==undefined?!canDrag(next,c,order):restrained(next,c)) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
+    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (c.mountId!==undefined||carryingLocked(next,c)|| (order.dragTargetId!==undefined?!canDrag(next,c,order):restrained(next,c)) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
       emit(next, events, { type: 'ActorSkipped', creatureId: c.id }); advanceActor();
     } else if (next.phase === 'movement') {
       if (next.cursor.activePath === null) {
@@ -112,7 +114,7 @@ export function advanceAtomicStep(state: GameState): Transition {
         const blinking=order.blinkIndex===next.cursor.pathIndex;
         const dragging=order.dragTargetId!==undefined;
         const stepCost=movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to);
-        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(order.flightSteps?flightStepLegal(next,c,order,next.cursor.pathIndex,c.centre,to,next.cursor.pathIndex<next.cursor.activePath.length-1):dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
+        if (!fearAllowsStep(next,c,to)||!carryingFearAllows(next,c,to)||carryingLocked(next,c) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(order.flightSteps?flightStepLegal(next,c,order,next.cursor.pathIndex,c.centre,to,next.cursor.pathIndex<next.cursor.activePath.length-1):dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
           revealContact(to);
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
@@ -125,13 +127,16 @@ export function advanceAtomicStep(state: GameState): Transition {
           if(blinking){c.blinkUsedTurn=next.turn;delete c.pounceTrail;}
           else if(order.flightSteps?.some(x=>x.index===next.cursor.pathIndex))delete c.pounceTrail;
           else if(c.pounce)c.pounceTrail=[...(c.pounceTrail??[from]),{...to}];
-          c.height=flightHeight(c,order,next.cursor.pathIndex);
+          const newHeight=flightHeight(c,order,next.cursor.pathIndex);
+          if(c.dive){if(!blinking&&fromHeight==='air'&&newHeight==='air'&&(from.q!==to.q||from.r!==to.r))c.diveTrail=[...(c.diveTrail??[from]),{...to}];else if(blinking||fromHeight==='ground'||newHeight==='ground'&&(from.q!==to.q||from.r!==to.r))delete c.diveTrail;}
+          c.height=newHeight;
           c.centre = { ...to }; next.cursor.pathIndex++;
+          const carried=moveRider(next,c,events);
           if(placement(arenaOf(next),c,c.centre).legal){next.cursor.lastRestingCentre = {...c.centre};if(order.flightSteps)next.cursor.lastRestingHeight=c.height;}
           emit(next, events, { type: blinking?'CreatureBlinked':fromHeight!==c.height?'FlightChanged':'CreatureMoved', creatureId: c.id, from, to: { ...to } });
           if(victim&&victimTo){forceMove(next,victim,victimTo,events);if(placement(arenaOf(next),c,c.centre).legal)next.cursor.lastRestingCentre={...c.centre};}
-          const hazardDamage=blinking?0:crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);
-          contactWeed(next,c,events);if(c.alive&&!blinking)enqueueGuards(next,c,from,fromHeight);
+          const hazardDamage=blinking?0:crossWallHazards(next,c,from,to,events);const riderDamage=carried&&!blinking?crossWallHazards(next,carried,from,to,events):0;cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage},...(carried?[{targetId:carried.id,amount:riderDamage}]:[])],events);
+          contactWeed(next,c,events);if(carried)contactWeed(next,carried,events);if(c.alive&&!blinking){enqueueGuards(next,c,from,fromHeight);if(carried?.alive&&carried.mountId===c.id)enqueueGuards(next,carried,from,fromHeight);}
         }
       }
     } else {

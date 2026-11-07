@@ -62,7 +62,7 @@ it('Spectre crosses creatures and ordinary walls in transit, but not Energy wall
 it('explicitly migrates content v2 without changing creature data, RNG, pending attack or phase activity',async()=>{
  const {readFileSync}=await import('node:fs');const {migrateAttackTraitContent}=await import('../packages/persistence/src/migration.js');
  const text=readFileSync('tests/fixtures/traits-content-v2-guard.json','utf8'),old=JSON.parse(text),next=migrateAttackTraitContent(text);
- expect(()=>restoreSnapshot(text)).toThrow();expect(next.contentVersion).toBe('flight-detection-0.1');
+ expect(()=>restoreSnapshot(text)).toThrow();expect(next.contentVersion).toBe('gryphon-shepherd-0.1');
  for(const key of ['random','pendingAttack','actedThisPhase'] as const)expect(next[key]).toEqual(old[key]);
  expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null,canMarkQuarry:false,quarryTargetId:null,bristles:0,lifeDrain:0})));
  const direct=structuredClone(next),restored=restoreSnapshot(encodeSnapshot(next));stepAttack(direct,[]);stepAttack(restored,[]);expect(encodeSnapshot(restored)).toBe(encodeSnapshot(direct));

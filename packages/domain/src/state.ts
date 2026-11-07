@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { powerActionSchema, validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 25, rules: 'roster-0.14', content: 'flight-detection-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 26, rules: 'roster-0.15', content: 'gryphon-shepherd-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -28,6 +28,8 @@ export const creatureSchema = z.strictObject({
   id, centre: hexSchema, size: z.number().int().min(1).max(10), controller: id.nullable(),
   darknessSightRange:uint, ignoresDarknessDisadvantage:z.boolean(), creatorId:id.nullable(), knownIllusionBy:z.array(id),
   kind: z.enum(['wizard', 'summon', 'reanimated', 'illusion']), height: z.enum(['ground', 'air']),
+  mountable:z.literal(true).optional(),canRide:z.literal(true).optional(),handlesObjects:z.literal(true).optional(),mountId:id.optional(),
+  dive:z.strictObject({attackId:id,shotIndex:z.literal(0),steps:z.literal(3),damage:z.literal(2)}).optional(),diveTrail:z.array(hexSchema).min(2).max(1001).optional(),
   flight:z.strictObject({takeoffCost:z.literal(1),landingCost:z.literal(1)}).optional(),
   seeInvisibleRange:z.literal(6).optional(),haunt:z.strictObject({range:z.literal(2)}).optional(),invisible:z.literal(true).optional(),
   revealedTo:z.array(z.strictObject({playerId:id,turn:uint.min(1),phase:z.enum(['planning','ready','early','movement','late','end','ended'])})).optional(),
@@ -99,6 +101,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if (!unique(creatures)) invalid('DUPLICATE_CREATURE');
   for(const c of state.creatures){
     if((c.blinkUsedTurn!==undefined&&(!c.blink||c.blinkUsedTurn>state.turn))||(c.wailReadyTurn!==undefined&&(!c.wail||c.wailReadyTurn>state.turn+c.wail.cooldown)))invalid('INVALID_ABILITY_READINESS');
+    if(c.dive&&!c.attacks.some(a=>a.id===c.dive!.attackId&&a.mode==='melee'&&a.shots.length===2&&a.singleTarget))invalid('INVALID_DIVE_ATTACK');
+    if(c.diveTrail&&(!c.dive||!state.moved.includes(c.id)||!['movement','late','end','ended'].includes(state.phase)||distance(c.diveTrail[c.diveTrail.length-1]!,c.centre)!==0||c.diveTrail.some((h,i)=>!inside(h,state.board)||(i>0&&distance(c.diveTrail![i-1]!,h)!==1))))invalid('INVALID_DIVE_TRAIL');
     if(c.shove&&!c.attacks.some(a=>a.id===c.shove!.attackId&&a.mode==='melee'))invalid('INVALID_SHOVE_ATTACK');
     if(c.pounce&&!c.attacks.some(a=>a.id===c.pounce!.attackId&&a.mode==='melee'))invalid('INVALID_POUNCE_ATTACK');
     if(c.pounceTrail){
@@ -106,6 +110,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
       if(!c.pounce||!state.moved.includes(c.id)||!['movement','late','end','ended'].includes(state.phase)||distance(trail[trail.length-1]!,c.centre)!==0||trail.some((h,i)=>!inside(h,state.board)||(i>0&&distance(trail[i-1]!,h)!==1)))invalid('INVALID_POUNCE_TRAIL');
     }
   }
+  if(!unique(state.creatures.flatMap(c=>c.mountId?[c.mountId]:[])))invalid('MULTIPLE_RIDERS');
+  for(const c of state.creatures)if(c.mountId){const mount=state.creatures.find(m=>m.id===c.mountId);if(!mount||!mount.mountable||!c.canRide||mount.mountId||c.mountable||mount.size<=c.size||mount.id===c.id||!mount.alive||!c.alive||mount.kind==='illusion'||c.kind==='illusion'||c.controller===null||c.controller!==mount.controller||c.height!==mount.height||distance(c.centre,mount.centre)!==0)invalid('INVALID_MOUNT_LINK');}
   for(const c of state.creatures)if(c.revealedTo&&(!c.invisible||!unique(c.revealedTo.map(x=>x.playerId))||c.revealedTo.some(x=>!players.includes(x.playerId)||x.turn!==state.turn||x.phase!==state.phase)))invalid('INVALID_REVEAL');
   if(state.cursor.lastRestingHeight!==undefined&&(state.phase!=='movement'||!state.cursor.lastRestingCentre))invalid('INVALID_RESTING_HEIGHT');
   if(!unique(state.wallCrossings.map(w=>`${w.creatureId}:${w.networkId}`))||state.wallCrossings.some(w=>!creatures.includes(w.creatureId)))invalid('INVALID_WALL_CROSSINGS');
@@ -165,6 +171,10 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
           if(action.targetIds.some(id=>!creatures.includes(id)) || (action.ground && !inside(action.ground,state.board)))invalid('INVALID_ORDER_TARGET');
           if(attack && !validAttackTargets(attack,action))invalid('INVALID_ORDER_TARGET');
         }else if(action.targetId!==null&&!creatures.includes(action.targetId))invalid('INVALID_ORDER_TARGET');
+      }else if(action.type==='Mount'){
+        if(!creature.canRide||action.targetId===creature.id||!creatures.includes(action.targetId))invalid('INVALID_MOUNT_ORDER');
+      }else if(action.type==='Dismount'){
+        if(!creature.canRide||!inside(action.ground,state.board))invalid('INVALID_DISMOUNT_ORDER');
       }else if(action.type==='Haunt'){
         if(!creature.haunt||!inside(action.ground,state.board))invalid('INVALID_HAUNT_ORDER');
       }else if(action.type==='Roar'||action.type==='Wail'||action.type==='RootNetwork'){

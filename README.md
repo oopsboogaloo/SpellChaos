@@ -12,6 +12,7 @@ Browser wizard combat, built through a reviewed specification and staged plan.
 - [Orders and phase resolution](docs/stages/03-orders.md)
 - [Combat and lifecycle](docs/stages/04-combat.md)
 - [Casting, mana and control](docs/stages/05-casting.md)
+- [Roster implementation and checkpoint evidence](docs/stages/07-roster.md)
 
 ## Development
 
@@ -34,19 +35,22 @@ implemented. Run `node tools/run-turn.mjs` after building for a headless turn
 that verifies save/restore at each step. Combat, Guard, conditions and death now
 resolve headlessly; `node tools/run-combat.mjs` demonstrates them. Spellcasting,
 mana, alignment and control now resolve in the same engine. Run
-`node tools/run-casting.mjs` to verify remote casting across turns. The full
-roster and creature-specific abilities are still staged work. Reanimate
+`node tools/run-casting.mjs` to verify remote casting across turns. All 40 profiles in the five-family MVP roster now have their engine abilities
+implemented; Goblin/Dragon remain deferred with their historical content preserved. Reanimate
 now resolves against eligible corpses at levels 1–8; run
 `node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 mechanics are implemented, including all eight Wall materials.
-The game remains a development preview; full roster abilities and the playable UI are later stages.
+Stage 7 implements the retained roster and creature abilities. Fair AI and the complete playable browser UI
+are later stages; this is still a development preview.
 Snake Swarm, Greater Snake Swarm and Strangling Grove now support shrinking,
 legal regrowth, coverage restraint and per-enemy attacks. Run
 `node tools/run-swarms.mjs` for a movement/coverage/attack replay.
 
 ## Saves
 
-Current saves use schema 10 / rules `environment-0.6` / content `wall-integration-0.1`.
-Foundation schema-1, orders schema-2, combat schema-3, casting schema-4, environment schema-5 swarm schema-6 illusion schema-7 Darkness schema-8 and Tangleweed schema-9 have explicit migration functions; normal
+Current saves use schema 26 / rules `roster-0.15` / content `gryphon-shepherd-0.1`.
+Historical schemas 1–25 retain frozen validators and explicit migration functions;
+`migrateFlightDetectionSnapshot` upgrades schema 25 without granting mounts, riding
+or Dive to historical creatures. Normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -59,8 +63,12 @@ idempotency, immutable transitions, view filtering, snapshot corruption, and
 identical continuation after fresh decoding. Generated RNG tests use seed 12345.
 GitHub Actions repeats typechecking, tests and build on pushes and pull requests.
 
-No deployment is configured yet. Full content, remaining environment spells, responsive UI,
-full browser workflow tests and release gates remain in the plan.
+No deployment is configured yet. Fair AI, the responsive playable UI, complete
+browser workflows and acceptance/performance/soak hardening remain in the plan.
+The verbatim original specification archive remains a release gate; the linked
+condensed specification is not that archive. The permanent full-roster replay in
+`tests/fixtures/mounts-v26-full-roster.json` exercises a scripted headless turn
+with all 40 MVP profiles, not an AI match or a finished game.
 
 
 Schema 4 uses `migrateCastingSnapshot` to upgrade explicitly. Its frozen validators
@@ -68,7 +76,7 @@ and fixtures are retained. The migration preserves random state, orders, pending
 casts and existing combat data while adding body attack selection and restoration
 history; it does not redraw spellbooks. An explicit body attack list excludes
 non-body powers from reanimation (`null` retains all basic attacks; `[]` retains
-none). Full-roster body capability annotations are part of Stage 7.
+none). Full-roster body capability annotations are recorded in the Stage 7 implementation.
 
 
 Schema 5 uses `migrateEnvironmentSnapshot` to upgrade explicitly. Stored Size
@@ -97,8 +105,8 @@ filtered. Event audiences are captured at emission, before later expiry.
 Run `node tools/run-darkness.mjs` after building for the saved-turn replay.
 Schema 7 upgrades explicitly through `migrateIllusionSnapshot`; it adds no clouds
 and preserves RNG, wounds and pending work. Three immutable schema-8 fixtures
-cover planning, Quick casting and an active cloud. Full roster vision abilities
-and the playable browser interface remain later stages.
+cover planning, Quick casting and an active cloud. Stage 7 now covers the retained roster vision abilities;
+the playable browser interface remains a later stage.
 
 ### Tangleweed checkpoint
 

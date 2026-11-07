@@ -1,3 +1,5 @@
+import {validateMountAction,resolveMountAction,forcedBody} from './mounts.js';
+import {bodyFootprint} from './bodies.js';
 import {executeHaunt} from './detection.js';
 import {hasRangedCover} from './ground-traits.js';
 import {validatePowerAction,beginPower} from './powers.js';
@@ -21,11 +23,12 @@ import { emit, type Event } from './events.js';
 import { buildQueue } from './queue.js';
 
 type CombatAction = Exclude<Order['early'],string|null|{type:'Cast'}>;
-const pair=(a:Creature,b:Creature)=>nearestPair(footprint(a.centre,a.size),footprint(b.centre,b.size));
+const pair=(s:GameState,a:Creature,b:Creature)=>nearestPair(bodyFootprint(s,a),bodyFootprint(s,b));
 const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.controller!==b.controller);
 const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm'||attack.mode==='cleave';
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
  if(a.type==='Roar'||a.type==='Frighten'||a.type==='Gaze'||a.type==='Spores'||a.type==='Wail'||a.type==='RootNetwork'){validatePowerAction(s,c,a);return;}
+ if(a.type==='Mount'||a.type==='Dismount'){validateMountAction(s,c,a);return;}
  if(a.type==='Haunt'){if(!c.haunt)throw new Error('NO_HAUNT');if(!inside(a.ground,s.board))throw new Error('INVALID_GROUND_TARGET');return;}
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
  const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
@@ -59,7 +62,7 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
  }
 }
 function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):boolean {
- const p=pair(a,b);
+ const p=pair(s,a,b);
  return b.alive && p.distance<=attack.range && p.distance>=attack.minRange &&
   (!melee(attack)||a.height===b.height) && (sight(s,a,p.from,p.to,side)||(p.distance<=1&&clearSight(p.from,p.to,side,s.walls))) &&
   (!melee(attack)||clearProjectile(p.from,p.to,side,s.walls));
@@ -68,30 +71,39 @@ export function creatureAttackModifiers(s:GameState,a:Creature,b:Creature,source
  const result=attackTraitModifiers(a.attackTraits,{
   plannedMovement:!!s.orders.find(o=>o.creatureId===a.id)?.path.length,
   movedThisTurn:s.moved.includes(a.id),phase:s.phase==='movement'?'movement':s.phase==='late'?'late':'early',source,
-  distance:pair(a,b).distance,targetActedThisPhase:s.actedThisPhase.includes(b.id),
-  activeAdjacentRallySources:s.creatures.filter(c=>c.id!==a.id&&a.controller!==null&&c.controller===a.controller&&c.attackTraits.rallySource&&active(c)&&c.height===a.height&&pair(c,a).distance===1).length,
+  distance:pair(s,a,b).distance,targetActedThisPhase:s.actedThisPhase.includes(b.id),
+  activeAdjacentRallySources:s.creatures.filter(c=>c.id!==a.id&&a.controller!==null&&c.controller===a.controller&&c.attackTraits.rallySource&&active(c)&&c.height===a.height&&pair(s,c,a).distance===1).length,
  });
  return {...result,skill:result.skill+(a.canMarkQuarry&&a.quarryTargetId===b.id?2:0)};
 }
 /** Only the resolved voluntary approach to this target can empower a bite. */
-export function pounceDamage(a:Creature,b:Creature,attackId:string,source:'action'|'guard'):number {
+export function pounceDamage(a:Creature,b:Creature,attackId:string,source:'action'|'guard',s?:GameState):number {
  if(!a.pounce||source!=='action'||attackId!==a.pounce.attackId||!a.pounceTrail)return 0;
  const trail=a.pounceTrail;
  let steps=0;
  for(let i=trail.length-1;i>0;i--){
-  const before=nearestPair(footprint(trail[i-1]!,a.size),footprint(b.centre,b.size)).distance;
-  const after=nearestPair(footprint(trail[i]!,a.size),footprint(b.centre,b.size)).distance;
+  const before=nearestPair(footprint(trail[i-1]!,a.size),s?bodyFootprint(s,b):footprint(b.centre,b.size)).distance;
+  const after=nearestPair(footprint(trail[i]!,a.size),s?bodyFootprint(s,b):footprint(b.centre,b.size)).distance;
   if(after>=before)break;
   steps++;
  }
  return steps>=a.pounce.steps?a.pounce.damage:0;
 }
+export function diveDamage(s:GameState,a:Creature,b:Creature,attackId:string,shotIndex:number,source:'action'|'guard'):number {
+ if(!a.dive||source!=='action'||attackId!==a.dive.attackId||shotIndex!==a.dive.shotIndex||!a.diveTrail)return 0;
+ let steps=0;
+ for(let i=a.diveTrail.length-1;i>0;i--){
+  if(nearestPair(bodyFootprint(s,a,a.diveTrail[i]!),bodyFootprint(s,b)).distance>=nearestPair(bodyFootprint(s,a,a.diveTrail[i-1]!),bodyFootprint(s,b)).distance)break;
+  steps++;
+ }
+ return steps>=a.dive.steps?a.dive.damage:0;
+}
 export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):[boolean,boolean]{
- const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
- const advantage=allies.some(x=>a.packTactics||(pair(a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
- const threatened=!melee(attack) && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(a,x).distance===1);
+ const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(s,x,b).distance===1);
+ const advantage=allies.some(x=>a.packTactics||(pair(s,a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
+ const threatened=!melee(attack) && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(s,a,x).distance===1);
  const defended=s.defending.some(d=>d.creatureId===b.id && (s.phase==='movement' ? false : d.phases.includes(s.phase as 'early'|'late')));
- const p=pair(a,b),obscured=!a.ignoresDarknessDisadvantage&&(a.darknessSightRange===0||p.distance>a.darknessSightRange)&&darkRay(s,p.from,p.to,side);
+ const p=pair(s,a,b),obscured=!a.ignoresDarknessDisadvantage&&(a.darknessSightRange===0||p.distance>a.darknessSightRange)&&darkRay(s,p.from,p.to,side);
  return [advantage,defended||threatened||has(a,'Fear')||obscured||hasRangedCover(s,a,b,attack)];
 }
 /** Guard follows the triggering creature until commitment, then locks an area
@@ -99,7 +111,7 @@ export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefi
 export function guardReactionAction(s:GameState,a:Creature,targetId:string,attackId:string):AttackAction|null {
  const attack=a.attacks.find(x=>x.id===attackId),target=s.creatures.find(c=>c.id===targetId);
  if(!attack||!target||!a.controller||!visibleTo(s,target,a.controller)||!active(a)||a.controller===null||!inReach(s,a,target,attack))return null;
- return {type:'Attack',attackId,targetIds:attack.mode==='area'?[]:[targetId],ground:attack.mode==='area'?pair(a,target).to:null,side:'left'};
+ return {type:'Attack',attackId,targetIds:attack.mode==='area'?[]:[targetId],ground:attack.mode==='area'?pair(s,a,target).to:null,side:'left'};
 }
 export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard',events:Event[]=[]):void {
  if(source==='action'&&!s.actedThisPhase.includes(c.id))s.actedThisPhase.push(c.id);
@@ -118,15 +130,15 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  if((!committedArea&&(!active(a)||a.controller===null))||p.shotIndex>=attack.shots.length){
   emit(s,events,{type:'AttackFinished',creatureId:a.id,damageByTarget:p.damageByTarget});concentration(s,p.damageByTarget,events);s.pendingAttack=null;return true;
  }
- const strike=attack.shots[p.shotIndex]!;
+ const strikeIndex=p.shotIndex,strike=attack.shots[strikeIndex]!;
  let target:Creature|undefined;
  let penetrationSecond=false;
  if(attack.penetration===2){
   if(p.areaVictims===null){
    if(p.action.structure&&!structureCells(s,p.action.structure).length){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
    const selected=s.creatures.find(c=>c.id===p.action.targetIds[0]);
-   const aim=p.action.structure?nearestPair(footprint(a.centre,a.size),structureCells(s,p.action.structure)).to:p.action.ground??(selected?pair(a,selected).to:null);
-   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(footprint(a.centre,a.size),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&!!a.controller&&visibleTo(s,selected,a.controller)&&inReach(s,a,selected,attack,p.action.side);
+   const aim=p.action.structure?nearestPair(bodyFootprint(s,a),structureCells(s,p.action.structure)).to:p.action.ground??(selected?pair(s,a,selected).to:null);
+   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(bodyFootprint(s,a),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&!!a.controller&&visibleTo(s,selected,a.controller)&&inReach(s,a,selected,attack,p.action.side);
    if(!aim||!valid){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
    const trace=tracePenetratingProjectile(arenaOf(s),a,aim,selected?.height??'ground',p.action.side,attack.range,selected?.id);
    p.areaVictims=trace.hits;
@@ -150,7 +162,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   const id=p.areaVictims[p.victimIndex++];target=s.creatures.find(c=>c.id===id);
   if(target&&((attack.targetTeams!=='all'&&!enemies(a,target))||!inReach(s,a,target,attack,p.action.side)))target=undefined;
  }else if(attack.mode==='area'){
-  const ground=p.action.ground!;const origin=nearestPair(footprint(a.centre,a.size),[ground]);
+  const ground=p.action.ground!;const origin=nearestPair(bodyFootprint(s,a),[ground]);
   if(origin.distance<attack.minRange||origin.distance>attack.range||!clearProjectile(origin.from,ground,p.action.side,s.walls,true)){
    emit(s,events,{type:'AttackInvalid',creatureId:a.id});p.shotIndex++;p.areaVictims=null;return false;
   }
@@ -159,7 +171,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   const targetId=p.areaVictims[p.victimIndex++];
   target=s.creatures.find(c=>c.id===targetId);
  }else if(p.action.ground){
-  const ground=p.action.ground,origin=nearestPair(footprint(a.centre,a.size),[ground]);p.shotIndex++;
+  const ground=p.action.ground,origin=nearestPair(bodyFootprint(s,a),[ground]);p.shotIndex++;
   if(origin.distance>=attack.minRange && origin.distance<=attack.range && sight(s,a,origin.from,ground,p.action.side)){
    const trace=traceProjectile(arenaOf(s),a,ground,'ground',p.action.side);
    target=s.creatures.find(c=>c.id===trace.hit);
@@ -170,7 +182,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   target=s.creatures.find(c=>c.id===(p.action.targetIds[p.shotIndex]??p.action.targetIds[0]));p.shotIndex++;
   if(target&&(!a.controller||!visibleTo(s,target,a.controller)||!inReach(s,a,target,attack,p.action.side)))target=undefined;
   if(target&&attack.mode==='projectile'){
-   const trace=traceProjectile(arenaOf(s),a,pair(a,target).to,target.height,p.action.side,target.id);
+   const trace=traceProjectile(arenaOf(s),a,pair(s,a,target).to,target.height,p.action.side,target.id);
    target=s.creatures.find(c=>c.id===trace.hit);
    if(trace.blockedBy){damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);return false;}
   }
@@ -184,7 +196,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
- const pounce=pounceDamage(a,target,attack.id,p.source);
+ const pounce=pounceDamage(a,target,attack.id,p.source,s)+diveDamage(s,a,target,attack.id,strikeIndex,p.source);
  const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:(penetrationSecond?Math.ceil(component.amount/2):component.amount)+(index===0?modifiers.damage+pounce:0)})),events,{area:area||attack.areaDamage===true,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
@@ -205,7 +217,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  }
  if(damage>0&&a.shove?.attackId===attack.id&&target.size<a.size&&!isLethal(target)){
   const to=add(target.centre,DIRECTIONS[equal(a.centre,target.centre)?0:sector(a.centre,target.centre)]!);
-  if(stepLegality(arenaOf(s),target,target.centre,to,false).legal)forceMove(s,target,to,events);
+  if(stepLegality(arenaOf(s),forcedBody(s,target),target.centre,to,false).legal)forceMove(s,target,to,events);
   else emit(s,events,{type:'ShoveBlocked',creatureId:a.id,targetId:target.id});
  }
  cleanupDeaths(s,events);return false;
@@ -219,6 +231,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
  if(action.type==='Roar'||action.type==='Frighten'||action.type==='Gaze'||action.type==='Spores'||action.type==='Wail'||action.type==='RootNetwork'){beginPower(s,c,action,events);return;}
+ if(action.type==='Mount'||action.type==='Dismount'){resolveMountAction(s,c,action,events);return;}
  if(action.type==='Haunt'){executeHaunt(s,c,action.ground,events);return;}
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
  if(action.type==='Reload'){
@@ -236,10 +249,10 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
   s.guards.push({creatureId:c.id,attackId:action.attackId,targetId:action.targetId,area:action.area,attacked:[],spent:false});return;
  }
  const wall=action.type==='Extinguish'?s.walls.find(w=>w.id===action.targetId):undefined;
- if(wall){if(nearestPair(footprint(c.centre,c.size),[wall.edge.a,wall.edge.b]).distance<=1)wall.burning=null;return;}
+ if(wall){if(nearestPair(bodyFootprint(s,c),[wall.edge.a,wall.edge.b]).distance<=1)wall.burning=null;return;}
  const target=s.creatures.find(x=>x.id===action.targetId);
  const reach=action.type==='Grapple'?Math.max(1,...c.attacks.filter(a=>a.mode==='melee').map(a=>a.range)):1;
- if(!target?.alive || pair(c,target).distance>reach || c.height!==target.height || !clearProjectile(pair(c,target).from,pair(c,target).to,'left',s.walls)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
+ if(!target?.alive || pair(s,c,target).distance>reach || c.height!==target.height || !clearProjectile(pair(s,c,target).from,pair(s,c,target).to,'left',s.walls)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
  if(action.type==='Grapple'){
   if(c.kind==='illusion'&&target.intelligence===0)return;
   const limb=Array.from({length:c.grappleLimbs},(_,i)=>i).find(i=>!s.holds.some(h=>h.grapplerId===c.id&&h.limb===i));
@@ -253,13 +266,14 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
  }
 }
 /** Only voluntary steps call this; teleport, summoning and forced movement do not. */
-export function enqueueGuards(s:GameState,mover:Creature,from:Creature['centre'],fromHeight:Creature['height']=mover.height):void {
+export function enqueueGuards(s:GameState,mover:Creature,from:Creature['centre'],fromHeight:Creature['height']=mover.height,fromSize?:number):void {
+ const before={...mover,centre:from,height:fromHeight,size:fromSize??(mover.mountId?s.creatures.find(c=>c.id===mover.mountId)!.size:mover.size)};delete before.mountId;
  const candidates=s.guards.filter(g=>{
   const c=s.creatures.find(c=>c.id===g.creatureId)!;const attack=c.attacks.find(a=>a.id===g.attackId)!;
   return !g.spent&&!g.attacked.includes(mover.id)&&active(c)&&(!c.reload||(c.reload.loaded&&c.reload.lastReloadTurn!==s.turn))&&enemies(c,mover)&&(!g.targetId||g.targetId===mover.id)&&
-   (!g.area.length||footprint(mover.centre,mover.size).some(h=>g.area.some(a=>equal(a,h))))&&!!c.controller&&visibleTo(s,mover,c.controller)&&inReach(s,c,mover,attack)&&!inReach(s,c,{...mover,centre:from,height:fromHeight},attack);
+   (!g.area.length||bodyFootprint(s,mover).some(h=>g.area.some(a=>equal(a,h))))&&!!c.controller&&visibleTo(s,mover,c.controller)&&inReach(s,c,mover,attack)&&!inReach(s,c,before,attack);
  });
- const queue=buildQueue(candidates.map(g=>{const c=s.creatures.find(c=>c.id===g.creatureId)!;const wizard=s.creatures.find(w=>w.kind==='wizard'&&w.controller===c.controller);return {creatureId:c.id,dex:c.dex,move:c.move,size:c.size,slowed:c.slowed||has(c,'Slowed'),quick:false,wizardDistance:wizard?pair(c,wizard).distance:0};}),s.random.resolution,false);
+ const queue=buildQueue(candidates.map(g=>{const c=s.creatures.find(c=>c.id===g.creatureId)!;const wizard=s.creatures.find(w=>w.kind==='wizard'&&w.controller===c.controller);return {creatureId:c.id,dex:c.dex,move:c.move,size:c.size,slowed:c.slowed||has(c,'Slowed'),quick:false,wizardDistance:wizard?pair(s,c,wizard).distance:0};}),s.random.resolution,false);
  s.random.resolution=queue.randomState;
  for(const entry of queue.entries){const g=candidates.find(g=>g.creatureId===entry.creatureId)!;const c=s.creatures.find(c=>c.id===g.creatureId)!;
   g.attacked.push(mover.id);if(!melee(c.attacks.find(a=>a.id===g.attackId)!))g.spent=true;
