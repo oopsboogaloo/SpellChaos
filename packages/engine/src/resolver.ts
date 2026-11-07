@@ -1,3 +1,5 @@
+import {flightHeight,flightStepLegal} from './flight.js';
+import {revealBlockedContact,expireReveals} from './detection.js';
 import {canDrag,dragStepLegal,dragTarget,dragDestination} from './drag.js';
 import {pruneRootNetworks} from './ground-traits.js';
 import {blinkLegal,movementStepCost,prepareMovementPath} from './blink.js';
@@ -36,6 +38,7 @@ function initialize(state: GameState, events: Event[]): void {
 }
 function finishPhase(state: GameState, events: Event[]): void {
   if(state.phase==='early'||state.phase==='late')expirePhaseConditions(state);
+  expireReveals(state);
   state.quickQueue=null; state.actedThisPhase=[];
   emit(state, events, { type: 'PhaseEnded' });
   if (checkVictory(state, events)) return;
@@ -89,41 +92,46 @@ export function advanceAtomicStep(state: GameState): Transition {
     const entry = next.cursor.entries[next.cursor.index]!;
     const c = next.creatures.find(c => c.id === entry.creatureId)!;
     const order = next.orders.find(o => o.creatureId === c.id) ?? defaultOrder(c.id);
+    const allowance=movementAllowance(c,order.early==='Dash'&&!next.dashed.includes(c.id)?{...order,early:null}:order);
+    const revealContact=(to:Creature['centre'])=>{if(fearAllowsStep(next,c,to)&&(next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to)<=allowance)revealBlockedContact(next,c,to,flightHeight(c,order,next.cursor.pathIndex),events);};
     const advanceActor = () => {
       if(next.phase === 'movement' && c.alive && next.cursor.lastRestingCentre && !placement(arenaOf(next),c,c.centre).legal) {
-        delete c.pounceTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};pruneWeedHolds(next);pruneRootNetworks(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
+        delete c.pounceTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};if(next.cursor.lastRestingHeight)c.height=next.cursor.lastRestingHeight;pruneWeedHolds(next);pruneRootNetworks(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
-      next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null; };
+      next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null;delete next.cursor.lastRestingHeight; };
     if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && ((order.dragTargetId!==undefined?!canDrag(next,c,order):restrained(next,c)) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
       emit(next, events, { type: 'ActorSkipped', creatureId: c.id }); advanceActor();
     } else if (next.phase === 'movement') {
       if (next.cursor.activePath === null) {
-        next.cursor.lastRestingCentre = {...c.centre};
-        next.cursor.activePath = prepareMovementPath(next,c,order, movementAllowance(c, order.early === 'Dash' && !next.dashed.includes(c.id) ? { ...order, early: null } : order));
+        next.cursor.lastRestingCentre = {...c.centre};if(order.flightSteps)next.cursor.lastRestingHeight=c.height;
+        next.cursor.activePath = prepareMovementPath(next,c,order,allowance);
         emit(next, events, { type: next.cursor.activePath.length < order.path.length ? 'PathTruncated' : 'PathPrepared', creatureId: c.id });
-      } else if (next.cursor.pathIndex >= next.cursor.activePath.length) advanceActor();
+      } else if (next.cursor.pathIndex >= next.cursor.activePath.length) {if(next.cursor.pathIndex<order.path.length)revealContact(order.path[next.cursor.pathIndex]!);advanceActor();}
       else {
         const to = next.cursor.activePath[next.cursor.pathIndex]!;
         const blinking=order.blinkIndex===next.cursor.pathIndex;
         const dragging=order.dragTargetId!==undefined;
         const stepCost=movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to);
-        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
+        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(order.flightSteps?flightStepLegal(next,c,order,next.cursor.pathIndex,c.centre,to,next.cursor.pathIndex<next.cursor.activePath.length-1):dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
+          revealContact(to);
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
           if(!next.moved.includes(c.id)) next.moved.push(c.id);
           const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=stepCost;
           if(paid)paid.amount+=cost;else next.movementSpent.push({creatureId:c.id,amount:cost});
-          const from = { ...c.centre };
+          const from = { ...c.centre },fromHeight=c.height;
           const victim=dragging?dragTarget(next,c,order):undefined;
           const victimTo=victim?dragDestination(next,c,order,to):undefined;
           if(blinking){c.blinkUsedTurn=next.turn;delete c.pounceTrail;}
+          else if(order.flightSteps?.some(x=>x.index===next.cursor.pathIndex))delete c.pounceTrail;
           else if(c.pounce)c.pounceTrail=[...(c.pounceTrail??[from]),{...to}];
+          c.height=flightHeight(c,order,next.cursor.pathIndex);
           c.centre = { ...to }; next.cursor.pathIndex++;
-          if(placement(arenaOf(next),c,c.centre).legal) next.cursor.lastRestingCentre = {...c.centre};
-          emit(next, events, { type: blinking?'CreatureBlinked':'CreatureMoved', creatureId: c.id, from, to: { ...to } });
+          if(placement(arenaOf(next),c,c.centre).legal){next.cursor.lastRestingCentre = {...c.centre};if(order.flightSteps)next.cursor.lastRestingHeight=c.height;}
+          emit(next, events, { type: blinking?'CreatureBlinked':fromHeight!==c.height?'FlightChanged':'CreatureMoved', creatureId: c.id, from, to: { ...to } });
           if(victim&&victimTo){forceMove(next,victim,victimTo,events);if(placement(arenaOf(next),c,c.centre).legal)next.cursor.lastRestingCentre={...c.centre};}
           const hazardDamage=blinking?0:crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);
-          contactWeed(next,c,events);if(c.alive&&!blinking)enqueueGuards(next,c,from);
+          contactWeed(next,c,events);if(c.alive&&!blinking)enqueueGuards(next,c,from,fromHeight);
         }
       }
     } else {

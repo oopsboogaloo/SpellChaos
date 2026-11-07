@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 35 implemented in scope including Giant Puma, World Serpent and Walking Forest; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 38 implemented in scope including Amphiptere, Wisp and Bobby the Master Hunter; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -396,14 +396,55 @@
         "ranged cover changes production hit rolls and restores every boundary (%s)",
         "creation-turn passive cover is immediate and illusory cover ignores Int0 attackers"
       ]
+    },
+    {
+      "id": "ROSTER-032",
+      "requirement": "Amphiptere flight transitions, height targeting, D06 intercepted poison spit, Bite venom, legal landing and height-aware atomic continuation",
+      "testFile": "tests/flight-detection.test.ts",
+      "browserTestFile": "tests/browser/flight-detection.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Amphiptere lands, walks and takes off with exact continuation at every height boundary",
+        "landing enters ground melee Guard reach and take-off enters airborne Guard reach",
+        "interrupted airborne transit returns to its last resting height after taking off",
+        "D06 Spit intercepts an ally, using its poison defence and no bite venom",
+        "winged reanimation retains explicit flight and Bite, stripping spit and venom"
+      ]
+    },
+    {
+      "id": "ROSTER-033",
+      "requirement": "Wisp Spark/flight and private phase-scoped Haunt; explicit invisible presence, D17 contact discovery, event redaction, failure validation and continuation",
+      "testFile": "tests/flight-detection.test.ts",
+      "browserTestFile": "tests/browser/flight-detection.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Haunt reveals exactly one canonical invisible occupant privately for its current phase",
+        "Haunt empty-ground validation gives the same result with hidden occupancy",
+        "Haunt expires at the Early/Late boundary and survives reload inside its phase",
+        "D17 reveals actual blocked contact only to the mover and clears it at phase end",
+        "a failed Dash cannot reveal an invisible blocker beyond the remaining movement budget"
+      ]
+    },
+    {
+      "id": "ROSTER-034",
+      "requirement": "Bobby six-step passive invisible detection, Double Action, Darkness disadvantage exemption, sight/privacy constraints, reanimation stripping and schema-25 continuation",
+      "testFile": "tests/flight-detection.test.ts",
+      "browserTestFile": "tests/browser/flight-detection.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Bobby detects invisible presence at six footprint steps without revealing illusion truth",
+        "Bobby ignores Darkness hit disadvantage without gaining sight through the area",
+        "Bobby uses both ordinary action slots and loses that privilege while Subdued",
+        "a named target lost from detection before execution is wasted without substitution",
+        "Bobby reanimation strips detection, Double Action and Darkness immunity"
+      ]
     }
   ],
   "pending": [
-    "Additional special-action and cooldown state, migrations and continuation fixtures",
-    "Movement and attack passives, special actions, flight/mounts and detection",
-    "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
-    "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 5 MVP profiles only after their complete engine tests",
+    "Gryphon Dive, mount/rider state, Mount/Dismount actions and legal rider placement including D12 death dismount",
+    "Shepherd riding and object suitability; no future inventory system",
+    "Every remaining ability phase, failure, illusion and reanimation interaction",
+    "Enable remaining 2 MVP profiles only after complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

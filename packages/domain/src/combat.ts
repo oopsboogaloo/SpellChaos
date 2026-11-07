@@ -20,6 +20,7 @@ export type PowerAction=z.infer<typeof powerActionSchema>;
 export const combatActionSchema=z.union([
  attackActionSchema,
  powerActionSchema,
+ z.strictObject({type:z.literal('Haunt'),ground:hex}),
  z.strictObject({type:z.literal('Reload')}),
  z.strictObject({type:z.literal('Guard'),attackId:id,targetId:id.nullable(),area:z.array(hex)}),
  z.strictObject({type:z.enum(['Grapple','MarkQuarry']),targetId:id}),

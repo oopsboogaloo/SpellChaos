@@ -1,3 +1,4 @@
+import {flightHeight,flightStepLegal} from './flight.js';
 import {canDrag,dragStepLegal,planningDragState} from './drag.js';
 import {blinkLegal,movementStepCost} from './blink.js';
 import { validateCast, reservedMana, castingLocksMovement } from './casting.js';
@@ -33,9 +34,12 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (subdued(c) && order.path.length && actions.length) throw new Error('SUBDUED_BUDGET');
   const pathStart=order.early&&typeof order.early==='object'&&order.early.type==='Cast'&&order.early.spell==='Teleport'?order.early.ground!:c.centre;
   const movementState=planningDragState(state,c,order);
+  if(order.flightSteps&&(!c.flight||order.dragTargetId!==undefined||order.blinkIndex!==undefined||!order.flightSteps.length||order.flightSteps.some((x,i)=>x.index>=order.path.length||(i>0&&order.flightSteps![i-1]!.index>=x.index))))throw new Error('INVALID_FLIGHT_ORDER');
+  let budgetActor={...c};
+  const movementCost=order.path.reduce((n,h,i)=>{const cost=movementStepCost(movementState,budgetActor,order,i,i?order.path[i-1]!:pathStart,h);budgetActor={...budgetActor,height:flightHeight(budgetActor,order,i)};return n+cost;},0);
   if(order.dragTargetId!==undefined&&(!order.path.length||order.blinkIndex!==undefined||!canDrag(movementState,c,order)))throw new Error('INVALID_DRAG_ORDER');
   if(order.blinkIndex!==undefined&&(!c.blink||c.blinkUsedTurn===state.turn||order.blinkIndex>=order.path.length))throw new Error('INVALID_BLINK_ORDER');
-  if (order.path.reduce((n,h,i)=>n+movementStepCost(movementState,c,order,i,i?order.path[i-1]!:pathStart,h),0) > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
+  if (movementCost > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
   if (order.path.length && (order.dragTargetId!==undefined?!canDrag(movementState,c,order):restrained(state,c))) throw new Error('RESTRAINED');
   if(order.path.length && castingLocksMovement(state,c,true))throw new Error('CASTING_IMMOBILE');
   const existing=state.casts.find(cast=>cast.casterId===c.id);
@@ -54,12 +58,13 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   // Static terrain is known; moving creatures are rechecked at resolution.
   const arena = { ...arenaOf(state), creatures: [] };
   let from = order.early && typeof order.early==='object' && order.early.type==='Cast' && order.early.spell==='Teleport' ? order.early.ground! : c.centre;
+  const pathActor={...c};
   for (const [i,to] of order.path.entries()) {
     if (!fearAllowsStep(state,{...c,centre:from},to)) throw new Error('FEAR_APPROACH');
-    if (!(order.dragTargetId!==undefined?dragStepLegal(movementState,c,order,from,to,true):order.blinkIndex===i?blinkLegal(state,c,from,to,true):stepLegality(arena,c,from,to,true).legal)) throw new Error('INVALID_PATH');
-    from = to;
+    if (!(order.flightSteps?flightStepLegal(state,pathActor,order,i,from,to,true,true):order.dragTargetId!==undefined?dragStepLegal(movementState,c,order,from,to,true):order.blinkIndex===i?blinkLegal(state,c,from,to,true):stepLegality(arena,c,from,to,true).legal)) throw new Error('INVALID_PATH');
+    pathActor.height=flightHeight(pathActor,order,i);from = to;
   }
-  if (order.path.length && !placement(arena, c, from).legal) throw new Error('INVALID_DESTINATION');
+  if (order.path.length && !placement(arena, pathActor, from).legal) throw new Error('INVALID_DESTINATION');
 }
 
 export interface Reservation { orderId: string; creatureId: string; amount: number }

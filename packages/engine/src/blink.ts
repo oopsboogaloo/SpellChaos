@@ -1,3 +1,4 @@
+import {flightStepCost,prepareFlightPath} from './flight.js';
 import {dragStepCost,prepareDragPath} from './drag.js';
 import type {Creature,GameState,Order} from '../../domain/src/state.js';
 import {add,distance,footprint,type Hex} from '../../geometry/src/hex.js';
@@ -17,10 +18,12 @@ export function blinkLegal(s:GameState,c:Creature,from:Hex,to:Hex,ignoreCreature
  return footprint(from,c.size).every(origin=>!crossedWalls(traceRay(origin,add(origin,delta),'left'),s.walls).some(w=>w.material==='energy'));
 }
 export function movementStepCost(s:GameState,c:Creature,order:Order,index:number,from:Hex,to:Hex):number {
+ if(order.flightSteps)return flightStepCost(s,c,order,index,from,to);
  if(order.dragTargetId!==undefined)return dragStepCost(s,c,order,from,to);
  return order.blinkIndex===index?distance(from,to):Math.max(weedStepCost(s,c,to),wallStepCost(s,c,from,to));
 }
 export function prepareMovementPath(s:GameState,c:Creature,order:Order,allowance:number):Hex[] {
+ if(order.flightSteps)return prepareFlightPath(s,c,order,allowance);
  if(order.dragTargetId!==undefined)return prepareDragPath(s,c,order,allowance);
  if(order.blinkIndex===undefined)return legalPathPrefix(arenaOf(s),c,order.path,allowance);
  const path:Hex[]=[];let from=c.centre,paid=0,restingLength=0;

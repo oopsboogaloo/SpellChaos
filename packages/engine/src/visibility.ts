@@ -19,7 +19,8 @@ export function seesCreature(s:GameState,observer:Creature,target:Creature,adjac
 }
 export function visibleTo(s:GameState,target:Creature,playerId:string):boolean {
  if(target.controller===playerId)return true;
- // The open arena has no general fog of war. Darkness hides occupants only.
+ if(target.invisible&&!target.revealedTo?.some(r=>r.playerId===playerId&&r.turn===s.turn&&r.phase===s.phase)&&!s.creatures.some(c=>c.controller===playerId&&active(c)&&c.seeInvisibleRange!==undefined&&nearestPair(footprint(c.centre,c.size),footprint(target.centre,target.size)).distance<=c.seeInvisibleRange&&seesCreature(s,c,target)))return false;
+ // The open arena has no general fog of war. Darkness and invisibility hide occupants.
  if(!footprint(target.centre,target.size).some(h=>darkAt(s,h)))return true;
  return s.creatures.some(c=>c.controller===playerId&&active(c)&&seesCreature(s,c,target));
 }

@@ -5,13 +5,13 @@ import { z } from 'zod';
 import { powerActionSchema, validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 24, rules: 'roster-0.13', content: 'ground-specialists-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 25, rules: 'roster-0.14', content: 'flight-detection-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
 export const hexSchema = z.strictObject({ q: z.number().int().min(-100000).max(100000), r: z.number().int().min(-100000).max(100000) });
 export const actionSchema = z.union([z.enum(['Defend', 'TotalDefence', 'Dash', 'Escape']), combatActionSchema, castActionSchema]);
-export const orderSchema = z.strictObject({ creatureId: id, path: z.array(hexSchema).max(1000), early: actionSchema.nullable(), late: actionSchema.nullable(), blinkIndex:uint.optional(),dragTargetId:id.optional() });
+export const orderSchema = z.strictObject({ creatureId: id, path: z.array(hexSchema).max(1000), early: actionSchema.nullable(), late: actionSchema.nullable(), blinkIndex:uint.optional(),dragTargetId:id.optional(),flightSteps:z.array(z.strictObject({index:uint,height:z.enum(['ground','air'])})).min(1).max(1000).optional() });
 export type Order = z.infer<typeof orderSchema>;
 const envelope = { matchId: id, playerId: id, turn: uint.min(1), commandId: id, expectedRevision: uint };
 export const commandSchema = z.discriminatedUnion('type', [
@@ -28,6 +28,9 @@ export const creatureSchema = z.strictObject({
   id, centre: hexSchema, size: z.number().int().min(1).max(10), controller: id.nullable(),
   darknessSightRange:uint, ignoresDarknessDisadvantage:z.boolean(), creatorId:id.nullable(), knownIllusionBy:z.array(id),
   kind: z.enum(['wizard', 'summon', 'reanimated', 'illusion']), height: z.enum(['ground', 'air']),
+  flight:z.strictObject({takeoffCost:z.literal(1),landingCost:z.literal(1)}).optional(),
+  seeInvisibleRange:z.literal(6).optional(),haunt:z.strictObject({range:z.literal(2)}).optional(),invisible:z.literal(true).optional(),
+  revealedTo:z.array(z.strictObject({playerId:id,turn:uint.min(1),phase:z.enum(['planning','ready','early','movement','late','end','ended'])})).optional(),
   intelligence: uint, dex: uint, move: uint.max(100), mana: uint.max(100),
   alive: z.boolean(), incapacitated: z.boolean(), restrained: z.boolean(), slowed: z.boolean(), subdued: z.boolean(),
   doubleAction: z.boolean(), readyTurn: uint.min(1),
@@ -78,7 +81,7 @@ export const rawStateSchema = z.strictObject({
   players: z.array(z.strictObject({ id, wizardId: id, locked: z.boolean(), participated: z.boolean(), missedTurns: uint.max(3), eliminated: z.boolean() })).min(2).max(8),
   creatures: z.array(creatureSchema), orders: z.array(orderSchema), dashed: z.array(id),
   reservations: z.array(z.strictObject({ orderId: id, creatureId: id, amount: uint.max(100) })),
-  cursor: z.strictObject({ entries: z.array(entrySchema), index: uint, pathIndex: uint, initialized: z.boolean(), activePath: z.array(hexSchema).nullable(), lastRestingCentre: hexSchema.nullable() }),
+  cursor: z.strictObject({ entries: z.array(entrySchema), index: uint, pathIndex: uint, initialized: z.boolean(), activePath: z.array(hexSchema).nullable(), lastRestingCentre: hexSchema.nullable(), lastRestingHeight:z.enum(['ground','air']).optional() }),
   defending: z.array(z.strictObject({ creatureId: id, phases: z.array(z.enum(['early','late'])).max(2) })),
   guards:z.array(guardSchema), holds:z.array(holdSchema), reactions:z.array(reactionSchema), pendingAttack:pendingAttackSchema.nullable(),
   pendingPower:z.strictObject({actorId:id,action:powerActionSchema,targets:z.array(id),index:uint,origin:hexSchema.optional(),actionId:id.optional(),damageByTarget:z.array(z.strictObject({targetId:id,amount:uint})).optional()}).nullable(),
@@ -103,6 +106,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
       if(!c.pounce||!state.moved.includes(c.id)||!['movement','late','end','ended'].includes(state.phase)||distance(trail[trail.length-1]!,c.centre)!==0||trail.some((h,i)=>!inside(h,state.board)||(i>0&&distance(trail[i-1]!,h)!==1)))invalid('INVALID_POUNCE_TRAIL');
     }
   }
+  for(const c of state.creatures)if(c.revealedTo&&(!c.invisible||!unique(c.revealedTo.map(x=>x.playerId))||c.revealedTo.some(x=>!players.includes(x.playerId)||x.turn!==state.turn||x.phase!==state.phase)))invalid('INVALID_REVEAL');
+  if(state.cursor.lastRestingHeight!==undefined&&(state.phase!=='movement'||!state.cursor.lastRestingCentre))invalid('INVALID_RESTING_HEIGHT');
   if(!unique(state.wallCrossings.map(w=>`${w.creatureId}:${w.networkId}`))||state.wallCrossings.some(w=>!creatures.includes(w.creatureId)))invalid('INVALID_WALL_CROSSINGS');
   for(const w of state.walls)if((w.casterId!==undefined&&w.casterId!==null&&!creatures.includes(w.casterId))||((w.casterId!==undefined)!==(w.networkId!==undefined)))invalid('INVALID_WALL_OWNER');
   if(!unique(state.tangleweed.map(w=>w.id))||!unique(state.weedAttempts)||!unique(state.weedHolds.map(h=>h.creatureId))||!unique(state.movementSpent.map(m=>m.creatureId)))invalid('DUPLICATE_WEED_OR_MOVEMENT');
@@ -160,6 +165,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
           if(action.targetIds.some(id=>!creatures.includes(id)) || (action.ground && !inside(action.ground,state.board)))invalid('INVALID_ORDER_TARGET');
           if(attack && !validAttackTargets(attack,action))invalid('INVALID_ORDER_TARGET');
         }else if(action.targetId!==null&&!creatures.includes(action.targetId))invalid('INVALID_ORDER_TARGET');
+      }else if(action.type==='Haunt'){
+        if(!creature.haunt||!inside(action.ground,state.board))invalid('INVALID_HAUNT_ORDER');
       }else if(action.type==='Roar'||action.type==='Wail'||action.type==='RootNetwork'){
         if(action.type==='Wail'?!creature.wail:action.type==='RootNetwork'?!creature.rootNetwork:creature.fearAction?.kind!=='Roar')invalid('INVALID_POWER_ORDER');
       }else if(action.type==='Frighten'||action.type==='Gaze'||action.type==='Spores'){
@@ -173,9 +180,12 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     if (order.late === 'Dash' || (['planning','ready'].includes(state.phase) && actions.length > (creature.doubleAction && !creature.subdued ? 2 : 1)) ||
       (actions.includes('TotalDefence') && (order.path.length > 0 || actions.length !== 1)) ||
       (['planning','ready'].includes(state.phase) && creature.subdued && order.path.length && actions.length)) invalid('INVALID_ACTION_BUDGET');
+    if(order.flightSteps&&(!creature.flight||order.dragTargetId!==undefined||order.blinkIndex!==undefined||!unique(order.flightSteps.map(x=>String(x.index)))||order.flightSteps.some((x,i)=>x.index>=order.path.length||(i>0&&(order.flightSteps![i-1]!.index>=x.index||order.flightSteps![i-1]!.height===x.height)))))invalid('INVALID_FLIGHT_ORDER');
+    if(order.flightSteps&&['planning','ready'].includes(state.phase)){const first=order.flightSteps[0]!;const start=order.early&&typeof order.early==='object'&&order.early.type==='Cast'&&order.early.spell==='Teleport'?order.early.ground!:creature.centre;if(first.height===creature.height||(first.index===0&&distance(start,order.path[0]!)!==0))invalid('INVALID_FLIGHT_STEP');}
+    if(order.flightSteps)for(const step of order.flightSteps){if(step.index>0&&distance(order.path[step.index-1]!,order.path[step.index]!)!==0)invalid('INVALID_FLIGHT_STEP');}
     if(order.dragTargetId!==undefined&&(!creature.drag||!order.path.length||order.blinkIndex!==undefined||!creatures.includes(order.dragTargetId)||order.dragTargetId===creature.id))invalid('INVALID_DRAG_ORDER');
     if(order.blinkIndex!==undefined&&(!creature.blink||order.blinkIndex>=order.path.length))invalid('INVALID_BLINK_ORDER');
-    if (order.path.some((h, i) => i > 0 && (i===order.blinkIndex?distance(order.path[i-1]!,h)<1||distance(order.path[i-1]!,h)>3:distance(order.path[i - 1]!, h) !== 1))) invalid('DISCONNECTED_PATH');
+    if (order.path.some((h, i) => i > 0 && (order.flightSteps?.some(x=>x.index===i)?distance(order.path[i-1]!,h)!==0:i===order.blinkIndex?distance(order.path[i-1]!,h)<1||distance(order.path[i-1]!,h)>3:distance(order.path[i - 1]!, h) !== 1))) invalid('DISCONNECTED_PATH');
   }
   if (!unique(state.reservations.map(r => r.orderId)) || state.reservations.some(r => !creatures.includes(r.creatureId))) invalid('INVALID_RESERVATION');
   if(['planning','ready'].includes(state.phase))for(const c of state.creatures){

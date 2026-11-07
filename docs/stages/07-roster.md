@@ -808,3 +808,81 @@ Chromium continuation tests and all nine `tools/run-*.mjs` CLI scenarios passed.
 The schema-24 walls scenario ended at HP 4/11 with fingerprint
 `fnv1a32-v1:8d825e77`. Local verification used Node 24.22.1, pnpm 11.25.0 and
 Playwright 1.56.1; CI retains its pinned Node 24.19.0.
+
+## Flight and detection checkpoint — implementation interpretation
+
+Continue from PR #12 on a stacked branch; PR #12 remains unmerged. Implement
+Amphiptere, Wisp and Bobby next. Gryphon/Shepherd remain gated for mounts.
+
+Flight orders keep the existing hex path and optionally label a stationary path
+step with its new height. Take-off/landing each cost one Move; a step changes
+height or hex, never both. Airborne transit may pass creatures; resting positions remain exclusive as in
+the existing geometry contract, including landing. Energy blocks flight and vertical
+transitions through its occupied edges. Landing requires a legal ground footprint.
+Voluntary height transitions can enter Guard reach; they do not bypass restraint,
+Fear, casting locks, movement budget or creation-turn readiness. Interrupted
+transit restores the last legal resting hex AND height. Legacy airborne bodies
+receive no new flight capability merely because of their stored height.
+
+Bobby's active passive detection reaches six occupied-hex steps, with ordinary
+sight/opaque-wall and Darkness restrictions; ignoring Darkness disadvantage does
+not grant sight through it. Detection is knowledge of invisible presence shared
+with that player's view, never illusion truth. Wisp Haunt is an action selecting a
+fixed ground hex within two of its footprint: reveal the canonical first invisible
+creature covering that hex to its controller through the current phase. Empty or
+invalid hexes waste the action without an occupancy oracle at order submission.
+The selected hex must have ordinary sight at execution. Haunt does not dispel or
+identify illusions and does not require damage/resistance. Invisibility is explicit
+portable scenario state (no MVP spell creates it). D17 blocked movement contact
+reveals only to the discovering controller through the current phase. Private
+reveals and hidden-actor events must not disclose identity or sequence gaps to
+other players. Illusions may copy flight/detection; Int0 observers ignore illusory
+creatures as already specified, without revealing their truth to other players.
+
+### Implementation evidence
+
+Amphiptere, Wisp and Bobby are now enabled for new casts, bringing the retained
+MVP implementation to 38/40 profiles (41 implemented including preserved deferred
+content). `flightSteps` labels stationary transitions; optional explicit flight
+capability, current height and last resting height survive atomic saves. The
+existing exclusive resting-occupancy contract is preserved. Air transit respects
+ordinary/Energy walls, movement costs, restraint/Fear/casting, Guard height changes,
+legal landing, weed contact and interrupted return. Winged reanimation retains
+explicit flight and basic Bite but removes venom and poison spit.
+
+Bobby uses the ordinary Double Action budget, listed magic claws/critical chance,
+physical profile and defences. Active six-step detection shares presence only with
+its current controller. It requires sight and respects Darkness/opaque walls;
+Darkness disadvantage immunity supplies no extra sight. Detection neither removes
+nor identifies illusions. Creation-turn passive detection is immediate.
+
+Wisp Spark uses ordinary ranged/intercepted magic attacks. Haunt commits a fixed
+hex, spends its normal action on empty/invalid targets, reveals one invisible
+occupant privately, and expires at the phase boundary. Explicit invisible/reveal
+metadata is absent on historical creatures; no new invisibility spell is added.
+D17 reveals only actual next blocked movement contact, not distant prepared-path
+blockers or contacts beyond the remaining budget after a failed Dash. Guard and
+named attacks recheck visibility while empty-ground shots can still intercept
+unseen bodies. Event audiences preserve private reveal scopes and sequence gaps
+are removed by the existing event projection.
+
+Schema 25 / rules `roster-0.14` / content `flight-detection-0.1` freezes schema-24
+state/combat/availability interpretation. `migrateGroundSpecialistsSnapshot`
+preserves existing creatures, Drag paths, Sweep/roots, casts, cursors and RNG
+without inferring flight, invisibility or detection from species/height. All
+committed historical fixtures remain unchanged. Six new permanent fixtures cover
+air transit after take-off, queued landing Guard, Haunt, blocked contact, committed
+Spit and a detected Bobby attack. Node and Chromium compare resumed state, events
+and each of three players' permitted views/events.
+
+Gryphon and Shepherd remain gated until Dive and mounting/dismounting (including
+D12 blocked death placement) are implemented. Combined full-roster scenarios also
+remain outstanding. Stage 7 remains partial; AI, finished playable UI and deployment
+are later stages. The verbatim original source archive remains a release gate.
+
+Checkpoint verification: `pnpm check` passed type checking and all 1,036 headless
+tests (66 focused flight/detection cases). `pnpm build`, all 54 Chromium tests and
+all nine `tools/run-*.mjs` scenarios passed on the final implementation. The
+schema-25 walls scenario ended at HP 4/11 with fingerprint
+`fnv1a32-v1:fa8704c9`. Historical fixtures were not rewritten. Local tools remain
+Node 24.22.1, pnpm 11.25.0 and Playwright 1.56.1; CI pins Node 24.19.0.

@@ -24,7 +24,7 @@ export function reanimatedProfile(body: Creature, skeletal: boolean): Partial<Cr
   kind: 'reanimated', species: `${body.species} ${skeletal ? 'skeleton' : 'zombie'}`, family: body.family,
   size: body.size, con: body.con, maxHp: body.size * body.con, hp: body.size * body.con,
   move: skeletal ? body.move : halve(body.move), dex: skeletal ? body.dex : halve(body.dex),
-  intelligence: body.intelligence, height: body.height, summonLevel: body.summonLevel,
+  intelligence: body.intelligence, height: body.height, ...(body.flight?{flight:structuredClone(body.flight)}:{}), summonLevel: body.summonLevel,
   attacks, reanimationAttackIds: attacks.map(a => a.id), defences: structuredClone(body.defences),
   undead: true, undeadClass: skeletal ? 'skeleton' : 'zombie', restorationUsed: true,
   attackTraits: {...body.attackTraits,rallySource:false},
