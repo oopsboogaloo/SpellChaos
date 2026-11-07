@@ -39,3 +39,16 @@ Browser regression cases exercise mouse/touch/pen hex targeting, draft submissio
 and pan-mode separation. These synthetic pointer tests do not claim physical-device
 coverage. Full spell/special-action editors, autosave/recovery, timers, event/replay
 controls and full-match acceptance remain outstanding. Stage 9 is still partial.
+
+## Spell drafting checkpoint
+
+The local order panel now exposes only the selected creature's spellbook. It builds
+ordinary Cast orders with level, summon variant, target/ground, ray side and the
+selected Early/Late timing. Wall edges and Tangleweed cells can be appended and
+undone using coordinate inputs. Reanimation lists visible corpses. Mana, casting
+time and current-balance success estimates use shared content functions; validation
+and commitment remain in the worker. Estimates are not guaranteed outcomes.
+Browser coverage checks exported orders for illusion summons, Darkness, Wall and
+Tangleweed, alongside the existing pointer, turn and save workflows.
+Full special-action editing, structure targeting, richer preview/inspection,
+autosave, timers, event/replay controls and full-match acceptance remain pending.
