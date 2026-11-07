@@ -1,7 +1,7 @@
 import {blinkLegal,movementStepCost} from './blink.js';
 import { validateCast, reservedMana, castingLocksMovement } from './casting.js';
 import { castingTime, completionAt } from '../../content/src/spells.js';
-import { active, incapacitated, slowed, subdued, restrained, fearAllowsStep } from './status.js';
+import { active, afterEarlyWake, incapacitated, slowed, subdued, restrained, fearAllowsStep } from './status.js';
 import { validateCombatAction } from './combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
 import { stepLegality, placement, type ArenaGeometry } from '../../geometry/src/occupancy.js';
@@ -20,9 +20,8 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (!stored || stored.controller !== playerId) throw new Error('NOT_CONTROLLED');
   // A known Early expiry permits plans for movement/Late after waking, without
   // granting the sleeping creature an Early action or mutating live conditions.
-  const sleep=stored.conditions.filter(e=>e.kind==='Unconscious'&&e.active);
-  const wakesEarly=sleep.length>0&&sleep.every(e=>e.expiresAfterPhase?.turn===state.turn&&e.expiresAfterPhase.phase==='early');
-  const c=wakesEarly?{...stored,conditions:stored.conditions.filter(e=>!sleep.includes(e))}:stored;
+  const c=afterEarlyWake(stored,state.turn);
+  const wakesEarly=c!==stored;
   if(wakesEarly&&order.early!==null)throw new Error('INELIGIBLE_CREATURE');
   if (!active(c) || c.readyTurn > state.turn) throw new Error('INELIGIBLE_CREATURE');
   const actions = [order.early, order.late].filter(a => a !== null);

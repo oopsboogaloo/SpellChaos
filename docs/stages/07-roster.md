@@ -707,3 +707,14 @@ including 74 Blink/Spores/Wail checks. `pnpm build`, all 43 Chromium tests
 HP 4/11; schema-23 fingerprint is `fnv1a32-v1:d9322096`. Local verification used
 Node 24.22.1, pnpm 11.25.0 and pinned Playwright 1.56.1 Chromium; CI retains the
 repository's pinned Node version.
+
+Pre-merge review follow-up: known Early wake-up now participates in defence
+preparation as well as order validation. Late Defend is registered before Late
+initiative, without an Early defence phase; otherwise the accepted order had no
+hit-roll effect. Regression scenarios show the same seeded attack hitting an
+undefended awakened target and missing with planned Late Defend, with exact
+atomic continuation.
+
+Review-fix verification: 902 headless tests (76 focused checks), type checking,
+production build, all 43 Chromium tests and all nine CLI scenarios pass. The
+schema-23 wall fingerprint remains `fnv1a32-v1:d9322096`.
