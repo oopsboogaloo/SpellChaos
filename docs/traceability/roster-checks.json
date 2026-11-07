@@ -1,6 +1,6 @@
 {
   "stage": 7,
-  "status": "implemented-awaiting-stage-review",
+  "status": "implemented-verified",
   "scope": "40/40 retained MVP profiles implemented across five families; full 56-profile catalogue and deferred Goblin/Dragon content preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
@@ -465,7 +465,11 @@
         "projectiles preserve the explicit %s target at shared interception",
         "forced carrier movement carries the rider and interrupts its paid cast once",
         "D12 kills a rider with an explicit event when every legal landing is blocked",
-        "Giant Puma can Drag a held ground mount together with its rider"
+        "Giant Puma can Drag a held ground mount together with its rider",
+        "emergency %s dismount releases a hold that only reached the shared boundary",
+        "an emergency dismount retains a hold still within real reach of the smaller rider",
+        "%s applies bordering fire, death and thorn wall hazards once per network",
+        "lethal mounting wall damage detaches the rider and releases the seat before returning"
       ]
     },
     {
@@ -483,7 +487,7 @@
     }
   ],
   "pending": [
-    "Stage 7 checkpoint review and final acceptance audit against authoritative source",
+    "Release acceptance audit against the authoritative source",
     "Original verbatim specification archive remains a release gate",
     "Fair AI and unattended matches, complete browser interface, acceptance/performance/soak hardening and deployment belong to later stages"
   ]

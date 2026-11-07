@@ -23,3 +23,12 @@ export function hasRangedCover(s:GameState,attacker:Creature,target:Creature,att
  if(!['projectile','direct'].includes(attack.mode)||target.controller===null)return false;
  return s.creatures.some(source=>source.id!==target.id&&source.controller===target.controller&&source.height===target.height&&!!source.rangedCover&&active(source)&&!(source.kind==='illusion'&&attacker.intelligence===0)&&nearestPair(bodyFootprint(s,source),bodyFootprint(s,target)).distance<=source.rangedCover.range);
 }
+
+/** Recheck only holds affected by a body's displacement or footprint change. */
+export function pruneDisplacedHolds(s:GameState,creatureIds:readonly string[]):void {
+ s.holds=s.holds.filter(h=>{
+  if(!creatureIds.includes(h.grapplerId)&&!creatureIds.includes(h.targetId))return true;
+  const g=s.creatures.find(c=>c.id===h.grapplerId)!,t=s.creatures.find(c=>c.id===h.targetId)!;
+  return active(g)&&t.alive&&physicalContact(s,g,t,Math.max(1,...g.attacks.filter(a=>a.mode==='melee').map(a=>a.range)));
+ });
+}

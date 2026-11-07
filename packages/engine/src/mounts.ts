@@ -1,3 +1,7 @@
+import {traceRay} from '../../geometry/src/ray.js';
+import {crossWallHazards} from './walls.js';
+import {pruneDisplacedHolds} from './ground-traits.js';
+import {cleanupDeaths} from './lifecycle.js';
 import type {Creature,GameState,Order} from '../../domain/src/state.js';
 import {distance,nearestPair,type Hex} from '../../geometry/src/hex.js';
 import {nearestLegal,placement,stepLegality} from '../../geometry/src/occupancy.js';
@@ -5,7 +9,7 @@ import {clearProjectile} from '../../geometry/src/walls.js';
 import {bodyFootprint,bodySize} from './bodies.js';
 import {active,restrained,subdued,fearAllowsStep} from './status.js';
 import {arenaOf} from './orders.js';
-import {castingLocksMovement,invalidateCasts} from './casting.js';
+import {castingLocksMovement,invalidateCasts,concentration} from './casting.js';
 import {addCondition,applyDamage} from './damage.js';
 import {enqueueGuards} from './combat.js';
 import {contactWeed} from './tangleweed.js';
@@ -53,7 +57,15 @@ export function resolveMountAction(s:GameState,rider:Creature,action:Extract<Non
  }
  delete rider.pounceTrail;delete rider.diveTrail;
  if(!s.moved.includes(rider.id))s.moved.push(rider.id);
- contactWeed(s,rider,events);enqueueGuards(s,rider,from,height,size);invalidateCasts(s,events);
+ // Boarding/leaving may shift centres by more than one hex. Trace the rider's
+ // physical body across every adjacent crossing, without expanding it to the
+ // newly shared carrier footprint for wall damage.
+ const path=traceRay(from,rider.centre,'left'),geometry=detached(rider);
+ let damage=0;
+ for(let i=1;i<path.length;i++)damage+=crossWallHazards(s,rider,path[i-1]!,path[i]!,events,geometry);
+ pruneDisplacedHolds(s,[rider.id]);cleanupDeaths(s,events);
+ concentration(s,[{targetId:rider.id,amount:damage}],events);
+ contactWeed(s,rider,events);if(rider.alive)enqueueGuards(s,rider,from,height,size);invalidateCasts(s,events);
 }
 /** The carrier supplies voluntary/forced displacement; the rider retains its own
  * resources and conditions. Call before hazards, death cleanup and reactions. */
@@ -85,5 +97,6 @@ export function cleanupMounts(s:GameState,events:Event[]):boolean {
   if(falling)applyDamage(s,rider,[{type:'physical',amount:5}],events,{actionId:`fall-${s.turn}-${mount.id}`});
   contactWeed(s,rider,events);invalidateCasts(s,events);
  }
+ pruneDisplacedHolds(s,pairs.map(p=>p.rider.id));
  return pairs.length>0;
 }

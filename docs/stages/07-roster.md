@@ -1002,3 +1002,22 @@ across bordering walls, Drag of a ridden mount, and simultaneous carrier deaths:
 the whole rider batch detaches before nearest-placement geometry. Historical
 fixtures were not rewritten. Local tools: Node 24.22.1, pnpm 11.25.0, Playwright
 1.56.1; CI remains pinned to Node 24.19.0.
+
+## PR #14 approval and pre-merge review corrections
+
+The owner approved merging PR #14 on 7 November 2026. Review findings posted
+after the initial verification are corrected before the merge: emergency
+footprint changes and forced carrying revalidate affected grapple reach, height
+and wall contact; valid holds remain intact. Mount/Dismount trace the rider's
+physical centre crossings through hazardous walls, preserve per-network
+bookkeeping, and apply damage/healing, death cleanup and concentration before
+Guard. The carrier does not receive the rider's boarding damage.
+
+Eight added headless regressions cover remote/valid holds after death/control loss,
+forced carriage, boarding/leaving across fire/death/thorns, lethal boarding and
+undead healing. Two additional permanent review fixtures cover a grappled death
+dismount and fire-wall boarding; Node and Chromium compare each resumed boundary.
+Historical fixtures are unchanged. Final local checks: 1,129 headless tests (89
+focused), type checking, production build, 62 Chromium tests and all nine CLI
+scenarios passed. Stage 7 implementation is verified and owner-approved; release
+acceptance and the previously recorded source archival gate remain outstanding.

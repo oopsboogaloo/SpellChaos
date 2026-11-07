@@ -39,7 +39,7 @@ mana, alignment and control now resolve in the same engine. Run
 implemented; Goblin/Dragon remain deferred with their historical content preserved. Reanimate
 now resolves against eligible corpses at levels 1–8; run
 `node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 mechanics are implemented, including all eight Wall materials.
-Stage 7 awaits checkpoint review. Fair AI and the complete playable browser UI
+Stage 7 implements the retained roster and creature abilities. Fair AI and the complete playable browser UI
 are later stages; this is still a development preview.
 Snake Swarm, Greater Snake Swarm and Strangling Grove now support shrinking,
 legal regrowth, coverage restraint and per-enemy attacks. Run

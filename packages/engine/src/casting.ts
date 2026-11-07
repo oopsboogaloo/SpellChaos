@@ -1,6 +1,6 @@
 import {riderOf,moveRider,forcedBody,carryingLocked} from './mounts.js';
 import {bodyFootprint} from './bodies.js';
-import {pruneRootNetworks} from './ground-traits.js';
+import {pruneDisplacedHolds,pruneRootNetworks} from './ground-traits.js';
 import { legalCastWall,wallOriginValid,createWall,structureCells,strikeStructure,damageStructure,crossWallHazards } from './walls.js';
 import { legalWeedLayout,createWeed,contactWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
@@ -225,14 +225,7 @@ export function forceMove(s:GameState,c:Creature,to:Creature['centre'],events:Ev
  const from={...c.centre};if(c.mountId)delete c.mountId;c.centre={...to};const carried=moveRider(s,c,events,true);
  if(distance(from,to)>0){
   if(!s.moved.includes(c.id))s.moved.push(c.id);
-  // Displacement cannot leave a grappling limb holding a body beyond its reach.
-  s.holds=s.holds.filter(h=>{
-   if(h.grapplerId!==c.id&&h.targetId!==c.id)return true;
-   const g=s.creatures.find(x=>x.id===h.grapplerId)!,t=s.creatures.find(x=>x.id===h.targetId)!;
-   const p=nearestPair(bodyFootprint(s,g),bodyFootprint(s,t));
-   const reach=Math.max(1,...g.attacks.filter(a=>a.mode==='melee').map(a=>a.range));
-   return g.height===t.height&&p.distance<=reach&&clearProjectile(p.from,p.to,'left',s.walls);
-  });
+  pruneDisplacedHolds(s,[c.id,...(carried?[carried.id]:[])]);
  }
  emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);if(carried)crossWallHazards(s,carried,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);if(carried)contactWeed(s,carried,events);invalidateCasts(s,events);
 }

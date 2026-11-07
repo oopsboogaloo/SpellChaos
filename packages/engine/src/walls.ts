@@ -35,9 +35,9 @@ export function wallStepCost(s:GameState,c:Creature,from:Hex,to:Hex):number {
  return crossedBy(s,c,from,to).some(w=>w.material==='thorns')?2:1;
 }
 /** Returns damage for the resolver's concentration/death step before Guard. */
-export function crossWallHazards(s:GameState,c:Creature,from:Hex,to:Hex,events:Event[]):number {
+export function crossWallHazards(s:GameState,c:Creature,from:Hex,to:Hex,events:Event[],geometry:Creature=c):number {
  let total=0;
- for(const w of crossedBy(s,c,from,to).sort((a,b)=>a.id<b.id?-1:1)){
+ for(const w of crossedBy(s,geometry,from,to).sort((a,b)=>a.id<b.id?-1:1)){
   if(!['thorns','fire','death'].includes(w.material))continue;
   const networkId=w.networkId??w.id;
   if(s.wallCrossings.some(x=>x.creatureId===c.id&&x.networkId===networkId))continue;

@@ -7,7 +7,7 @@ import {startScenarioTurn} from '../../packages/scenario/src/casting.js';
 import {advanceAtomicStep} from '../../packages/engine/src/resolver.js';
 import {projectView,projectEvents} from '../../packages/views/src/index.js';
 
-for(const name of ['carried-flight','dive-between-strikes','rider-guard','death-dismount','mounted-sling','full-roster']){
+for(const name of ['carried-flight','dive-between-strikes','rider-guard','death-dismount','mounted-sling','full-roster','review-held-dismount','review-hazard-mount']){
  test(`Node and Chromium agree on ${name} at every saved boundary`,async({page})=>{
   const initial=readFileSync(`tests/fixtures/mounts-v26-${name}.json`,'utf8');
   let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);
