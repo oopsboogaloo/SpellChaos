@@ -1,5 +1,8 @@
 # Remote asynchronous play — technology feasibility
 
+> [!WARNING]
+> **FUTURE WORK — DO NOT START.** Owner instruction, 7 November 2026: nothing in this document is to be built yet. The main game must first be complete, playable and playtested (at least through PLAN Stage 9, and after owner playtesting). Remote play then starts only when the owner explicitly says so. Until then this document is a record of decisions, not a work item, and nothing in it changes the priorities of the current stages.
+
 Status: **draft for owner review** · 7 November 2026 · Companion: [REMOTE-PLAY-SPEC.md](REMOTE-PLAY-SPEC.md)
 
 > **Owner decision — 7 November 2026:** a server is required, because asynchronous play needs somewhere to store orders and resolve turns while players are offline. Protection against players who modify the client to cheat is **not a goal**: the game is played for fun among friends. The server still sends each player only their own view, so ordinary play never shows spoilers, but no anti-cheat hardening is built.

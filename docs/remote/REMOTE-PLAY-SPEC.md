@@ -1,5 +1,8 @@
 # Remote asynchronous play — build specification
 
+> [!WARNING]
+> **FUTURE WORK — DO NOT START.** Owner instruction, 7 November 2026: nothing in this document is to be built yet. The main game must first be complete, playable and playtested (at least through PLAN Stage 9, and after owner playtesting). Remote play then starts only when the owner explicitly says so. Until then this document is a record of decisions, not a work item, and nothing in it changes the priorities of the current stages.
+
 Status: **draft v0.2: owner decisions recorded; requirements ready for review** · 7 November 2026
 Basis: [FEASIBILITY.md](FEASIBILITY.md), [SPECIFICATION.md](../SPECIFICATION.md) (authoritative rules), [DESIGN.md](../DESIGN.md)
 
@@ -272,7 +275,7 @@ All decided 7 November 2026.
 
 ## 15. Delivery plan
 
-The remote work depends on the engine prerequisites in §6. It can start in parallel with Stages 8–9, because it uses the engine's API, not the UI.
+**Not scheduled.** See the notice at the top: no step below, including R0, starts until the main game has been playtested and the owner explicitly starts remote play. When it does start, the work depends on the engine prerequisites in §6. The issues those prerequisites link to (#15–#19, #24, #29) are review bugs, to be fixed on their own merits as part of the main build.
 
 | Step | Scope | Exit criteria |
 | --- | --- | --- |
