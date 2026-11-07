@@ -1,6 +1,6 @@
 # Remote asynchronous play — build specification
 
-Status: **draft v0.1 for owner review** · 7 November 2026
+Status: **draft v0.2: owner decisions recorded; requirements ready for review** · 7 November 2026
 Basis: [FEASIBILITY.md](FEASIBILITY.md), [SPECIFICATION.md](../SPECIFICATION.md) (authoritative rules), [DESIGN.md](../DESIGN.md)
 
 Requirement IDs (`REM-nnn`) are stable so that traceability and tests can cite them. "Must" is required for the first release of remote play; "should" is desirable; anything listed as an open decision (§13) needs an owner ruling before it is built.
@@ -64,7 +64,7 @@ A host creates a game and chooses:
 | Seats | 2–8 total | 4 |
 | AI seats | 0 to seats − 2, so at least 2 humans | 0 |
 | AI difficulty | per the Stage 8 levels | Normal |
-| Turn deadline | none, 12 h, 24 h, 48 h, 72 h, 7 days | 48 h |
+| Turn deadline | none, 12 h, 24 h, 48 h, 72 h, 7 days | 24 h (D-R6) |
 | Missed-turn surrender | on (3 consecutive, per the specification) / off | on |
 | Host approval for joiners | on / off | on |
 
@@ -92,10 +92,9 @@ A host creates a game and chooses:
 - Every player can then:
   - see the final state;
   - replay every turn from their own perspective;
-  - optionally, after the game is over, reveal the full authoritative replay.
-
-  The full-replay reveal needs an owner decision (§13 D-R5).
+  - replay every turn with the full authoritative truth (illusions, invisible and hidden units). This is always available once the game is over; it is not a setting (D-R5).
 - The game is deleted 30 days after it finishes (REM-051).
+- **REM-055:** A game that reaches the end of turn 200 without a result ends in a draw (D-R6).
 
 ### 3.5 Leaving
 
@@ -109,7 +108,7 @@ A host creates a game and chooses:
 - **REM-061:** Every request carries the token in an `Authorization` header. The server derives `matchId` and `playerId` from the token and ignores any client-supplied identity.
 - **REM-062:** The host token also permits host actions: approve or reject joiners, regenerate the code, start, remove players in the lobby, and propose cancellation. The host plays like any other seat; there is no admin view of hidden state.
 - **REM-063 (device transfer):** A player can show a *seat link* (URL plus QR code) containing their token, to continue on another device. Opening it stores the token. Both devices stay valid unless the player chooses "sign out other devices", which rotates the token.
-- **REM-064:** A seat whose token is lost cannot be recovered by the server. Whether the host may reissue a seat link needs an owner decision (§13 D-R2).
+- **REM-064:** A seat whose token is lost cannot be recovered by the server itself. The host may issue a replacement seat link mid-game only when every other human seat agrees; issuing it invalidates the old token (D-R2).
 - **REM-065:** Tokens and seat links must never appear in URLs that are logged server-side, or in analytics. Seat links put the token in the URL fragment (`#…`) so it is never sent to the server.
 
 ## 5. Turn flow
@@ -118,7 +117,7 @@ A host creates a game and chooses:
 
 - **REM-070:** At turn start, the server records `planningOpenedAt` and `deadlineAt` (none, or opened-at plus the game's deadline setting), then notifies players (§8).
 - **REM-071:** Drafts are stored on the server, through the engine's `SetOrder` / `ClearOrder`, so a player can continue on another device. Draft contents are visible only to their owner (REM-010).
-- **REM-072:** **Lock is final for the turn.** This follows the specification: "Revise until lock/deadline." There is no unlock; an option to allow unlocking is listed at §13 D-R3.
+- **REM-072:** **Lock is final for the turn.** This follows the specification: "Revise until lock/deadline." There is no unlock (D-R3).
 - **REM-073:** Each player's view shows which players have locked, and how long remains, as "waiting for N players". This is public metadata, not a secret.
 - **REM-074:** AI seats compute and lock their orders at the start of each turn, using only `projectView` for their own seat and the AI RNG stream (DESIGN §7; requires [#24](https://github.com/oopsboogaloo/SpellChaos/issues/24)).
 - **REM-075:** Eliminated players are already locked by the engine and receive views, but they can no longer act.
@@ -180,8 +179,8 @@ All of this lives in the game's own storage; the directory holds only join codes
 ## 8. Notifications
 
 - **REM-140:** While the game page is open, a WebSocket delivers "something changed" pings. The client then re-fetches its view. Pings carry no game data.
-- **REM-141:** Web Push is opt-in per seat, after a user tap. The client registers a **push-only service worker** with no caching (owner decision §13 D-R1). The client explains the iOS Home Screen requirement.
-- **REM-142:** Email is optional and per seat, entered by the player, double-opt-in, and deleted when the game is deleted. Content is limited to a game name, an event and a link; there is no game state.
+- **REM-141:** Web Push is opt-in per seat, after a user tap. The client registers a **push-only service worker** with no caching (D-R1). The client explains the iOS Home Screen requirement.
+- **REM-142:** Email notification is included in the first release (D-R10). It is optional and per seat, entered by the player, double-opt-in, and deleted when the game is deleted. Content is limited to a game name, an event and a link; there is no game state.
 - **REM-143:** Notification triggers:
   - you were admitted, or the game started;
   - a new turn is open;
@@ -241,20 +240,26 @@ Per REM-003, the aim is to avoid **spoilers in ordinary play** and to protect th
 - **REM-183:** Offline and local play against AI is unchanged and works without the server.
 - **REM-184:** Input, accessibility and layout requirements from DESIGN §8 apply to all online screens.
 
-## 13. Open decisions for the owner
+## 13. Owner decisions
 
-| ID | Question | Proposal |
+All decided 7 November 2026.
+
+| ID | Question | Decision |
 | --- | --- | --- |
-| D-R1 | DESIGN says no service worker; Web Push needs one | Allow a push-only service worker with no caching |
-| D-R2 | Can the host reissue a lost player's seat link mid-game? | Yes, but only with the agreement of every other human, and it rotates the old token |
-| D-R3 | Can players unlock a locked turn? | No (follows "revise until lock") |
-| D-R4 | How long must old rules versions keep running for games in progress? | Until the last game on that version ends; 90-day cap, then the game is cancelled |
-| D-R5 | After a game ends, reveal the full replay (illusions, hidden units) to everyone? | Yes, opt-in per game by the host at creation |
-| D-R6 | Default deadline and the maximum game length | 48 h; a hard cap of 200 turns, ending in a draw |
-| D-R7 | Can a player hold several seats in one game? | No; one seat per token, and the host approves joiners |
-| D-R8 | Can AI replace a player who conceded or timed out, so the game keeps its numbers? | No for v1 (surrender rules apply as specified) |
-| D-R9 | Hosting provider | **Decided 7 Nov 2026:** Cloudflare Workers Paid + Durable Objects (FEASIBILITY §4). Self-hosting was considered and declined. |
-| D-R10 | Is email notification wanted at all for v1, or Web Push only? | Web Push only for v1; email in a later increment |
+| D-R1 | DESIGN says no service worker; Web Push needs one | **Allowed:** a push-only service worker with no caching. This amends DESIGN §1 for remote play. |
+| D-R2 | Can the host reissue a lost player's seat link mid-game? | **Yes,** with the agreement of every other human; the old token is invalidated (REM-064) |
+| D-R3 | Can players unlock a locked turn? | **No:** locking in is final for the turn (REM-072) |
+| D-R4 | How long must old rules versions keep running for games in progress? | Until the last game on that version ends, with a 90-day cap; after that the game is cancelled (REM-151) |
+| D-R5 | After a game ends, reveal the full replay (illusions, hidden units) to everyone? | **Yes, always.** It is not a setting (REM-050). |
+| D-R6 | Default deadline and the maximum game length | **24 h default; 200-turn cap ending in a draw** (REM-020, REM-055) |
+| D-R7 | Can a player hold several seats in one game? | **No:** one seat per person (REM-030 – REM-033) |
+| D-R8 | Can AI replace a player who conceded or timed out? | **Not in the first release.** Highly desirable for a later version. |
+| D-R9 | Hosting provider | **Cloudflare Workers Paid + Durable Objects** (FEASIBILITY §4). Self-hosting was considered and declined. |
+| D-R10 | Email notifications in the first release? | **Yes:** email and Web Push (REM-141, REM-142) |
+
+### Later versions
+
+- AI takes over the seat of a player who concedes or times out (D-R8).
 
 ## 14. Verification
 
@@ -271,10 +276,10 @@ The remote work depends on the engine prerequisites in §6. It can start in para
 
 | Step | Scope | Exit criteria |
 | --- | --- | --- |
-| R0 | Owner decisions (§13); engine prerequisites REM-110–119 merged | Issues closed; leak properties pass at engine level |
+| R0 | Engine prerequisites REM-110–119 merged (owner decisions in §13 are complete) | Issues closed; leak properties pass at engine level |
 | R1 | `apps/server` skeleton, `GameStore`/`Scheduler` interfaces, Cloudflare adapter, create/join/lobby, staging deploy | REM-020–054 tests pass on staging |
 | R2 | Commands, last-lock and deadline triggers, chunked resolution, turn records, views and replay endpoints | REM-070–101, 130–132, 190–192 pass |
 | R3 | Client Online area: lobby, game and replay screens against staging | REM-180–184; Playwright 3-player flow passes |
-| R4 | Live pings, Web Push, reminders | REM-140–144 |
+| R4 | Live pings, Web Push, email, reminders | REM-140–144 |
 | R5 | AI seats (needs Stage 8) | REM-074, REM-172 |
 | R6 | Hardening: spoiler checks, rate limits, privacy notice, load test, production deploy | REM-160–175, 193–195; production smoke test |
