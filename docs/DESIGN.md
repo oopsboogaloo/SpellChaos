@@ -20,7 +20,7 @@ MVP is one human versus 1–7 AI wizards, simultaneous planning, on a 30×30 hex
 
 Proposed hosting: static GitHub Pages at /SpellChaos/, deployed through GitHub Actions after release checks. No backend or paid service is required for local AI play. A browser worker owns authoritative simulation; this is local authority for MVP, not a security boundary against the device owner. Future multiplayer moves the same headless engine behind a server; remote clients receive filtered views only.
 
-TypeScript throughout. Proposed stack: pnpm workspace, Vite + React for application and accessible controls, Canvas2D for the board, Vitest for unit/scenario tests, fast-check for generated tests, Playwright for browser tests, Zod for external schemas. Pin versions and lockfile during the approved implementation plan. Native browser IndexedDB stores saves. No service worker in initial design, avoiding stale-code/content mismatches.
+TypeScript throughout. Proposed stack: pnpm workspace, Vite + React for application and accessible controls, Canvas2D for the board, Vitest for unit/scenario tests, fast-check for generated tests, Playwright for browser tests, Zod for external schemas. Pin versions and lockfile during the approved implementation plan. Native browser IndexedDB stores saves. No service worker in initial design, avoiding stale-code/content mismatches. (Amended 7 November 2026, remote-play decision D-R1: a push-only service worker with no caching is allowed, for remote-play notifications.)
 
 ## 2. Module boundaries
 | Module | Responsibility | Must not depend on |
