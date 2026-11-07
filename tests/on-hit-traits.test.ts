@@ -62,7 +62,7 @@ it('Bristles incapacitation stops remaining compound-attack bites without anothe
 it('schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work',async()=>{
  const {readFileSync}=await import('node:fs');const {migrateAttackTraitContent}=await import('../packages/persistence/src/migration.js');
  const text=readFileSync('tests/fixtures/traits-content-v3-guard.json','utf8'),old=JSON.parse(text),next=migrateAttackTraitContent(text);
- expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(18);expect(next.random).toEqual(old.random);expect(next.pendingAttack).toEqual(old.pendingAttack);
+ expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(19);expect(next.random).toEqual(old.random);expect(next.pendingAttack).toEqual(old.pendingAttack);
  expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null,canMarkQuarry:false,quarryTargetId:null,bristles:0,lifeDrain:0})));
  expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
 });

@@ -86,7 +86,7 @@ const spirit = (level:number, extra:Partial<Creature> = {}):Partial<Creature> =>
 const spiritDefences = (physical:Creature['defences'][number]['multiplier'], light:Creature['defences'][number]['multiplier']=1.5) => [defence('physical',physical),defence('poison',0),defence('light',light)];
 add('Spirit',1,'Wisp',[1,2,4,7,3],[shot('Spark',3,1,3,'magic')],spirit(1,{height:'air',defences:spiritDefences(.5)}),[flying(),ability('haunt',{range:2,duration:'phase'})]);
 const chill=melee('Touch',4,2,'magic');chill.shots[0]!.secondary.push({kind:'Slowed',potency:2,resistance:'int',duration:1,requiresDamage:true});
-add('Spirit',2,'Haunting shade',[2,3,4,6,4],[chill],spirit(2,{defences:spiritDefences(.25)}),[ability('pass-creatures')]);
+add('Spirit',2,'Haunting shade',[2,3,4,6,4],[chill],spirit(2,{passCreatures:true,defences:spiritDefences(.25)}),[ability('pass-creatures')]);
 add('Spirit',3,'Ghost',[2,4,4,6,5],[melee('Touch',5,3,'magic')],spirit(3,{incorporeal:true,defences:spiritDefences(0)}),[ability('frighten',{range:1,potency:4,duration:2})]);
 const wither=melee('Touch',6,4,'magic');wither.shots[0]!.secondary.push({kind:'Subdued',potency:4,resistance:'int',duration:1,requiresDamage:true});
 add('Spirit',4,'Spectre',[2,5,5,7,5],[wither],spirit(4,{incorporeal:true,defences:spiritDefences(0)}));

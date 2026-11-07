@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 23 implemented in scope including Treant; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 24 implemented in scope including Haunting Shade; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty-six implemented including three deferred profiles; twenty-three in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty-seven implemented including three deferred profiles; twenty-four in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -223,6 +223,19 @@
         "regeneration revives damage incapacitation, caps health and never restores dead Treants",
         "intelligent Treants take illusion damage that reverses for survivors"
       ]
+    },
+    {
+      "id": "ROSTER-020",
+      "requirement": "Haunting Shade creature passage, legal endpoints, walls, Guard, Chill and portable transit",
+      "testFile": "tests/haunting-shade.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Shade crosses %s bodies with exact per-step restoration",
+        "interruption while passing through a body returns to the last legal resting hex",
+        "damaging Chill uses Int resistance and reversible illusion provenance (%s)",
+        "permanent mid-transit fixture restores overlap and continues to a legal endpoint"
+      ]
     }
   ],
   "pending": [
@@ -230,7 +243,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 17 MVP profiles only after their complete engine tests",
+    "Enable remaining 16 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

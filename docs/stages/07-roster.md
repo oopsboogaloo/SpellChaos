@@ -414,3 +414,27 @@ and recovery in the headless engine and Chromium.
 Verification: 652 headless tests, type checking, production build, 28 Chromium
 tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-18
 fingerprint is `fnv1a32-v1:f4f692e8`.
+
+## Haunting Shade
+
+Haunting Shade (Spirit 2) is enabled, bringing the current MVP to 24 of 40
+implemented profiles, with 16 left. Its explicit `passCreatures` capability permits
+transit through allies, enemies and uncontrolled bodies without granting wall
+passage. It must finish in a legal unoccupied footprint. Creature blocking is
+rechecked during resolution; interrupted transit returns to the last legal resting
+hex. Voluntary movement still triggers Guard. Illusions copy this movement trait.
+
+Chill retains its approved damaging-hit requirement, Int resistance at potency 2
+and one-turn Slowed duration. Tests verify reversible illusion provenance, zero
+magic damage preventing Chill, major physical resistance and light vulnerability.
+
+Schema 19 / rules `roster-0.8` / content `haunting-shade-0.1` stores passage as an
+optional explicit capability. Frozen schema-18 validators and
+`migrateTreantSnapshot` preserve historical creatures without inferring new powers.
+The permanent mid-transit fixture preserves temporary overlap, the movement cursor
+and the last legal resting position, then resumes identically to a legal endpoint.
+
+Verification: 669 headless tests, type checking, production build, 29 Chromium
+tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-19
+fingerprint is `fnv1a32-v1:27175c58`. The browser run was resumed successfully
+on 7 November after an automatic approval-review usage limit interrupted it.

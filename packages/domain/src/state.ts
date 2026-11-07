@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 18, rules: 'roster-0.7', content: 'treant-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 19, rules: 'roster-0.8', content: 'haunting-shade-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -31,7 +31,7 @@ export const creatureSchema = z.strictObject({
   intelligence: uint, dex: uint, move: uint.max(100), mana: uint.max(100),
   alive: z.boolean(), incapacitated: z.boolean(), restrained: z.boolean(), slowed: z.boolean(), subdued: z.boolean(),
   doubleAction: z.boolean(), readyTurn: uint.min(1),
-  swarm: z.boolean(), originalSize: z.number().int().min(1).max(10), incorporeal: z.boolean(), nimble: z.boolean(),
+  swarm: z.boolean(), originalSize: z.number().int().min(1).max(10), incorporeal: z.boolean(), passCreatures:z.boolean().optional(), nimble: z.boolean(),
   species:z.string(), family:z.enum(summonFamilies).nullable(), summonLevel:z.number().int().min(1).max(8), bindingLevel:z.number().int().min(1).max(8).nullable(), familiar:z.boolean(), createdSequence:uint,
   maxMana:uint.max(100), manaRegen:uint.max(5), spellLevelCap:z.number().int().min(0).max(8), spellbook:z.array(spellSchema),
   con: uint.min(1), hp: z.number().int().min(-1000000).max(1000000), maxHp: uint.min(1),

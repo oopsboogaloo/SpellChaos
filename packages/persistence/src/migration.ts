@@ -1,3 +1,4 @@
+import {stateSchema as treantSchema} from '../../domain/src/legacy-v18.js';
 import {stateSchema as fiveFamilySchema} from '../../domain/src/legacy-v17.js';
 import {stateSchema as ballistaSchema} from '../../domain/src/legacy-v16.js';
 import {stateSchema as siegeSchema} from '../../domain/src/legacy-v15.js';
@@ -167,5 +168,11 @@ export function migrateBallistaSnapshot(text:string):GameState {
 /** Preserve historical profile data when enabling Treant for new summons. */
 export function migrateFiveFamilySnapshot(text:string):GameState {
  const old=fiveFamilySchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Do not infer creature-passage capability for historical profiles. */
+export function migrateTreantSnapshot(text:string):GameState {
+ const old=treantSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

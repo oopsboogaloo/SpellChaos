@@ -5,7 +5,7 @@ import { blocksMovement, edge, edgeKey, solid, straddles, type Wall } from './wa
 export interface Occupant {
   id: string; centre: Hex; size: number; controller: string | null;
   height: 'ground' | 'air'; intelligence: number;
-  swarm?: boolean; incorporeal?: boolean; illusion?: boolean; nimble?: boolean;
+  swarm?: boolean; passCreatures?: boolean | undefined; incorporeal?: boolean; illusion?: boolean; nimble?: boolean;
   mountId?: string;
 }
 export interface ArenaGeometry { board: Board; creatures: Occupant[]; walls: Wall[] }
@@ -47,7 +47,7 @@ export function placement(arena: ArenaGeometry, mover: Occupant, centre: Hex, tr
   for (const other of arena.creatures) {
     if (physicalBody(other, arena.creatures).id === body.id || body.swarm || other.swarm ||
         (other.illusion && body.intelligence === 0)) continue;
-    if (transit && (body.height === 'air' || body.incorporeal ||
+    if (transit && (body.height === 'air' || body.incorporeal || body.passCreatures ||
       (body.nimble && body.controller !== null && body.controller === other.controller))) continue;
     if (overlap(cells, occupiedFootprint(other, arena.creatures))) return { legal: false, reason: 'CREATURE' };
   }
