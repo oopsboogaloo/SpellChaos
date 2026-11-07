@@ -14,6 +14,7 @@ Browser wizard combat, built through a reviewed specification and staged plan.
 - [Casting, mana and control](docs/stages/05-casting.md)
 - [Roster implementation and checkpoint evidence](docs/stages/07-roster.md)
 - [Stage 1–7 code and design review](docs/reviews/2026-11-07-stage-1-7-review.md)
+- [Remote play: feasibility](docs/remote/FEASIBILITY.md) and [draft build specification](docs/remote/REMOTE-PLAY-SPEC.md)
 
 ## Development
 
