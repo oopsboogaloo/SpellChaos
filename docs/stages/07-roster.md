@@ -886,3 +886,12 @@ all nine `tools/run-*.mjs` scenarios passed on the final implementation. The
 schema-25 walls scenario ended at HP 4/11 with fingerprint
 `fnv1a32-v1:fa8704c9`. Historical fixtures were not rewritten. Local tools remain
 Node 24.22.1, pnpm 11.25.0 and Playwright 1.56.1; CI pins Node 24.19.0.
+
+PR #13 pre-merge review corrections: D17 contact now verifies terrain with bodies
+excluded before revealing an invisible blocker, so a newly constructed wall
+cannot leak presence. Named Ballista shots recheck visibility at ray commitment;
+empty-ground interception and already committed victims retain their semantics.
+Four regressions cover both failures and preserved projectile behavior. Local
+verification: 1,040 headless tests, type checking, build, 54 Chromium tests and
+all nine CLI scenarios passed. PR #12 merged with owner approval at
+`34cf33a137a07edf76ff50dc617198a4fcfbcd46`; PR #13 was retargeted to main.

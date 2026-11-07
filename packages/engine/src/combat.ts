@@ -126,7 +126,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
    if(p.action.structure&&!structureCells(s,p.action.structure).length){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
    const selected=s.creatures.find(c=>c.id===p.action.targetIds[0]);
    const aim=p.action.structure?nearestPair(footprint(a.centre,a.size),structureCells(s,p.action.structure)).to:p.action.ground??(selected?pair(a,selected).to:null);
-   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(footprint(a.centre,a.size),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&inReach(s,a,selected,attack,p.action.side);
+   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(footprint(a.centre,a.size),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&!!a.controller&&visibleTo(s,selected,a.controller)&&inReach(s,a,selected,attack,p.action.side);
    if(!aim||!valid){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
    const trace=tracePenetratingProjectile(arenaOf(s),a,aim,selected?.height??'ground',p.action.side,attack.range,selected?.id);
    p.areaVictims=trace.hits;
