@@ -218,5 +218,17 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
 export function forceMove(s:GameState,c:Creature,to:Creature['centre'],events:Event[]):void {
  if(!placement(arenaOf(s),c,to).legal||(distance(c.centre,to)===1&&!stepLegality(arenaOf(s),c,c.centre,to,false).legal))throw new Error('INVALID_FORCED_DESTINATION');
  if(distance(c.centre,to)>0)delete c.pounceTrail;
- const from={...c.centre};c.centre={...to};if(distance(from,to)>0&&!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);invalidateCasts(s,events);
+ const from={...c.centre};c.centre={...to};
+ if(distance(from,to)>0){
+  if(!s.moved.includes(c.id))s.moved.push(c.id);
+  // Displacement cannot leave a grappling limb holding a body beyond its reach.
+  s.holds=s.holds.filter(h=>{
+   if(h.grapplerId!==c.id&&h.targetId!==c.id)return true;
+   const g=s.creatures.find(x=>x.id===h.grapplerId)!,t=s.creatures.find(x=>x.id===h.targetId)!;
+   const p=nearestPair(footprint(g.centre,g.size),footprint(t.centre,t.size));
+   const reach=Math.max(1,...g.attacks.filter(a=>a.mode==='melee').map(a=>a.range));
+   return g.height===t.height&&p.distance<=reach&&clearProjectile(p.from,p.to,'left',s.walls);
+  });
+ }
+ emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);invalidateCasts(s,events);
 }

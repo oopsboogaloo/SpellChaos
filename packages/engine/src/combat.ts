@@ -2,12 +2,13 @@ import { attackTraitModifiers } from './attack-traits.js';
 import { structureReach,structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
-import { concentration } from './casting.js';
+import { isLethal } from './illusions.js';
+import { concentration,forceMove } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
 import type { AttackAction, AttackDefinition } from '../../domain/src/combat.js';
-import { footprint, nearestPair, disk, equal, oppositeSectors, inside } from '../../geometry/src/hex.js';
-import { affectedCreatures, traceProjectile, tracePenetratingProjectile } from '../../geometry/src/occupancy.js';
+import { footprint, nearestPair, disk, equal, oppositeSectors, inside, add, DIRECTIONS, sector } from '../../geometry/src/hex.js';
+import { stepLegality, affectedCreatures, traceProjectile, tracePenetratingProjectile } from '../../geometry/src/occupancy.js';
 import { clearSight, clearProjectile } from '../../geometry/src/walls.js';
 import { arenaOf } from './orders.js';
 import { active, has } from './status.js';
@@ -196,6 +197,11 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(effect.requiresDamage&&!damage)continue;
   const resistance=effect.resistance==='con'?target.con:effect.resistance==='physical'?2*target.size:target.intelligence;
   if(roll(s,effectChance(effect.potency,resistance)))addCondition(s,target,effect.kind,a.id,effect.potency,effect.duration,effect.resistance);
+ }
+ if(damage>0&&a.shove?.attackId===attack.id&&target.size<a.size&&!isLethal(target)){
+  const to=add(target.centre,DIRECTIONS[equal(a.centre,target.centre)?0:sector(a.centre,target.centre)]!);
+  if(stepLegality(arenaOf(s),target,target.centre,to,false).legal)forceMove(s,target,to,events);
+  else emit(s,events,{type:'ShoveBlocked',creatureId:a.id,targetId:target.id});
  }
  cleanupDeaths(s,events);return false;
 }

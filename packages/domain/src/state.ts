@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 20, rules: 'roster-0.9', content: 'cougar-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 21, rules: 'roster-0.10', content: 'walking-tree-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -41,6 +41,7 @@ export const creatureSchema = z.strictObject({
   attackTraits:z.strictObject({aim:z.boolean(),brace:z.boolean(),ambush:z.boolean(),closeDisadvantageBelow:uint,receivesRally:z.boolean(),rallySource:z.boolean()}),
   reload:z.strictObject({loaded:z.boolean(),lastFiredTurn:uint.min(1).nullable(),lastReloadTurn:uint.min(1).nullable()}).nullable(),
   canMarkQuarry:z.boolean(),quarryTargetId:id.nullable(),
+  shove:z.strictObject({attackId:id}).optional(),
   pounce:z.strictObject({attackId:id,steps:uint.min(1).max(1000),damage:uint.min(1).max(1000000)}).optional(),
   pounceTrail:z.array(hexSchema).min(2).max(1001).optional(),
   bristles:uint.max(1000000),lifeDrain:uint.max(1000000),
@@ -86,6 +87,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if (!unique(players) || players.includes('$system')) invalid('INVALID_PLAYERS');
   if (!unique(creatures)) invalid('DUPLICATE_CREATURE');
   for(const c of state.creatures){
+    if(c.shove&&!c.attacks.some(a=>a.id===c.shove!.attackId&&a.mode==='melee'))invalid('INVALID_SHOVE_ATTACK');
     if(c.pounce&&!c.attacks.some(a=>a.id===c.pounce!.attackId&&a.mode==='melee'))invalid('INVALID_POUNCE_ATTACK');
     if(c.pounceTrail){
       const trail=c.pounceTrail;

@@ -146,7 +146,7 @@ describe('reanimation persistence and permitted views',()=>{
  it('explicitly migrates the frozen v4 fixture without altering RNG or corpse data',()=>{
   const text=readFileSync('tests/fixtures/casting-v4.json','utf8').trim();const old=legacySchema.parse(JSON.parse(text));
   expect(canonical(old)).toBe(text);expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(20);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
+  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(21);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
   expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   expect(()=>migrateCastingSnapshot(encodeSnapshot(s))).toThrow();
  });
