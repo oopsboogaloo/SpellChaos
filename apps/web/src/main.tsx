@@ -1,3 +1,4 @@
+import {Game} from './Game.js';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createMatch, applyCommand } from '../../../packages/engine/src/index.js';
@@ -10,6 +11,8 @@ import { GeometryPreview } from './GeometryPreview.js';
 function App() {
   const [state, setState] = useState(() => createMatch('demo', ['human', 'ai'], 1));
   return <main>
+    <Game />
+
     <p className="eyebrow">DEVELOPMENT BUILD · FOUNDATION</p>
     <h1>Spell Chaos</h1>
     <p>The first engine foundation is running in your browser. The game is under construction.</p>
