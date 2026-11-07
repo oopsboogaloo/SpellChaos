@@ -10,5 +10,5 @@
     {"id":"AI-005","requirement":"Fresh-instance continuation, ordinary command replay, corruption rejection and explicit schema-26 migration","testFile":"tests/ai.test.ts","browserTestFile":"tests/browser/ai.spec.ts","testNames":["recorded ordinary commands and AI-stream transitions reproduce a complete match without rerunning policy","fresh session restoration at every planning and engine boundary preserves continuation","permanent %s session resumes deterministically in a fresh coordinator","schema-26 %s migration preserves committed work without autonomous replanning","malformed policy sessions and corrupted outcomes are rejected transactionally"]},
     {"id":"AI-006","requirement":"Reproducible tournament smoke with wins/draws/timeouts/failures separated","tool":"tools/run-ai.mjs","report":"docs/reports/stage-08-smoke.json","result":{"wins":8,"draws":0,"timeouts":2,"failures":0}}
   ],
-  "remaining": ["Stage 8 review","Stage 9 complete responsive playable interface","Stage 10 acceptance, visual, browser-matrix, performance and soak hardening","Original verbatim source archive release gate"]
+  "remaining": ["Stage 8 review","Stage 9 complete responsive playable interface","Stage 10 acceptance, visual, browser-matrix, performance and soak hardening"]
 }
