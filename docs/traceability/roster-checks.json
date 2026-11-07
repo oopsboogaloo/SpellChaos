@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 32 implemented in scope including Fey Leopard, Walking Mushroom and Banshee; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 35 implemented in scope including Giant Puma, World Serpent and Walking Forest; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Thirty-five implemented including three deferred profiles; thirty-two in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Thirty-eight implemented including three deferred profiles; thirty-five in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -354,6 +354,48 @@
         "wizard death collapses Spirit servants, preserves ordinary unbinding, and cannot cancel an emitted real Wail",
         "dispel between Wail victims restores the first survivor and stops remaining damage"
       ]
+    },
+    {
+      "id": "ROSTER-029",
+      "requirement": "Giant Puma Pounce, grapple and conditional Drag; joint footprint legality, half movement, interruption, Guard, casting and portable pair movement",
+      "testFile": "tests/ground-specialists.test.ts",
+      "browserTestFile": "tests/browser/ground-specialists.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Giant Puma Pounce adds two to its approved Bite after three approach steps",
+        "Drag translates both footprints atomically in direction %i",
+        "planned Early Grapple makes Drag conditional without granting a hold (%i)",
+        "Drag triggers Guard for the Puma but never for its forcibly moved victim",
+        "Drag interrupts the victim cast without refunding the spent mana"
+      ]
+    },
+    {
+      "id": "ROSTER-030",
+      "requirement": "World Serpent alternative all-team Sweep, area physical defence, Guard, active-wielder interruption and simultaneous held-target Constriction",
+      "testFile": "tests/ground-specialists.test.ts",
+      "browserTestFile": "tests/browser/ground-specialists.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Tail Sweep hits every adjacent ally and enemy once with exact continuation",
+        "Sweep applies area physical rules to a swarm, while Branches remain discrete attacks",
+        "Bristles incapacitation stops the remaining physical Sweep victims",
+        "Constriction uses the simultaneous snapshot even if Bleeding incapacitates its source",
+        "Constriction respects physical defence and reversible illusion damage"
+      ]
+    },
+    {
+      "id": "ROSTER-031",
+      "requirement": "Walking Forest enemy-only Branches, physical Root Network links and Escape, passive ranged cover, illusion/Int0 semantics, private data and versioned continuation",
+      "testFile": "tests/ground-specialists.test.ts",
+      "browserTestFile": "tests/browser/ground-specialists.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Walking Forest Branches hit only adjacent enemies and allow no substitute ally targets",
+        "Root Network applies physical-eight linked restraint without damage or a timer",
+        "root links expire on separation, obstruction or source incapacitation",
+        "ranged cover changes production hit rolls and restores every boundary (%s)",
+        "creation-turn passive cover is immediate and illusory cover ignores Int0 attackers"
+      ]
     }
   ],
   "pending": [
@@ -361,7 +403,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 8 MVP profiles only after their complete engine tests",
+    "Enable remaining 5 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

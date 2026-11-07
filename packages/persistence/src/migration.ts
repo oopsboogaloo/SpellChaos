@@ -1,3 +1,4 @@
+import {stateSchema as blinkSporesWailSchema} from '../../domain/src/legacy-v23.js';
 import {stateSchema as conditionActionsSchema} from '../../domain/src/legacy-v22.js';
 import {stateSchema as walkingTreeSchema} from '../../domain/src/legacy-v21.js';
 import {stateSchema as cougarSchema} from '../../domain/src/legacy-v20.js';
@@ -202,5 +203,11 @@ export function migrateWalkingTreeSnapshot(text:string):GameState {
 /** Preserve committed condition actions without inferring Blink, Spores, Wail or phase expiry. */
 export function migrateConditionActionsSnapshot(text:string):GameState {
  const old=conditionActionsSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve committed Blink/Sleep/Wail without inferring ground-specialist powers or root links. */
+export function migrateBlinkSporesWailSnapshot(text:string):GameState {
+ const old=blinkSporesWailSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

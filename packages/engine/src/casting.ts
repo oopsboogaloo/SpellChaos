@@ -1,3 +1,4 @@
+import {pruneRootNetworks} from './ground-traits.js';
 import { legalCastWall,wallOriginValid,createWall,structureCells,strikeStructure,damageStructure,crossWallHazards } from './walls.js';
 import { legalWeedLayout,createWeed,contactWeed,damageWeed } from './tangleweed.js';
 import { sight,darkRay,visibleTo } from './visibility.js';
@@ -196,7 +197,7 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
   emit(s,events,{type:'CreatureReanimated',creatureId:servant.id,targetId:a.targetId!});contactWeed(s,servant,events);
  }else if(['Magic Bolt','Fire Bolt','Magic Attack'].includes(a.spell))spellDamage(s,c,origin,a,events,cast.id);
  else if(a.spell==='Healing Bolt')heal(s,s.creatures.find(t=>t.id===a.targetId)!,a.level+3,events,'ordinary',c.id);
- else if(a.spell==='Teleport'){delete c.pounceTrail;const from={...c.centre};c.centre={...a.ground!};if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});contactWeed(s,c,events);}
+ else if(a.spell==='Teleport'){delete c.pounceTrail;const from={...c.centre};c.centre={...a.ground!};pruneRootNetworks(s);if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});contactWeed(s,c,events);}
  else if(a.spell==='Bind'||a.spell==='Release'){
   const target=s.creatures.find(t=>t.id===a.targetId)!;
   if(roll(s,effectChance(a.level,target.intelligence))){

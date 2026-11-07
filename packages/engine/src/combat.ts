@@ -1,3 +1,4 @@
+import {hasRangedCover} from './ground-traits.js';
 import {validatePowerAction,beginPower} from './powers.js';
 import { attackTraitModifiers } from './attack-traits.js';
 import { structureReach,structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
@@ -21,9 +22,9 @@ import { buildQueue } from './queue.js';
 type CombatAction = Exclude<Order['early'],string|null|{type:'Cast'}>;
 const pair=(a:Creature,b:Creature)=>nearestPair(footprint(a.centre,a.size),footprint(b.centre,b.size));
 const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.controller!==b.controller);
-const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm';
+const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm'||attack.mode==='cleave';
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
- if(a.type==='Roar'||a.type==='Frighten'||a.type==='Gaze'||a.type==='Spores'||a.type==='Wail'){validatePowerAction(s,c,a);return;}
+ if(a.type==='Roar'||a.type==='Frighten'||a.type==='Gaze'||a.type==='Spores'||a.type==='Wail'||a.type==='RootNetwork'){validatePowerAction(s,c,a);return;}
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
  const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
  if(targetIds.some(id=>{const t=s.creatures.find(c=>c.id===id);return t&&!visibleTo(s,t,c.controller!);}))throw new Error('UNKNOWN_TARGET');
@@ -89,7 +90,7 @@ export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefi
  const threatened=!melee(attack) && s.creatures.some(x=>enemies(a,x)&&active(x)&&x.height===a.height&&pair(a,x).distance===1);
  const defended=s.defending.some(d=>d.creatureId===b.id && (s.phase==='movement' ? false : d.phases.includes(s.phase as 'early'|'late')));
  const p=pair(a,b),obscured=!a.ignoresDarknessDisadvantage&&(a.darknessSightRange===0||p.distance>a.darknessSightRange)&&darkRay(s,p.from,p.to,side);
- return [advantage,defended||threatened||has(a,'Fear')||obscured];
+ return [advantage,defended||threatened||has(a,'Fear')||obscured||hasRangedCover(s,a,b,attack)];
 }
 /** Guard follows the triggering creature until commitment, then locks an area
  * impact to its nearest occupied hex. The pending action serialises that point. */
@@ -141,11 +142,11 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   if(result.kind==='invalid'){emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
   if(result.kind==='terrain')return false;
   target=s.creatures.find(c=>c.id===result.id);
- }else if(attack.mode==='swarm'&&p.source==='action'){
-  if(p.areaVictims===null)p.areaVictims=s.creatures.filter(c=>enemies(a,c)&&inReach(s,a,c,attack,p.action.side)).map(c=>c.id).sort();
+ }else if(attack.mode==='cleave'||(attack.mode==='swarm'&&p.source==='action')){
+  if(p.areaVictims===null)p.areaVictims=s.creatures.filter(c=>c.id!==a.id&&(attack.targetTeams==='all'||enemies(a,c))&&inReach(s,a,c,attack,p.action.side)).map(c=>c.id).sort();
   if(p.victimIndex>=p.areaVictims.length){p.shotIndex++;p.victimIndex=0;p.areaVictims=null;return false;}
   const id=p.areaVictims[p.victimIndex++];target=s.creatures.find(c=>c.id===id);
-  if(target&&(!enemies(a,target)||!inReach(s,a,target,attack,p.action.side)))target=undefined;
+  if(target&&((attack.targetTeams!=='all'&&!enemies(a,target))||!inReach(s,a,target,attack,p.action.side)))target=undefined;
  }else if(attack.mode==='area'){
   const ground=p.action.ground!;const origin=nearestPair(footprint(a.centre,a.size),[ground]);
   if(origin.distance<attack.minRange||origin.distance>attack.range||!clearProjectile(origin.from,ground,p.action.side,s.walls,true)){
@@ -182,7 +183,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
  const pounce=pounceDamage(a,target,attack.id,p.source);
- const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:(penetrationSecond?Math.ceil(component.amount/2):component.amount)+(index===0?modifiers.damage+pounce:0)})),events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
+ const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:(penetrationSecond?Math.ceil(component.amount/2):component.amount)+(index===0?modifiers.damage+pounce:0)})),events,{area:area||attack.areaDamage===true,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});
@@ -215,7 +216,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
- if(action.type==='Roar'||action.type==='Frighten'||action.type==='Gaze'||action.type==='Spores'||action.type==='Wail'){beginPower(s,c,action,events);return;}
+ if(action.type==='Roar'||action.type==='Frighten'||action.type==='Gaze'||action.type==='Spores'||action.type==='Wail'||action.type==='RootNetwork'){beginPower(s,c,action,events);return;}
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
  if(action.type==='Reload'){
   if(!c.reload||c.reload.loaded||c.reload.lastFiredTurn===s.turn){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}

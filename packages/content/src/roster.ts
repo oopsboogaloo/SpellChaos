@@ -50,7 +50,7 @@ tiger.shots[0]!.secondary.push({kind:'Bleeding',potency:4,resistance:'con',durat
 add('Cat',4,'Sabre-toothed tiger',[3,6,4,5,2],[tiger],{defences:[defence('cold',.5)]});
 add('Cat',5,'Fey leopard',[2,5,6,9,6],[melee('Claws',7,4,'magic')],{blink:{range:3},defences:[defence('magic',.5),defence('physical',1.5)]},[ability('blink',{range:3,usesPerTurn:1})]);
 add('Cat',6,'Gryphon',[4,6,6,6,4],[multi(melee('Beak',7,4),melee('Claws',6,3))],{height:'air',defences:[defence('cold',.5)]},[flying(),ability('mount'),ability('dive',{steps:3,damage:2,shotIndex:0})]);
-add('Cat',7,'Giant puma',[5,6,5,6,3],[melee('Bite',8,8)],{grappleLimbs:1},[pounce(),ability('drag',{moveMultiplier:.5})]);
+add('Cat',7,'Giant puma',[5,6,5,6,3],[melee('Bite',8,8)],{grappleLimbs:1,drag:{moveDivisor:2},pounce:{attackId:'basic',steps:3,damage:2}},[pounce(),ability('drag',{moveMultiplier:.5})]);
 add('Cat',8,'Bobby the Master Hunter',[2,7,7,10,8],[melee('Claws',9,5,'magic',20)],{defences:[defence('magic',.5),defence('poison',.5)],doubleAction:true,ignoresDarknessDisadvantage:true},[ability('see-invisible',{range:6})]);
 
 add('Serpent',1,'Snake familiar',[1,3,3,6,2],[poison(melee('Bite',4,1),2)],{familiar:true,defences:[defence('poison',.5),defence('cold',1.5)]});
@@ -60,7 +60,7 @@ add('Serpent',5,'Basilisk',[3,6,3,4,3],[melee('Bite',6,4)],{gaze:{range:4,potenc
 const spit = shot('Spit',7,3,5,'poison');spit.id='spit';
 add('Serpent',6,'Amphiptere',[3,5,7,8,4],[poison(melee('Bite',7,4),6),spit],{height:'air',reanimationAttackIds:['basic'],defences:[defence('poison',.5),defence('lightning',.5),defence('cold',1.5)]},[flying()]);
 add('Serpent',7,'Hydra',[5,7,3,4,3],[repeat(melee('Bites',7,3))],{regeneration:3,defences:[defence('poison',.5),defence('fire',1.5),defence('acid',1.5)]});
-add('Serpent',8,'The World Serpent',[8,8,3,4,8],[melee('Bite',9,10)],{grappleLimbs:1,defences:[defence('poison',0),defence('cold',.5),defence('light',1.5)]},[ability('tail-sweep',{skill:8,damage:5,targets:'all-adjacent'}),ability('constriction',{damage:4,type:'physical'})]);
+add('Serpent',8,'The World Serpent',[8,8,3,4,8],[melee('Bite',9,10),{...melee('Tail Sweep',8,5),id:'tail-sweep',mode:'cleave',minRange:1,targetTeams:'all',areaDamage:true}],{grappleLimbs:1,constriction:{damage:4},reanimationAttackIds:['basic'],defences:[defence('poison',0),defence('cold',.5),defence('light',1.5)]},[ability('tail-sweep',{skill:8,damage:5,targets:'all-adjacent'}),ability('constriction',{damage:4,type:'physical'})]);
 
 add('Goblin',1,'Goblin scout',[1,3,4,6,3],[shot('Sling',4,1,5)],{packTactics:true,darknessSightRange:3},[ability('small-objects')]);
 add('Goblin',2,'Goblin archer',[1,4,4,5,3],[shot('Bow',5,2,7)],{packTactics:true},[ability('scramble',{extraCost:1})]);
@@ -103,7 +103,7 @@ add('Plant',4,'Walking tree',[3,6,2,2,0],[melee('Branch',5,4,'physical',5,2)],pl
 add('Plant',5,'Treant',[4,7,3,3,6],[melee('Branch',7,6,'physical',5,2)],plant({flammable:true,regeneration:2,defences:[defence('physical',.5),defence('cold',.5),defence('fire',1.5)]}),[ability('objects'),ability('wood-weapon')]);
 rows.push({profile:swarmProfile('Summon Plant',6)!,abilities:[]});
 add('Plant',7,'Ancient treant',[5,8,2,3,8],[melee('Branch',8,8,'physical',5,2)],plant({...caster(35,4,['Tangleweed','Healing Bolt']),flammable:true,regeneration:3,defences:[defence('physical',.25),defence('cold',.5),defence('fire',2)]}));
-add('Plant',8,'The Walking Forest',[8,7,1,2,8],[melee('Branches',8,6)],plant({flammable:true,defences:[defence('physical',.25),defence('cold',.5),defence('fire',2)]}),[ability('adjacent-enemies-attack'),ability('root-network',{potency:8,targets:'smaller-adjacent-enemies',resistance:'physical'}),ability('ranged-cover',{range:2,stacks:false})]);
+add('Plant',8,'The Walking Forest',[8,7,1,2,8],[{...melee('Branches',8,6),mode:'cleave',minRange:1,targetTeams:'enemies'}],plant({rootNetwork:{range:1,potency:8},rangedCover:{range:2},flammable:true,defences:[defence('physical',.25),defence('cold',.5),defence('fire',2)]}),[ability('adjacent-enemies-attack'),ability('root-network',{potency:8,targets:'smaller-adjacent-enemies',resistance:'physical'}),ability('ranged-cover',{range:2,stacks:false})]);
 
 add('Archer',1,'Shepherd',[2,3,4,5,4],[shot('Sling',4,1,5)],{},[ability('objects'),ability('rider'),ability('unlimited-ammunition')]);
 add('Archer',2,'Bowman',[2,4,4,5,4],[shot('Bow',5,2,7)],{},[ability('aim',{skill:2})]);

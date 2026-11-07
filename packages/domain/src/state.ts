@@ -5,13 +5,13 @@ import { z } from 'zod';
 import { powerActionSchema, validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 23, rules: 'roster-0.12', content: 'blink-spores-wail-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 24, rules: 'roster-0.13', content: 'ground-specialists-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
 export const hexSchema = z.strictObject({ q: z.number().int().min(-100000).max(100000), r: z.number().int().min(-100000).max(100000) });
 export const actionSchema = z.union([z.enum(['Defend', 'TotalDefence', 'Dash', 'Escape']), combatActionSchema, castActionSchema]);
-export const orderSchema = z.strictObject({ creatureId: id, path: z.array(hexSchema).max(1000), early: actionSchema.nullable(), late: actionSchema.nullable(), blinkIndex:uint.optional() });
+export const orderSchema = z.strictObject({ creatureId: id, path: z.array(hexSchema).max(1000), early: actionSchema.nullable(), late: actionSchema.nullable(), blinkIndex:uint.optional(),dragTargetId:id.optional() });
 export type Order = z.infer<typeof orderSchema>;
 const envelope = { matchId: id, playerId: id, turn: uint.min(1), commandId: id, expectedRevision: uint };
 export const commandSchema = z.discriminatedUnion('type', [
@@ -41,6 +41,8 @@ export const creatureSchema = z.strictObject({
   attackTraits:z.strictObject({aim:z.boolean(),brace:z.boolean(),ambush:z.boolean(),closeDisadvantageBelow:uint,receivesRally:z.boolean(),rallySource:z.boolean()}),
   reload:z.strictObject({loaded:z.boolean(),lastFiredTurn:uint.min(1).nullable(),lastReloadTurn:uint.min(1).nullable()}).nullable(),
   canMarkQuarry:z.boolean(),quarryTargetId:id.nullable(),
+  drag:z.strictObject({moveDivisor:z.literal(2)}).optional(),constriction:z.strictObject({damage:z.literal(4)}).optional(),
+  rootNetwork:z.strictObject({range:z.literal(1),potency:z.literal(8)}).optional(),rangedCover:z.strictObject({range:z.literal(2)}).optional(),
   blink:z.strictObject({range:z.literal(3)}).optional(),blinkUsedTurn:uint.min(1).optional(),
   spores:z.strictObject({range:z.literal(1),potency:z.literal(2)}).optional(),
   wail:z.strictObject({range:z.literal(3),damage:z.literal(5),potency:z.literal(6),fearPotency:z.literal(6),duration:z.literal(2),cooldown:z.literal(3)}).optional(),wailReadyTurn:uint.min(1).optional(),
@@ -158,8 +160,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
           if(action.targetIds.some(id=>!creatures.includes(id)) || (action.ground && !inside(action.ground,state.board)))invalid('INVALID_ORDER_TARGET');
           if(attack && !validAttackTargets(attack,action))invalid('INVALID_ORDER_TARGET');
         }else if(action.targetId!==null&&!creatures.includes(action.targetId))invalid('INVALID_ORDER_TARGET');
-      }else if(action.type==='Roar'||action.type==='Wail'){
-        if(action.type==='Wail'?!creature.wail:creature.fearAction?.kind!=='Roar')invalid('INVALID_POWER_ORDER');
+      }else if(action.type==='Roar'||action.type==='Wail'||action.type==='RootNetwork'){
+        if(action.type==='Wail'?!creature.wail:action.type==='RootNetwork'?!creature.rootNetwork:creature.fearAction?.kind!=='Roar')invalid('INVALID_POWER_ORDER');
       }else if(action.type==='Frighten'||action.type==='Gaze'||action.type==='Spores'){
         if((action.type==='Frighten'?creature.fearAction?.kind!=='Frighten':action.type==='Gaze'?!creature.gaze:!creature.spores)||action.targetId===creature.id||!creatures.includes(action.targetId))invalid('INVALID_POWER_ORDER');
       }else if(action.type==='Reload'){
@@ -171,6 +173,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     if (order.late === 'Dash' || (['planning','ready'].includes(state.phase) && actions.length > (creature.doubleAction && !creature.subdued ? 2 : 1)) ||
       (actions.includes('TotalDefence') && (order.path.length > 0 || actions.length !== 1)) ||
       (['planning','ready'].includes(state.phase) && creature.subdued && order.path.length && actions.length)) invalid('INVALID_ACTION_BUDGET');
+    if(order.dragTargetId!==undefined&&(!creature.drag||!order.path.length||order.blinkIndex!==undefined||!creatures.includes(order.dragTargetId)||order.dragTargetId===creature.id))invalid('INVALID_DRAG_ORDER');
     if(order.blinkIndex!==undefined&&(!creature.blink||order.blinkIndex>=order.path.length))invalid('INVALID_BLINK_ORDER');
     if (order.path.some((h, i) => i > 0 && (i===order.blinkIndex?distance(order.path[i-1]!,h)<1||distance(order.path[i-1]!,h)>3:distance(order.path[i - 1]!, h) !== 1))) invalid('DISCONNECTED_PATH');
   }
@@ -191,6 +194,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if (['planning','ready','ended'].includes(state.phase) && (state.cursor.entries.length || state.cursor.index || state.cursor.pathIndex)) invalid('UNEXPECTED_CURSOR');
   if (!unique(state.defending.map(d => d.creatureId)) || state.defending.some(d => !creatures.includes(d.creatureId) || !unique(d.phases))) invalid('INVALID_DEFENCE');
   for(const c of state.creatures) {
+    if(c.attacks.some(a=>a.mode==='cleave'&&(a.minRange!==1||a.range!==1||a.shots.length!==1||!a.targetTeams)))invalid('INVALID_CLEAVE_ATTACK');
     if(c.attacks.some(a=>a.penetration===2&&(a.mode!=='projectile'||a.shots.length!==1)))invalid('INVALID_PENETRATING_ATTACK');
     if(c.reanimationAttackIds!==null&&(!unique(c.reanimationAttackIds)||c.reanimationAttackIds.some(id=>!c.attacks.some(a=>a.id===id))))invalid('INVALID_BODY_ATTACKS');
     if(c.swarm&&(c.size>c.originalSize||c.maxHp!==c.con*c.originalSize))invalid('INVALID_SWARM_SIZE_OR_HP');
@@ -198,6 +202,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     if(c.conditions.some(e=>e.illusionId!==null&&(e.sourceId!==e.illusionId||!state.creatures.some(source=>source.id===e.illusionId&&source.kind==='illusion'))))invalid('INVALID_ILLUSORY_CONDITION');
     if(c.mana>c.maxMana || !unique(c.spellbook))invalid('INVALID_MAGIC_RESOURCES');
     if(c.hp>c.maxHp || !unique(c.attacks.map(a=>a.id)) || !unique(c.conditions.map(c=>`${c.kind}:${c.illusionId??'real'}`))) invalid('INVALID_COMBAT_ENTITY');
+    if(c.conditions.some(e=>e.rootNetwork&&(e.kind!=='Restrained'||e.resistance!=='physical'||e.endsTurn!==null||!state.creatures.some(source=>source.id===e.sourceId&&source.rootNetwork))))invalid('INVALID_ROOT_LINK');
     if(c.conditions.some(e=>e.expiresAfterPhase&&(e.kind!=='Unconscious'||e.endsTurn!==null||e.expiresAfterPhase.turn<e.startsTurn||e.expiresAfterPhase.turn>e.startsTurn+1||(e.expiresAfterPhase.turn===e.startsTurn?e.expiresAfterPhase.phase!=='late':e.expiresAfterPhase.phase!=='early'))))invalid('INVALID_PHASE_EXPIRY');
     if(c.conditions.some(effect=>effect.sourceId!==null && !creatures.includes(effect.sourceId))) invalid('INVALID_CONDITION_SOURCE');
   }
@@ -214,8 +219,8 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if(state.pendingPower){
     const p=state.pendingPower,actor=state.creatures.find(c=>c.id===p.actorId);
     if(!actor||state.pendingAttack||!['early','late'].includes(state.phase)||current?.creatureId!==p.actorId||!state.actedThisPhase.includes(p.actorId)||!state.spentActions.includes(p.actorId))invalid('INVALID_POWER_CONTINUATION');
-    const area=p.action.type==='Roar'||p.action.type==='Wail';
-    const capable=p.action.type==='Gaze'?!!actor?.gaze:p.action.type==='Spores'?!!actor?.spores:p.action.type==='Wail'?!!actor?.wail:actor?.fearAction?.kind===p.action.type;
+    const area=p.action.type==='Roar'||p.action.type==='Wail'||p.action.type==='RootNetwork';
+    const capable=p.action.type==='Gaze'?!!actor?.gaze:p.action.type==='Spores'?!!actor?.spores:p.action.type==='Wail'?!!actor?.wail:p.action.type==='RootNetwork'?!!actor?.rootNetwork:actor?.fearAction?.kind===p.action.type;
     if(!capable||!unique(p.targets)||p.targets.some((id,i)=>!creatures.includes(id)||id===p.actorId||(i>0&&p.targets[i-1]!>=id))||p.index>p.targets.length||(!area&&'targetId' in p.action&&(p.targets.length!==1||p.targets[0]!==p.action.targetId)))invalid('INVALID_PENDING_POWER');
     if(p.action.type==='Wail'){
       if(actor?.wailReadyTurn!==state.turn+(actor?.wail?.cooldown??0)||!p.origin||!inside(p.origin,state.board)||!p.actionId||!p.damageByTarget||!unique(p.damageByTarget.map(d=>d.targetId))||p.damageByTarget.some(d=>!p.targets.slice(0,p.index).includes(d.targetId)))invalid('INVALID_WAIL_CONTINUATION');

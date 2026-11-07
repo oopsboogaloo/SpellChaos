@@ -1,3 +1,4 @@
+import {migrateBlinkSporesWailSnapshot} from '../../packages/persistence/src/migration.js';
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {restoreSnapshot,encodeSnapshot} from '../../packages/persistence/src/snapshot.js';
@@ -7,7 +8,7 @@ import {projectView} from '../../packages/views/src/index.js';
 
 for(const name of ['blink-before','blink-after','spores-early','spores-late','wail-middle','wail-cooldown']){
  test(`Node and Chromium agree on ${name} at every saved boundary`,async({page})=>{
-  const initial=readFileSync(`tests/fixtures/next3-v23-${name}.json`,'utf8');
+  const initial=encodeSnapshot(migrateBlinkSporesWailSnapshot(readFileSync(`tests/fixtures/next3-v23-${name}.json`,'utf8')));
   let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);const events=[];
   for(let n=0;!['planning','ended'].includes(s.phase);n++){
    if(n>1000)throw new Error('STEP_LIMIT');

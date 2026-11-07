@@ -718,3 +718,93 @@ atomic continuation.
 Review-fix verification: 902 headless tests (76 focused checks), type checking,
 production build, all 43 Chromium tests and all nine CLI scenarios pass. The
 schema-23 wall fingerprint remains `fnv1a32-v1:d9322096`.
+
+## Approved PR #11 merge; Giant Puma, World Serpent and Walking Forest
+
+The owner explicitly authorised PR #11's merge. The Late Defend review finding
+was fixed first, its thread resolved, and Verification run 42359060041 passed on
+`221a58a94722f9b221cc6d5127267beca32aba7d`. Main is now
+`e300db4a882fda412f105e09ab00113a2963efb5`; this continuation starts from main.
+
+Implementation interpretations recorded before dependent code:
+
+- Giant Puma copies the existing Pounce and smaller-target grapple. Drag is a
+  declared movement path with `dragTargetId`, requiring its existing hold. It
+  translates both footprints together at half the normal movement allowance
+  (positive halves round down, minimum one). Neither body may pass through walls
+  or other creatures. Other restraints still stop the pair; Drag is not Escape
+  or Blink. Terrain cost is the higher cost of the two bodies. The Puma moves
+  voluntarily and triggers Guard; the victim is forcibly moved, does not trigger
+  Guard, loses approach history and interrupts casting. The hold and both moves
+  resolve atomically; failure stops without rerouting. Drag cannot combine with
+  Blink, and a lost hold cannot be silently reacquired or replaced.
+- World Serpent selects its listed Bite or Tail Sweep as alternative attacks.
+  Sweep uses separate Skill-8 / physical-5 hit/critical rolls against every other
+  same-height adjacent body, including allies, once each in canonical ID order.
+  It is area physical damage for damage defences, but retains its listed ordinary
+  hit roll (not a siege Dex-half attack). Its chosen Guard attack uses the same
+  full sweep once per qualifying entrant. A valid held target receives 4 physical
+  constriction damage in the simultaneous ongoing-damage snapshot, including
+  when that snapshot's damage incapacitates the Serpent. Inactive or separated
+  holders do not constrict. Illusion provenance applies; reanimation keeps Bite
+  and grappling limbs but strips sweep/constriction powers.
+- Walking Forest's Branches attack separately hits each same-height adjacent
+  enemy, not allies, with its listed Skill 8 / physical 6. These discrete Branch
+  hits are not area damage. Root Network is a normal action applying physical
+  resistance against 8 to smaller ground enemies within occupied-hex distance
+  one and unobstructed physical contact. Linked restraint lasts while the source
+  is active and in contact, or until ordinary physical Escape succeeds; it is not
+  timed or a dragged hold. Existing condition refresh/provenance rules apply.
+  Real roots can restrain Int0 targets; illusory roots cannot.
+- Active Walking Forests give other same-height controlled allies within two
+  occupied-hex steps incoming projectile/direct attack disadvantage, including
+  spell attacks. Cover does not stack, grant self-cover, modify automatic area
+  resistance, or affect Int0 attackers when its source is illusory. Creation-turn
+  passive cover applies immediately, with no action/readiness bypass. Hidden
+  sources and authoritative hold/action details remain filtered from views.
+
+These are routine implementation details under the owner's delegated Stage 7
+scope; they do not change the approved profiles or introduce inventory/mounts.
+
+A matching planned Early Grapple may make Drag conditional on that hold forming.
+Planning uses a temporary hold only for validation/geometry; a missed or resisted
+Grapple creates no hold and wastes the movement. Normal swarm and Int0/illusion
+occupancy exceptions remain; Drag grants no extra passage capability to either
+body.
+
+Giant Puma (Cat 7), The World Serpent (Serpent 8) and The Walking Forest
+(Plant 8) are enabled, bringing MVP coverage to 35 of 40 profiles. Their approved
+ratings, attacks, damage defences and body classifications are preserved; the
+Serpent's documented sweep is now an explicit alternative attack. The complete
+56-profile catalogue and all deferred family content/tests remain intact.
+
+Schema 24 / rules `roster-0.13` / content `ground-specialists-0.1` stores explicit
+Drag/constriction/root/cover capabilities, Drag path identity, linked root
+conditions and cleave targeting/area metadata. Frozen schema-23 validators and
+`migrateBlinkSporesWailSnapshot` preserve existing creatures, paths, conditions,
+Blink/Sleep/Wail continuations and RNG without adding powers or root links.
+Historical fixtures remain unchanged. Five new permanent fixtures cover a joint
+Drag step, mid-Sweep, completed constriction damage before cleanup, mid-Root
+Network and a pending covered arrow; Node and Chromium compare exact resumed
+state, events and permitted views at every atomic boundary.
+
+Coverage includes profile-specific normal attacks/Pounce, grapple eligibility,
+conditional hit/failure, both movement directions and footprints, half movement,
+Dash/Slowed, blocking/boundaries, hold loss, other restraints, Guard, casting,
+movement history, Sweep friendly fire/height/range/area defences, Bristles,
+per-victim revalidation, simultaneous constriction, Root resistance/Escape/contact
+loss/source inactivity, real/illusory Int0 effects, passive cover range/lifecycle/
+non-stacking/production hit rolls, summon variants, reanimation exclusions,
+public/private copies, malformed state and explicit legacy migrations.
+
+Remaining MVP profiles: Gryphon, Bobby the Master Hunter, Amphiptere, Wisp and
+Shepherd. Stage 7 remains partial; flight, mounts, detection and combined roster
+scenarios still need completion. AI, the finished playable UI and deployment are
+later stages. The verbatim original specification archive remains a release gate.
+
+Checkpoint verification: `pnpm check` passed type checking and all 970 headless
+checks (including 68 focused ground-specialist cases). `pnpm build`, all 48
+Chromium continuation tests and all nine `tools/run-*.mjs` CLI scenarios passed.
+The schema-24 walls scenario ended at HP 4/11 with fingerprint
+`fnv1a32-v1:8d825e77`. Local verification used Node 24.22.1, pnpm 11.25.0 and
+Playwright 1.56.1; CI retains its pinned Node 24.19.0.
