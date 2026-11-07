@@ -204,7 +204,7 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
    target.controller=a.spell==='Bind'?cast.controller:null;target.bindingLevel=a.spell==='Bind'?a.level:null;
    // Previous owner's submitted actions and reactions cannot transfer with control.
    if(previousController!==target.controller){
-   s.orders=s.orders.map(o=>o.creatureId===target.id?{...o,path:[],early:null,late:null}:o);
+   s.orders=s.orders.map(o=>o.creatureId===target.id?{creatureId:o.creatureId,path:[],early:null,late:null}:o);
    s.guards=s.guards.filter(g=>g.creatureId!==target.id);s.reactions=s.reactions.filter(r=>r.attackerId!==target.id);s.reservations=s.reservations.filter(r=>r.creatureId!==target.id);
    }
    emit(s,events,{type:'BindingChanged',creatureId:target.id});invalidateCasts(s,events);

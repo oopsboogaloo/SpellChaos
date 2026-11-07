@@ -48,7 +48,7 @@ add('Cat',3,'Lion',[3,5,5,6,2],[melee('Bite',6,4)],{packTactics:true,fearAction:
 const tiger = melee('Bite',7,5,'physical',15);
 tiger.shots[0]!.secondary.push({kind:'Bleeding',potency:4,resistance:'con',duration:null,requiresDamage:true});
 add('Cat',4,'Sabre-toothed tiger',[3,6,4,5,2],[tiger],{defences:[defence('cold',.5)]});
-add('Cat',5,'Fey leopard',[2,5,6,9,6],[melee('Claws',7,4,'magic')],{defences:[defence('magic',.5),defence('physical',1.5)]},[ability('blink',{range:3,usesPerTurn:1})]);
+add('Cat',5,'Fey leopard',[2,5,6,9,6],[melee('Claws',7,4,'magic')],{blink:{range:3},defences:[defence('magic',.5),defence('physical',1.5)]},[ability('blink',{range:3,usesPerTurn:1})]);
 add('Cat',6,'Gryphon',[4,6,6,6,4],[multi(melee('Beak',7,4),melee('Claws',6,3))],{height:'air',defences:[defence('cold',.5)]},[flying(),ability('mount'),ability('dive',{steps:3,damage:2,shotIndex:0})]);
 add('Cat',7,'Giant puma',[5,6,5,6,3],[melee('Bite',8,8)],{grappleLimbs:1},[pounce(),ability('drag',{moveMultiplier:.5})]);
 add('Cat',8,'Bobby the Master Hunter',[2,7,7,10,8],[melee('Claws',9,5,'magic',20)],{defences:[defence('magic',.5),defence('poison',.5)],doubleAction:true,ignoresDarknessDisadvantage:true},[ability('see-invisible',{range:6})]);
@@ -91,12 +91,12 @@ add('Spirit',3,'Ghost',[2,4,4,6,5],[melee('Touch',5,3,'magic')],spirit(3,{fearAc
 const wither=melee('Touch',6,4,'magic');wither.shots[0]!.secondary.push({kind:'Subdued',potency:4,resistance:'int',duration:1,requiresDamage:true});
 add('Spirit',4,'Spectre',[2,5,5,7,5],[wither],spirit(4,{incorporeal:true,defences:spiritDefences(0)}));
 add('Spirit',5,'Wraith',[2,6,5,7,6],[melee('Touch',7,5,'magic')],spirit(5,{lifeDrain:2,incorporeal:true,defences:[...spiritDefences(0),defence('necrotic',.5)]}),[ability('drain',{healing:2,requires:'living-real-damaged'})]);
-add('Spirit',6,'Banshee',[2,5,4,6,8],[melee('Touch',6,3,'magic')],spirit(6,{incorporeal:true,defences:[...spiritDefences(0,2),defence('cold',.5)]}),[ability('wail',{radius:3,damage:5,type:'magic',potency:6,fearPotency:6,fearDuration:2,cooldown:3,targets:'all-others',damageResistance:'dex',fearResistance:'int'})]);
+add('Spirit',6,'Banshee',[2,5,4,6,8],[melee('Touch',6,3,'magic')],spirit(6,{wail:{range:3,damage:5,potency:6,fearPotency:6,duration:2,cooldown:3},wailReadyTurn:1,incorporeal:true,defences:[...spiritDefences(0,2),defence('cold',.5)]}),[ability('wail',{radius:3,damage:5,type:'magic',potency:6,fearPotency:6,fearDuration:2,cooldown:3,targets:'all-others',damageResistance:'dex',fearResistance:'int'})]);
 add('Spirit',7,'Dread revenant',[3,7,3,5,8],[melee('Blade',8,7,'magic')],spirit(7,{canMarkQuarry:true,defences:[...spiritDefences(0),defence('necrotic',.5)]}),[ability('weapons'),ability('marked-quarry',{skill:2,selection:'action',duration:'until-target-death'})]);
 add('Spirit',8,'The Pale Monarch',[3,8,4,7,10],[melee('Sceptre',9,8,'magic')],spirit(8,{...caster(40,6,['Reanimate','Release','Darkness']),incorporeal:true,defences:[...spiritDefences(0,2),defence('necrotic',0)]}));
 
 const plant = (extra:Partial<Creature> = {}):Partial<Creature> => ({plant:true,corpseEligible:false,reanimationAttackIds:[],...extra});
-add('Plant',1,'Walking mushroom',[1,4,2,2,0],[melee('Bump',3,1)],plant({defences:[defence('cold',.5),defence('fire',1.5)]}),[ability('spores',{range:1,potency:2,resistance:'con',duration:'next-action-phase',targets:'living-enemy'})]);
+add('Plant',1,'Walking mushroom',[1,4,2,2,0],[melee('Bump',3,1)],plant({spores:{range:1,potency:2},defences:[defence('cold',.5),defence('fire',1.5)]}),[ability('spores',{range:1,potency:2,resistance:'con',duration:'next-action-phase',targets:'living-enemy'})]);
 add('Plant',2,'Grasping vine',[2,5,2,3,0],[melee('Tendril',4,2,'physical',5,2)],plant({grappleLimbs:2,grappleEqualSize:true,defences:[defence('physical',.5),defence('fire',1.5)]}));
 add('Plant',3,'Thorn bush',[3,5,1,2,0],[melee('Thorns',5,3)],plant({bristles:1,flammable:true,defences:[defence('physical',.5),defence('fire',1.5)]}),[ability('bristles',{damage:1,type:'physical',requiresDamage:true})]);
 add('Plant',4,'Walking tree',[3,6,2,2,0],[melee('Branch',5,4,'physical',5,2)],plant({shove:{attackId:'basic'},flammable:true,defences:[defence('physical',.5),defence('cold',.5),defence('fire',1.5)]}),[ability('objects'),ability('shove',{steps:1,targets:'smaller'})]);

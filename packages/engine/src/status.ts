@@ -6,6 +6,12 @@ import type { Condition } from '../../domain/src/combat.js';
 export const has=(c:Creature,kind:Condition['kind'])=>c.conditions.some(e=>e.kind===kind && e.active);
 export const incapacitated=(c:Creature)=>c.incapacitated || c.hp<=0 || has(c,'Unconscious');
 export const active=(c:Creature)=>c.alive && !incapacitated(c);
+/** Planning/phase preparation can account for known waking without altering
+ * authoritative Sleep or granting an Early action. Other incapacity remains. */
+export function afterEarlyWake(c:Creature,turn:number):Creature {
+ const sleep=c.conditions.filter(e=>e.kind==='Unconscious'&&e.active);
+ return sleep.length>0&&sleep.every(e=>e.expiresAfterPhase?.turn===turn&&e.expiresAfterPhase.phase==='early')?{...c,conditions:c.conditions.filter(e=>!sleep.includes(e))}:c;
+}
 export const slowed=(c:Creature)=>c.slowed || has(c,'Slowed');
 export const subdued=(c:Creature)=>c.subdued || has(c,'Subdued') || has(c,'Disease');
 export const restrained=(s:GameState,c:Creature)=>c.restrained || weedRestrained(s,c) || has(c,'Restrained') || restrainedBySwarm(s,c) || s.holds.some(h=>h.targetId===c.id || h.grapplerId===c.id);

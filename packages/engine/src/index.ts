@@ -2,7 +2,7 @@ import { commandSchema, stateSchema, VERSION, type Creature, type GameState, typ
 import { canonical } from '../../persistence/src/snapshot.js';
 import { staff } from '../../domain/src/combat.js';
 import { cleanupDeaths } from './lifecycle.js';
-import { active } from './status.js';
+import { active,afterEarlyWake } from './status.js';
 import { emit, type Event, type Transition } from './events.js';
 export { emit, type Event, type Transition } from './events.js';
 import { startingBook } from './spellbooks.js';
@@ -109,9 +109,10 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
     next.phase = 'early';
     next.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
     next.dashed = [];
-    next.defending = next.orders.filter(o => { const c = next.creatures.find(c => c.id === o.creatureId)!; const cast=next.casts.find(cast=>cast.casterId===c.id); return active(c) && (!cast || (c.doubleAction && cast.dueTurn===next.turn && cast.duePhase==='early' && o.early!=='TotalDefence' && o.late==='Defend')) && c.readyTurn <= next.turn; }).filter(o => o.early === 'TotalDefence' || o.late === 'TotalDefence' || o.early === 'Defend' || o.late === 'Defend')
-      .map(o => ({ creatureId: o.creatureId, phases: o.early === 'TotalDefence' || o.late === 'TotalDefence' ? ['early', 'late'] :
-        [...(o.early === 'Defend' ? ['early' as const] : []), ...(o.late === 'Defend' ? ['late' as const] : [])] }));
+    next.defending = next.orders.filter(o => { const c = next.creatures.find(c => c.id === o.creatureId)!; const cast=next.casts.find(cast=>cast.casterId===c.id); return active(afterEarlyWake(c,next.turn)) && (!cast || (c.doubleAction && cast.dueTurn===next.turn && cast.duePhase==='early' && o.early!=='TotalDefence' && o.late==='Defend')) && c.readyTurn <= next.turn; }).filter(o => o.early === 'TotalDefence' || o.late === 'TotalDefence' || o.early === 'Defend' || o.late === 'Defend')
+      .map(o => {const c=next.creatures.find(c=>c.id===o.creatureId)!;
+        const phases:('early'|'late')[]=o.early==='TotalDefence'||o.late==='TotalDefence'?['early','late']:[...(o.early==='Defend'?['early' as const]:[]),...(o.late==='Defend'?['late' as const]:[])];
+        return {creatureId:o.creatureId,phases:phases.filter(phase=>active(c)||phase==='late')};});
     emit(next, events, { type: 'ResolutionStarted' });
   }
   next.revision++;

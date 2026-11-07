@@ -6,7 +6,7 @@ export const damageTypeSchema=z.enum(['physical','fire','cold','lightning','necr
 export type DamageType=z.infer<typeof damageTypeSchema>;
 export const conditionKindSchema=z.enum(['Bleeding','Poisoned','Acid','Burning','Unconscious','Restrained','Subdued','Slowed','Disease','Fear']);
 export const secondarySchema=z.strictObject({kind:conditionKindSchema,potency:uint,resistance:z.enum(['con','int','physical']),duration:uint.nullable(),requiresDamage:z.boolean()});
-export const conditionSchema=secondarySchema.extend({illusionId:id.nullable(),sourceId:id.nullable(),startsTurn:uint,endsTurn:uint.nullable(),activatesTurn:uint.nullable(),active:z.boolean()});
+export const conditionSchema=secondarySchema.extend({illusionId:id.nullable(),sourceId:id.nullable(),startsTurn:uint,endsTurn:uint.nullable(),activatesTurn:uint.nullable(),active:z.boolean(),expiresAfterPhase:z.strictObject({turn:uint.min(1),phase:z.enum(['early','late'])}).optional()});
 export type Condition=z.infer<typeof conditionSchema>;
 export const componentSchema=z.strictObject({type:damageTypeSchema,amount:uint});
 export type DamageComponent=z.infer<typeof componentSchema>;
@@ -15,7 +15,7 @@ export const attackDefinitionSchema=z.strictObject({id,name:z.string(),mode:z.en
 export type AttackDefinition=z.infer<typeof attackDefinitionSchema>;
 export const attackActionSchema=z.strictObject({type:z.literal('Attack'),attackId:id,targetIds:z.array(id).max(3),ground:hex.nullable(),side:z.enum(['left','right']),structure:structureTargetSchema.optional()});
 export type AttackAction=z.infer<typeof attackActionSchema>;
-export const powerActionSchema=z.union([z.strictObject({type:z.literal('Roar')}),z.strictObject({type:z.enum(['Frighten','Gaze']),targetId:id})]);
+export const powerActionSchema=z.union([z.strictObject({type:z.literal('Roar')}),z.strictObject({type:z.literal('Wail')}),z.strictObject({type:z.enum(['Frighten','Gaze','Spores']),targetId:id})]);
 export type PowerAction=z.infer<typeof powerActionSchema>;
 export const combatActionSchema=z.union([
  attackActionSchema,
