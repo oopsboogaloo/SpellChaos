@@ -1,3 +1,4 @@
+import {stateSchema as walkingTreeSchema} from '../../domain/src/legacy-v21.js';
 import {stateSchema as cougarSchema} from '../../domain/src/legacy-v20.js';
 import {stateSchema as shadeSchema} from '../../domain/src/legacy-v19.js';
 import {stateSchema as treantSchema} from '../../domain/src/legacy-v18.js';
@@ -125,7 +126,7 @@ export function migrateTangleweedSnapshot(text:string):GameState {
 
 function parseUpgrade(value: unknown): GameState {
  const old=value as GameState;
- return stateSchema.parse({...old,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,reload:c.reload??null,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
+ return stateSchema.parse({...old,pendingPower:old.pendingPower??null,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,reload:c.reload??null,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
 }
 /** Legacy content had no attack traits; do not infer new abilities from species. */
 export function migrateWallSnapshot(text:string):GameState {
@@ -188,5 +189,11 @@ export function migrateShadeSnapshot(text:string):GameState {
 /** Preserve Pounce trails and pending bites without granting Shove to historical creatures. */
 export function migrateCougarSnapshot(text:string):GameState {
  const old=cougarSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve existing attacks, Shove and trails; do not infer condition powers for old creatures. */
+export function migrateWalkingTreeSnapshot(text:string):GameState {
+ const old=walkingTreeSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

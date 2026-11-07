@@ -549,3 +549,71 @@ including 46 Walking Tree checks. `pnpm build`, all 33 Chromium tests
 remain HP 4/11; schema-21 fingerprint is `fnv1a32-v1:c5f93ea2`. Local verification
 used Node 24.22.1, pnpm 11.25.0 and pinned Playwright 1.56.1 Chromium; CI retains
 the repository's pinned Node version.
+
+## Lion, Ghost and Basilisk — condition actions (stacked continuation)
+
+This checkpoint continues PR #9 without merging PRs #8 or #9. Lion's Roar uses
+one normal early or late action against enemies within minimum footprint distance
+1, Int resistance potency 3, Fear for up to two turns. Ghost's Frighten selects
+one adjacent enemy with Int resistance potency 4 and the same Fear duration.
+Basilisk's Gaze selects one enemy within footprint distance 4, Int resistance
+potency 5; success applies Slowed for two turns, or Restrained for two turns if
+already Slowed. D02 governs the magical restraint: Escape uses Int against 5,
+and the existing Slowed effect keeps its own expiry.
+
+Implementation interpretation: these powers require clear sight from the actor,
+use creature identity and current range/visibility at execution, work across
+heights, and do not intercept through other creatures. Solid sight-blocking walls
+and Darkness block them; crystal transparency permits them. They replace the
+normal action, are not attacks/Guard triggers, deal no damage, and receive no hit,
+critical or Defend modifiers. The approved ability records specify no cooldown
+for these three actions, so no unlisted cooldown is introduced. Invalid single
+targets waste the action without substitution. Roar snapshots eligible enemies
+in canonical identifier order, then revalidates and resolves one resistance per
+atomic step; no new target joins a committed Roar. One creature with a large
+footprint is affected once. Current condition refresh/provenance rules apply.
+
+Illusions copy the powers and retain reversible source-tagged conditions; Int0
+targets ignore illusory powers. Real Gaze can slow/restrain Int0 creatures; Fear
+immunities remain unchanged. Reanimation strips the powers while retaining the
+approved basic body attacks. These routine implementation interpretations are
+recorded under the owner's delegated Stage 7 scope, not new accepted decisions.
+
+Lion (Cat 3), Ghost (Spirit 3) and Basilisk (Serpent 5) are enabled together,
+bringing MVP implementation coverage to 29 of 40 profiles, with 11 remaining.
+Their approved basic attacks, numeric profiles and defences are retained. Lion
+uses the existing Pack tactics machinery; Ghost retains full incorporeal transit,
+physical/poison immunity, light vulnerability and corpse exclusion; Basilisk
+retains poison resistance and cold vulnerability. The full historical 56-profile
+catalogue and the three implemented deferred profiles remain preserved.
+
+Schema 22 / rules `roster-0.11` / content `condition-actions-0.1` adds optional
+explicit power metadata and a private `pendingPower` continuation. Frozen
+schema-21 and combat validators plus `migrateWalkingTreeSnapshot` preserve
+existing creature data, committed attacks, Shove, Pounce trails, RNG and cursors;
+older states receive a null continuation and no inferred powers. New power
+conditions record their source and illusion provenance, and explicitly indicate
+that they required no damage. Historical fixtures are unchanged.
+
+Permanent fixtures cover mid-Roar after one completed victim, pending Frighten,
+pending Gaze applying Slowed, and pending Gaze applying D02 restraint. Node and
+Chromium verify exact continuation at each atomic step. Tests cover both action
+phases, individual resistance outcomes, target identity/revision and revalidation,
+canonical/non-expanding Roar victim lists, footprint range, visibility and walls,
+Defend, action/readiness/Subdued budgets, interrupted actors, Fear movement and
+attack penalties, recovery/expiry, Gaze escalation and Escape, immunities, spell
+summon variants, illusions/reanimation, ordinary attacks, malformed saves,
+explicit migrations and private-state filtering.
+
+Remaining MVP profiles: Fey leopard, Gryphon, Giant puma, Bobby the Master Hunter;
+Amphiptere, The World Serpent; Wisp, Banshee; Walking mushroom, The Walking Forest;
+Shepherd. Stage 7 is still partial. AI, the finished playable interface and
+deployment remain later stages; the verbatim original specification archive
+remains an outstanding release gate.
+
+Verification: `pnpm check` passes type checking and all 826 headless tests,
+including 78 condition-action tests. `pnpm build`, all 37 Chromium tests
+(`pnpm test:browser`) and all nine CLI scenarios pass. Wall outcomes remain
+HP 4/11; schema-22 fingerprint is `fnv1a32-v1:7c87595c`. Local verification used
+Node 24.22.1, pnpm 11.25.0 and pinned Playwright 1.56.1 Chromium; CI retains the
+repository's pinned Node version.

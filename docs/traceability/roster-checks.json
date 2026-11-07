@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 26 implemented in scope including Walking Tree; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 29 implemented in scope including Lion, Ghost and Basilisk; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty-nine implemented including three deferred profiles; twenty-six in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Thirty-two implemented including three deferred profiles; twenty-nine in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -270,6 +270,48 @@
         "permanent %s Shove fixture restores every boundary without a second push",
         "schema-20 migration preserves Cougar %s and grants no Shove"
       ]
+    },
+    {
+      "id": "ROSTER-023",
+      "requirement": "Lion Roar area Fear, independent Int resistance, Pack tactics, ordinary action budget and atomic victim continuation",
+      "testFile": "tests/condition-actions.test.ts",
+      "browserTestFile": "tests/browser/condition-actions.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Roar snapshots enemies once in canonical order, excluding self, allies and distant creatures",
+        "Roar rolls independent resistance for each canonical victim",
+        "Fear prevents a preplanned legal approach after the Lion moves away",
+        "Lion Pack tactics grants advantage from an adjacent active ally",
+        "Roar saves the completed victim index and never rerolls its first victim"
+      ]
+    },
+    {
+      "id": "ROSTER-024",
+      "requirement": "Ghost Frighten single target, Fear recovery/expiry, incorporeality, damage defences, illusion reversal and portable continuation",
+      "testFile": "tests/condition-actions.test.ts",
+      "browserTestFile": "tests/browser/condition-actions.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Fear has an end-turn Int recovery check and a two-turn maximum",
+        "Ghost retains incorporeality, physical/poison immunity, light vulnerability and no corpse",
+        "Ghost moves through an ordinary solid wall but cannot finish on a creature",
+        "Ghost movement remains blocked by Energy walls",
+        "permanent %s fixture continues exactly after every atomic step"
+      ]
+    },
+    {
+      "id": "ROSTER-025",
+      "requirement": "Basilisk Gaze range, Int resistance, D02 Slowed-to-Restrained escalation and Int Escape, real/illusory Int0 interaction and portable continuation",
+      "testFile": "tests/condition-actions.test.ts",
+      "browserTestFile": "tests/browser/condition-actions.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Gaze reaches four from the Basilisk footprint and does not intercept creatures",
+        "Gaze applies Slowed first, then D02 Int restraint without changing Slowed expiry",
+        "D02 Escape uses Int against five and does not remove Slowed",
+        "real Gaze can slow Int0 constructs but an illusory Gaze cannot",
+        "malformed power continuations are rejected transactionally"
+      ]
     }
   ],
   "pending": [
@@ -277,7 +319,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 14 MVP profiles only after their complete engine tests",
+    "Enable remaining 11 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

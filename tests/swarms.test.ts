@@ -261,7 +261,7 @@ describe('swarm content, casting and persistence',()=>{
  it('explicitly migrates v5 without rewriting the frozen fixture or consuming randomness',()=>{
   const text=readFileSync('tests/fixtures/reanimation-v5-casting.json','utf8').trim(),old=legacySchema.parse(JSON.parse(text));
   expect(canonical(old)).toBe(text);expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateEnvironmentSnapshot(text);expect(s.schemaVersion).toBe(21);expect(s.random).toEqual(old.random);
+  const s=migrateEnvironmentSnapshot(text);expect(s.schemaVersion).toBe(22);expect(s.random).toEqual(old.random);
   expect(s.creatures.map(c=>c.originalSize)).toEqual(old.creatures.map(c=>c.size));expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
