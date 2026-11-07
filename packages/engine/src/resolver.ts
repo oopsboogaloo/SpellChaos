@@ -1,16 +1,17 @@
+import {blinkLegal,movementStepCost,prepareMovementPath} from './blink.js';
 import {stepPower} from './powers.js';
-import { wallStepCost,crossWallHazards } from './walls.js';
-import { weedStepCost,contactWeed,pruneWeedHolds } from './tangleweed.js';
+import { crossWallHazards } from './walls.js';
+import { contactWeed,pruneWeedHolds } from './tangleweed.js';
 import { regrowSwarms } from './swarms.js';
 import { startCast, completeCast, invalidateCasts, concentration, castingLocksMovement, slotOccupied } from './casting.js';
 import { awardAndRegenerate } from './spellbooks.js';
 import { compareEntries } from './queue.js';
 import { active, restrained, slowed, subdued, fearAllowsStep } from './status.js';
 import { beginAttack, guardReactionAction, stepAttack, resolveCombatAction, enqueueGuards } from './combat.js';
-import { ongoingDamage, cleanupDeaths, recover, expireConditions } from './lifecycle.js';
+import { ongoingDamage, cleanupDeaths, recover, expireConditions, expirePhaseConditions } from './lifecycle.js';
 import type { Creature, GameState } from '../../domain/src/state.js';
 import { nearestPair, footprint } from '../../geometry/src/hex.js';
-import { legalPathPrefix, stepLegality, placement } from '../../geometry/src/occupancy.js';
+import { stepLegality, placement } from '../../geometry/src/occupancy.js';
 import { arenaOf, defaultOrder, effectiveMove, movementAllowance } from './orders.js';
 import { buildQueue } from './queue.js';
 import { checkVictory, emit, type Event, type Transition } from './index.js';
@@ -32,6 +33,7 @@ function initialize(state: GameState, events: Event[]): void {
   emit(state, events, { type: 'PhaseStarted' });
 }
 function finishPhase(state: GameState, events: Event[]): void {
+  if(state.phase==='early'||state.phase==='late')expirePhaseConditions(state);
   state.quickQueue=null; state.actedThisPhase=[];
   emit(state, events, { type: 'PhaseEnded' });
   if (checkVictory(state, events)) return;
@@ -95,24 +97,27 @@ export function advanceAtomicStep(state: GameState): Transition {
     } else if (next.phase === 'movement') {
       if (next.cursor.activePath === null) {
         next.cursor.lastRestingCentre = {...c.centre};
-        next.cursor.activePath = legalPathPrefix(arenaOf(next), c, order.path, movementAllowance(c, order.early === 'Dash' && !next.dashed.includes(c.id) ? { ...order, early: null } : order));
+        next.cursor.activePath = prepareMovementPath(next,c,order, movementAllowance(c, order.early === 'Dash' && !next.dashed.includes(c.id) ? { ...order, early: null } : order));
         emit(next, events, { type: next.cursor.activePath.length < order.path.length ? 'PathTruncated' : 'PathPrepared', creatureId: c.id });
       } else if (next.cursor.pathIndex >= next.cursor.activePath.length) advanceActor();
       else {
         const to = next.cursor.activePath[next.cursor.pathIndex]!;
-        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+Math.max(weedStepCost(next,c,to),wallStepCost(next,c,c.centre,to))>movementAllowance(c,order) || !stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal) {
+        const blinking=order.blinkIndex===next.cursor.pathIndex;
+        const stepCost=movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to);
+        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
           if(!next.moved.includes(c.id)) next.moved.push(c.id);
-          const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=Math.max(weedStepCost(next,c,to),wallStepCost(next,c,c.centre,to));
+          const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=stepCost;
           if(paid)paid.amount+=cost;else next.movementSpent.push({creatureId:c.id,amount:cost});
           const from = { ...c.centre };
-          if(c.pounce)c.pounceTrail=[...(c.pounceTrail??[from]),{...to}];
+          if(blinking){c.blinkUsedTurn=next.turn;delete c.pounceTrail;}
+          else if(c.pounce)c.pounceTrail=[...(c.pounceTrail??[from]),{...to}];
           c.centre = { ...to }; next.cursor.pathIndex++;
           if(placement(arenaOf(next),c,c.centre).legal) next.cursor.lastRestingCentre = {...c.centre};
-          emit(next, events, { type: 'CreatureMoved', creatureId: c.id, from, to: { ...to } });
-          const hazardDamage=crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);
-          contactWeed(next,c,events);if(c.alive)enqueueGuards(next,c,from);
+          emit(next, events, { type: blinking?'CreatureBlinked':'CreatureMoved', creatureId: c.id, from, to: { ...to } });
+          const hazardDamage=blinking?0:crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);
+          contactWeed(next,c,events);if(c.alive&&!blinking)enqueueGuards(next,c,from);
         }
       }
     } else {

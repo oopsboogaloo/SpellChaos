@@ -1,3 +1,4 @@
+import {stateSchema as conditionActionsSchema} from '../../domain/src/legacy-v22.js';
 import {stateSchema as walkingTreeSchema} from '../../domain/src/legacy-v21.js';
 import {stateSchema as cougarSchema} from '../../domain/src/legacy-v20.js';
 import {stateSchema as shadeSchema} from '../../domain/src/legacy-v19.js';
@@ -195,5 +196,11 @@ export function migrateCougarSnapshot(text:string):GameState {
 /** Preserve existing attacks, Shove and trails; do not infer condition powers for old creatures. */
 export function migrateWalkingTreeSnapshot(text:string):GameState {
  const old=walkingTreeSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve committed condition actions without inferring Blink, Spores, Wail or phase expiry. */
+export function migrateConditionActionsSnapshot(text:string):GameState {
+ const old=conditionActionsSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

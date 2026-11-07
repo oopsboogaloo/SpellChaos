@@ -1,5 +1,4 @@
-import { wallStepCost } from './walls.js';
-import { weedStepCost } from './tangleweed.js';
+import {blinkLegal,movementStepCost} from './blink.js';
 import { validateCast, reservedMana, castingLocksMovement } from './casting.js';
 import { castingTime, completionAt } from '../../content/src/spells.js';
 import { active, incapacitated, slowed, subdued, restrained, fearAllowsStep } from './status.js';
@@ -17,8 +16,14 @@ export function arenaOf(state: GameState): ArenaGeometry {
   return { board: state.board, walls: state.walls, creatures: state.creatures.filter(c => c.alive).map(c => ({ ...c, illusion: c.kind === 'illusion' })) };
 }
 export function validateOrder(state: GameState, order: Order, playerId: string): void {
-  const c = state.creatures.find(c => c.id === order.creatureId);
-  if (!c || c.controller !== playerId) throw new Error('NOT_CONTROLLED');
+  const stored = state.creatures.find(c => c.id === order.creatureId);
+  if (!stored || stored.controller !== playerId) throw new Error('NOT_CONTROLLED');
+  // A known Early expiry permits plans for movement/Late after waking, without
+  // granting the sleeping creature an Early action or mutating live conditions.
+  const sleep=stored.conditions.filter(e=>e.kind==='Unconscious'&&e.active);
+  const wakesEarly=sleep.length>0&&sleep.every(e=>e.expiresAfterPhase?.turn===state.turn&&e.expiresAfterPhase.phase==='early');
+  const c=wakesEarly?{...stored,conditions:stored.conditions.filter(e=>!sleep.includes(e))}:stored;
+  if(wakesEarly&&order.early!==null)throw new Error('INELIGIBLE_CREATURE');
   if (!active(c) || c.readyTurn > state.turn) throw new Error('INELIGIBLE_CREATURE');
   const actions = [order.early, order.late].filter(a => a !== null);
   if (order.late === 'Dash') throw new Error('DASH_EARLY_ONLY');
@@ -26,7 +31,8 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if (actions.length > (c.doubleAction && !subdued(c) ? 2 : 1)) throw new Error('ACTION_BUDGET');
   if (subdued(c) && order.path.length && actions.length) throw new Error('SUBDUED_BUDGET');
   const pathStart=order.early&&typeof order.early==='object'&&order.early.type==='Cast'&&order.early.spell==='Teleport'?order.early.ground!:c.centre;
-  if (order.path.reduce((n,h,i)=>n+Math.max(weedStepCost(state,c,h),wallStepCost(state,c,i?order.path[i-1]!:pathStart,h)),0) > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
+  if(order.blinkIndex!==undefined&&(!c.blink||c.blinkUsedTurn===state.turn||order.blinkIndex>=order.path.length))throw new Error('INVALID_BLINK_ORDER');
+  if (order.path.reduce((n,h,i)=>n+movementStepCost(state,c,order,i,i?order.path[i-1]!:pathStart,h),0) > movementAllowance(c, order)) throw new Error('MOVEMENT_BUDGET');
   if (order.path.length && restrained(state,c)) throw new Error('RESTRAINED');
   if(order.path.length && castingLocksMovement(state,c,true))throw new Error('CASTING_IMMOBILE');
   const existing=state.casts.find(cast=>cast.casterId===c.id);
@@ -45,9 +51,9 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   // Static terrain is known; moving creatures are rechecked at resolution.
   const arena = { ...arenaOf(state), creatures: [] };
   let from = order.early && typeof order.early==='object' && order.early.type==='Cast' && order.early.spell==='Teleport' ? order.early.ground! : c.centre;
-  for (const to of order.path) {
+  for (const [i,to] of order.path.entries()) {
     if (!fearAllowsStep(state,{...c,centre:from},to)) throw new Error('FEAR_APPROACH');
-    if (!stepLegality(arena, c, from, to, true).legal) throw new Error('INVALID_PATH');
+    if (!(order.blinkIndex===i?blinkLegal(state,c,from,to,true):stepLegality(arena,c,from,to,true).legal)) throw new Error('INVALID_PATH');
     from = to;
   }
   if (order.path.length && !placement(arena, c, from).legal) throw new Error('INVALID_DESTINATION');

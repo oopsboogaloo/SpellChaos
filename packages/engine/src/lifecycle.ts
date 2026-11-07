@@ -29,7 +29,7 @@ export function cleanupDeaths(s:GameState,events:Event[]):void {
    if(c.kind==='wizard'){
     const p=s.players.find(p=>p.wizardId===c.id)!;p.eliminated=true;p.locked=true;
     for(const servant of s.creatures.filter(x=>x.id!==c.id && x.controller===p.id)){
-     if(servant.kind==='summon'){servant.controller=null;servant.bindingLevel=null;s.guards=s.guards.filter(g=>g.creatureId!==servant.id);s.reactions=s.reactions.filter(r=>r.attackerId!==servant.id);}
+     if(servant.kind==='summon'&&servant.family!=='Spirit'){servant.controller=null;servant.bindingLevel=null;s.guards=s.guards.filter(g=>g.creatureId!==servant.id);s.reactions=s.reactions.filter(r=>r.attackerId!==servant.id);}
      else {servant.hp=-servant.maxHp;servant.alive=false;}
      s.reservations=s.reservations.filter(r=>r.creatureId!==servant.id);
     }
@@ -74,4 +74,9 @@ export function expireConditions(s:GameState):void {
  for(const c of s.creatures)c.conditions=c.conditions.filter(e=>e.endsTurn===null||e.endsTurn>s.turn);
  for(const wall of s.walls)if(wall.burning && wall.burning.endsTurn<=s.turn)wall.burning=null;
  releaseBrokenHolds(s);
+}
+
+/** Sleep applied this action phase lasts through the next complete action phase. */
+export function expirePhaseConditions(s:GameState):void {
+ for(const c of s.creatures)c.conditions=c.conditions.filter(e=>!e.expiresAfterPhase||e.expiresAfterPhase.turn!==s.turn||e.expiresAfterPhase.phase!==s.phase);
 }

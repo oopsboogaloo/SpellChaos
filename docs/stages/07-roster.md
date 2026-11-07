@@ -617,3 +617,93 @@ including 78 condition-action tests. `pnpm build`, all 37 Chromium tests
 HP 4/11; schema-22 fingerprint is `fnv1a32-v1:7c87595c`. Local verification used
 Node 24.22.1, pnpm 11.25.0 and pinned Playwright 1.56.1 Chromium; CI retains the
 repository's pinned Node version.
+
+## Approved merge and next three profiles — 7 November 2026
+
+The owner explicitly authorised merging the open checkpoint stack. PRs #8, #9
+and #10 passed Verification and had no unresolved review threads; they were
+merged in order after retargeting #9 and #10 to main. Main is
+`5f0a12f6d3e4d4c719b4b3dc03bb13f1151a3ca5`, with the same content tree as the
+verified condition-actions head. This continuation starts a new branch from main.
+
+### Fey Leopard, Walking Mushroom and Banshee implementation interpretations
+
+Blink replaces one declared movement segment of up to three hex steps, once per
+turn, spending its hex distance from the normal movement allowance. An optional
+`blinkIndex` selects that destination in the planned path. Blink crosses ordinary
+walls/creatures without transit occupancy or crossed-wall hazards, but cannot
+cross Energy on the canonical left ray of any occupied hex, escape restraint,
+approach a Fear source, bypass a casting movement lock or end illegally. It
+triggers no Guard, while ordinary steps before/after it still do. Landing contacts
+Tangleweed. Failure stops at the last legal resting position without rerouting.
+Actual movement, used-turn state and the path cursor survive reload; Blink clears
+an approach trail and grants no action-slot bypass. Illusions copy Blink;
+reanimated bodies lose it.
+
+Spores is one normal early or late action on one visible adjacent living real
+enemy (including susceptible intelligent plants; excluding undead, constructs
+and illusions). Con resistance against potency 2 applies Sleep/Unconscious
+through the next action phase: early T -> end of late T, late T -> end of early
+T+1. Damage or an allied Wake action ends it sooner. Phase expiry is explicit
+condition data, never reconstructed for historical Sleep. Int0 immunity and
+reversible illusory condition provenance apply normally.
+
+D04 Wail spends one normal action and starts its listed three-turn cooldown
+(used on T -> ready on T+3), even when nobody is affected. It snapshots all other
+living creatures within footprint radius 3, including allies, across walls and
+Darkness. Each victim independently resists 5 area magic damage with Dex against
+6 for half, then susceptible living targets separately resist Fear with Int
+against 6 for up to two turns; Fear does not require damage. There are no hit,
+critical or Defend modifiers. The victim cursor, emission origin, action identity,
+received-damage accumulator and cooldown persist. One victim resolves atomically;
+concentration runs once per damaged caster for the whole action. A committed real
+Wail finishes if its source/controller dies, like an emitted real area attack;
+a dispelled illusory Wail stops and its reversible effects are removed. No new
+victim joins the committed list; current radius/alive eligibility is rechecked.
+Cooldowns and private continuations are owner-only data. These routine details
+implement the approved profiles and D04 within delegated Stage 7 scope.
+
+Known Sleep expiry at the end of the coming Early phase permits planning only
+movement/Late actions for the awakened unit; its Early slot stays unavailable,
+and execution still revalidates any renewed Sleep. Other incapacitation and
+historical Sleep without explicit phase expiry keep their existing restrictions.
+The Wail controller-death interaction also exposed an existing lifecycle omission:
+real Spirit summons must collapse on wizard death, as the specification requires;
+ordinary non-Spirit summons still unbind. This checkpoint corrects that rule and
+covers it together with continuation of the already-emitted real Wail.
+
+Fey Leopard (Cat 5), Walking Mushroom (Plant 1) and Banshee (Spirit 6) are now
+enabled with their approved ratings, attacks, defences and body classifications.
+Coverage is 32 of 40 MVP profiles, with eight remaining. The historical catalogue
+and three already-implemented deferred profiles remain intact.
+
+Schema 23 / rules `roster-0.12` / content `blink-spores-wail-0.1` stores explicit
+Blink, Spores and Wail capabilities, Blink path/use metadata, phase-based Sleep
+expiry, Wail cooldowns and its continuation accumulator. Frozen schema-22 state
+and combat validators plus `migrateConditionActionsSnapshot` preserve committed
+condition actions, creature data, conditions and random streams without granting
+new abilities or inferring phase expiry for historical Sleep. Binding/Release
+cancellation clears a Blink marker together with the cancelled path.
+
+Six new permanent fixtures cover before/after Blink, early/late Sleep, mid-Wail
+after one resolved victim and cooldown planning. Headless and Chromium tests
+restore every atomic boundary with equal events, state and permitted views.
+Additional coverage checks movement costs and failure, Energy and occupancy,
+Guard and late attacks, restraint/Fear/casting, Tangleweed, control changes,
+phase expiry and planning, Con resistance and living-target rules, damage/Wake,
+Wail friendly fire/height/geometry, Dex and Int resistance, immunity/area damage,
+Double Action/cooldown, emitted origin and controller/source death, concentration,
+illusion reversal, reanimation, all summon variants, profile defences, privacy,
+malformed state and explicit legacy migrations.
+
+Remaining MVP profiles: Gryphon, Giant puma, Bobby the Master Hunter; Amphiptere,
+The World Serpent; Wisp; The Walking Forest; Shepherd. Stage 7 remains partial.
+AI, the finished playable interface and deployment remain later stages. The full
+verbatim original specification archive remains an outstanding release gate.
+
+Verification: `pnpm check` passes type checking and all 900 headless tests,
+including 74 Blink/Spores/Wail checks. `pnpm build`, all 43 Chromium tests
+(`pnpm test:browser`) and all nine CLI scenarios pass. Wall outcomes remain
+HP 4/11; schema-23 fingerprint is `fnv1a32-v1:d9322096`. Local verification used
+Node 24.22.1, pnpm 11.25.0 and pinned Playwright 1.56.1 Chromium; CI retains the
+repository's pinned Node version.

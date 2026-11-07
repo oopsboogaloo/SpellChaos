@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 29 implemented in scope including Lion, Ghost and Basilisk; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 32 implemented in scope including Fey Leopard, Walking Mushroom and Banshee; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Thirty-two implemented including three deferred profiles; twenty-nine in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Thirty-five implemented including three deferred profiles; thirty-two in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -312,6 +312,48 @@
         "real Gaze can slow Int0 constructs but an illusory Gaze cannot",
         "malformed power continuations are rejected transactionally"
       ]
+    },
+    {
+      "id": "ROSTER-026",
+      "requirement": "Fey Leopard Blink declared path segment, movement cost/once-per-turn state, Energy and legal endpoints, Guard/casting/control/Fear/weed interactions, illusion and versioned continuation",
+      "testFile": "tests/blink-spores-wail.test.ts",
+      "browserTestFile": "tests/browser/blink-spores-wail.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Fey Leopard Blink replaces three movement steps and continues normally with exact reloads",
+        "Energy stops Blink on its ray and is revalidated at execution",
+        "Blink itself does not trigger Guard, while a following ordinary step does",
+        "Blink is available again next turn and its used state survives a save",
+        "Release clears a cancelled Blink marker together with its path and preserves reloads"
+      ]
+    },
+    {
+      "id": "ROSTER-027",
+      "requirement": "Walking Mushroom Spores Con resistance, living-target and Int0 eligibility, exact next-action-phase Sleep, early wake planning, damage/Wake/illusion interactions and historical expiry preservation",
+      "testFile": "tests/blink-spores-wail.test.ts",
+      "browserTestFile": "tests/browser/blink-spores-wail.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "early Spores sleep lasts through the late phase and prevents intervening movement",
+        "late Spores persists into next turn, then permits plans after the next Early phase",
+        "Spores uses Con resistance instead of Int",
+        "damage wakes Spore sleep, but zero damage does not",
+        "schema-22 Sleep keeps its historical turn expiry without inferred phase timing"
+      ]
+    },
+    {
+      "id": "ROSTER-028",
+      "requirement": "D04 Banshee Wail all-team radius, independent Dex damage/Int Fear, cooldown, area defences, emitted origin/lifecycle, concentration accumulation and portable per-victim continuation",
+      "testFile": "tests/blink-spores-wail.test.ts",
+      "browserTestFile": "tests/browser/blink-spores-wail.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Wail resolves five area magic damage and separate Fear with a three-turn cooldown",
+        "Wail reaches through opaque walls and Darkness without leaking hidden events",
+        "a saved Wail damage accumulator checks concentration once before a late cast completion",
+        "wizard death collapses Spirit servants, preserves ordinary unbinding, and cannot cancel an emitted real Wail",
+        "dispel between Wail victims restores the first survivor and stops remaining damage"
+      ]
     }
   ],
   "pending": [
@@ -319,7 +361,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 11 MVP profiles only after their complete engine tests",
+    "Enable remaining 8 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }
