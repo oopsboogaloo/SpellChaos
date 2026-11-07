@@ -99,7 +99,7 @@ const plant = (extra:Partial<Creature> = {}):Partial<Creature> => ({plant:true,c
 add('Plant',1,'Walking mushroom',[1,4,2,2,0],[melee('Bump',3,1)],plant({defences:[defence('cold',.5),defence('fire',1.5)]}),[ability('spores',{range:1,potency:2,resistance:'con',duration:'next-action-phase',targets:'living-enemy'})]);
 add('Plant',2,'Grasping vine',[2,5,2,3,0],[melee('Tendril',4,2,'physical',5,2)],plant({grappleLimbs:2,grappleEqualSize:true,defences:[defence('physical',.5),defence('fire',1.5)]}));
 add('Plant',3,'Thorn bush',[3,5,1,2,0],[melee('Thorns',5,3)],plant({bristles:1,flammable:true,defences:[defence('physical',.5),defence('fire',1.5)]}),[ability('bristles',{damage:1,type:'physical',requiresDamage:true})]);
-add('Plant',4,'Walking tree',[3,6,2,2,0],[melee('Branch',5,4,'physical',5,2)],plant({flammable:true,defences:[defence('physical',.5),defence('cold',.5),defence('fire',1.5)]}),[ability('objects'),ability('shove',{steps:1,targets:'smaller'})]);
+add('Plant',4,'Walking tree',[3,6,2,2,0],[melee('Branch',5,4,'physical',5,2)],plant({shove:{attackId:'basic'},flammable:true,defences:[defence('physical',.5),defence('cold',.5),defence('fire',1.5)]}),[ability('objects'),ability('shove',{steps:1,targets:'smaller'})]);
 add('Plant',5,'Treant',[4,7,3,3,6],[melee('Branch',7,6,'physical',5,2)],plant({flammable:true,regeneration:2,defences:[defence('physical',.5),defence('cold',.5),defence('fire',1.5)]}),[ability('objects'),ability('wood-weapon')]);
 rows.push({profile:swarmProfile('Summon Plant',6)!,abilities:[]});
 add('Plant',7,'Ancient treant',[5,8,2,3,8],[melee('Branch',8,8,'physical',5,2)],plant({...caster(35,4,['Tangleweed','Healing Bolt']),flammable:true,regeneration:3,defences:[defence('physical',.25),defence('cold',.5),defence('fire',2)]}));

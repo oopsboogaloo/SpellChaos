@@ -1,3 +1,4 @@
+import {stateSchema as cougarSchema} from '../../domain/src/legacy-v20.js';
 import {stateSchema as shadeSchema} from '../../domain/src/legacy-v19.js';
 import {stateSchema as treantSchema} from '../../domain/src/legacy-v18.js';
 import {stateSchema as fiveFamilySchema} from '../../domain/src/legacy-v17.js';
@@ -181,5 +182,11 @@ export function migrateTreantSnapshot(text:string):GameState {
 /** Preserve schema-19 transit and committed work without inferring Pounce or movement history. */
 export function migrateShadeSnapshot(text:string):GameState {
  const old=shadeSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve Pounce trails and pending bites without granting Shove to historical creatures. */
+export function migrateCougarSnapshot(text:string):GameState {
+ const old=cougarSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

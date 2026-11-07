@@ -489,3 +489,63 @@ Verification: `pnpm check` passes 702 headless tests and type checking;
 fingerprint is `fnv1a32-v1:75a01a30`. Local verification used Node 24.22.1,
 pnpm 11.25.0 and the pinned Playwright 1.56.1 Chromium build; CI retains the
 repository's pinned Node version.
+
+## Walking Tree / Shove interpretation (stacked continuation)
+
+This checkpoint continues the reviewed Cougar branch while PR #8 remains open;
+it does not merge that PR. Walking Tree's Shove is an automatic passive on a
+Branch hit that deals applicable damage, following the general secondary-effect
+rule. A strictly smaller surviving target moves one hex directly away from the
+Tree, using the existing six-sector centre geometry and its canonical boundary
+tie. The destination and crossed edge must be legal for the whole target
+footprint. A blocked push is wasted without selecting another direction. There
+is no additional hit or resistance roll, action cost, cooldown or movement cost.
+
+Shove also applies to damaging Guard hits. It uses ordinary forced movement:
+no Guard reaction, casting interruption, wall hazards, weed contact, hold cleanup,
+actual-movement history and Pounce reset. Incapacitated survivors can be moved;
+dead creatures and dispersed swarms cannot. Illusory Trees copy the passive, but
+cannot shove Int0 targets because they deal no applicable damage. Reversing an
+illusion restores reversible damage and conditions, not a relocation already
+resolved; later movement and occupancy are not rewound. Reanimation retains no
+Shove capability. These are routine implementation interpretations within the
+owner's delegated Stage 7 scope, not new accepted design decisions.
+
+Walking Tree (Plant 4) is enabled with Size 3, Con 6, Move 2, Dex 2, Int 0,
+HP 18; Skill 5 / physical damage 4 Branch at reach 2; physical/cold resistance,
+fire vulnerability, flammability and plant immunities. Its object-handling marker
+retains the established equipment deferral; Branch is fully usable. Current MVP
+coverage is 26 of 40 profiles, with 14 remaining; three deferred profiles remain
+supported and the historical 56-profile catalogue is intact.
+
+Schema 21 / rules `roster-0.10` / content `walking-tree-0.1` adds optional explicit
+Shove metadata. Frozen schema-20 and combat validators plus
+`migrateCougarSnapshot` preserve existing creatures, Pounce trails, committed
+attacks, RNG and cursors without adding Shove. New permanent fixtures
+`walking-tree-v21-before.json` and `walking-tree-v21-after.json` verify the hit and
+completed displacement as atomic boundaries in Node and Chromium. There is no
+new half-resolved displacement state. Public views copy the capability independently.
+
+Forced displacement now releases affected holds that extend beyond their
+original limb reach, height or unobstructed contact; a still-reachable hold stays.
+Coincident centres use the first canonical direction; the whole-footprint check
+still applies, including the existing swarm overlap exception.
+Tests cover reach/height/target revalidation, strict Size, misses, zero damage,
+critical hits, no extra random roll, blocked edges/occupancy/boundaries, large
+footprints, Guard, casts, Pounce, fire walls, weed contact, separated and retained
+holds, incapacitation/death/swarm dispersal, illusions, plant defences/immunities,
+corpse exclusion, reanimation stripping, all summon variants, malformed saves,
+legacy migration and public-view isolation.
+
+Remaining MVP profiles: Lion, Fey leopard, Gryphon, Giant puma, Bobby the Master
+Hunter; Basilisk, Amphiptere, The World Serpent; Wisp, Ghost, Banshee; Walking
+mushroom, The Walking Forest; Shepherd. Stage 7 remains partial. AI, the finished
+playable browser UI and deployment remain later stages, and the verbatim original
+specification archive remains an outstanding release gate.
+
+Verification: `pnpm check` passes type checking and all 748 headless tests,
+including 46 Walking Tree checks. `pnpm build`, all 33 Chromium tests
+(`pnpm test:browser`) and all nine `tools/run-*.mjs` scenarios pass. Wall outcomes
+remain HP 4/11; schema-21 fingerprint is `fnv1a32-v1:c5f93ea2`. Local verification
+used Node 24.22.1, pnpm 11.25.0 and pinned Playwright 1.56.1 Chromium; CI retains
+the repository's pinned Node version.

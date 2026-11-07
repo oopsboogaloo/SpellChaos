@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 25 implemented in scope including Cougar; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 26 implemented in scope including Walking Tree; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty-eight implemented including three deferred profiles; twenty-five in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty-nine implemented including three deferred profiles; twenty-six in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -253,6 +253,23 @@
         "permanent %s fixture resumes identically at every atomic boundary",
         "schema-19 migration preserves transit without granting Pounce or history"
       ]
+    },
+    {
+      "id": "ROSTER-022",
+      "requirement": "Walking Tree Shove uses damaging hits, strict Size eligibility, canonical direction, legal footprints, Guard/forced-movement rules, casting/hazard/hold/Pounce interactions, illusions, explicit migration and atomic continuation",
+      "testFile": "tests/walking-tree.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Walking Tree hits at reach two and pushes a smaller survivor with exact continuation",
+        "blocked destinations waste the push without rerouting",
+        "Guard can Shove a mover without provoking another Guard",
+        "Shove interrupts an immobile cast exactly once without refunding spent mana",
+        "Shove clears a Cougar approach and marks actual movement",
+        "illusory Shove restores damage without rewinding resolved relocation",
+        "permanent %s Shove fixture restores every boundary without a second push",
+        "schema-20 migration preserves Cougar %s and grants no Shove"
+      ]
     }
   ],
   "pending": [
@@ -260,7 +277,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 15 MVP profiles only after their complete engine tests",
+    "Enable remaining 14 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }
