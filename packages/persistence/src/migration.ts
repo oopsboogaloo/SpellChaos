@@ -1,3 +1,4 @@
+import {stateSchema as groundSpecialistsSchema} from '../../domain/src/legacy-v24.js';
 import {stateSchema as blinkSporesWailSchema} from '../../domain/src/legacy-v23.js';
 import {stateSchema as conditionActionsSchema} from '../../domain/src/legacy-v22.js';
 import {stateSchema as walkingTreeSchema} from '../../domain/src/legacy-v21.js';
@@ -209,5 +210,10 @@ export function migrateConditionActionsSnapshot(text:string):GameState {
 /** Preserve committed Blink/Sleep/Wail without inferring ground-specialist powers or root links. */
 export function migrateBlinkSporesWailSnapshot(text:string):GameState {
  const old=blinkSporesWailSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+/** Preserve committed joint Drag/Sweep/roots without inferring flight, detection or invisibility. */
+export function migrateGroundSpecialistsSnapshot(text:string):GameState {
+ const old=groundSpecialistsSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

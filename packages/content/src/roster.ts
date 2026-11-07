@@ -51,14 +51,14 @@ add('Cat',4,'Sabre-toothed tiger',[3,6,4,5,2],[tiger],{defences:[defence('cold',
 add('Cat',5,'Fey leopard',[2,5,6,9,6],[melee('Claws',7,4,'magic')],{blink:{range:3},defences:[defence('magic',.5),defence('physical',1.5)]},[ability('blink',{range:3,usesPerTurn:1})]);
 add('Cat',6,'Gryphon',[4,6,6,6,4],[multi(melee('Beak',7,4),melee('Claws',6,3))],{height:'air',defences:[defence('cold',.5)]},[flying(),ability('mount'),ability('dive',{steps:3,damage:2,shotIndex:0})]);
 add('Cat',7,'Giant puma',[5,6,5,6,3],[melee('Bite',8,8)],{grappleLimbs:1,drag:{moveDivisor:2},pounce:{attackId:'basic',steps:3,damage:2}},[pounce(),ability('drag',{moveMultiplier:.5})]);
-add('Cat',8,'Bobby the Master Hunter',[2,7,7,10,8],[melee('Claws',9,5,'magic',20)],{defences:[defence('magic',.5),defence('poison',.5)],doubleAction:true,ignoresDarknessDisadvantage:true},[ability('see-invisible',{range:6})]);
+add('Cat',8,'Bobby the Master Hunter',[2,7,7,10,8],[melee('Claws',9,5,'magic',20)],{defences:[defence('magic',.5),defence('poison',.5)],doubleAction:true,ignoresDarknessDisadvantage:true,seeInvisibleRange:6},[ability('see-invisible',{range:6})]);
 
 add('Serpent',1,'Snake familiar',[1,3,3,6,2],[poison(melee('Bite',4,1),2)],{familiar:true,defences:[defence('poison',.5),defence('cold',1.5)]});
 add('Serpent',2,'Adder',[1,4,3,7,1],[poison(melee('Bite',5,2),5)],{defences:[defence('poison',.5),defence('cold',1.5)]},[ability('ambush')]);
 for (const level of [3,4]) rows.push({profile:swarmProfile('Summon Serpent',level)!,abilities:[]});
 add('Serpent',5,'Basilisk',[3,6,3,4,3],[melee('Bite',6,4)],{gaze:{range:4,potency:5,duration:2},defences:[defence('poison',.5),defence('cold',1.5)]},[ability('gaze',{range:4,potency:5,duration:2,resistance:'int',escapeResistance:'int'})]);
 const spit = shot('Spit',7,3,5,'poison');spit.id='spit';
-add('Serpent',6,'Amphiptere',[3,5,7,8,4],[poison(melee('Bite',7,4),6),spit],{height:'air',reanimationAttackIds:['basic'],defences:[defence('poison',.5),defence('lightning',.5),defence('cold',1.5)]},[flying()]);
+add('Serpent',6,'Amphiptere',[3,5,7,8,4],[poison(melee('Bite',7,4),6),spit],{height:'air',flight:{takeoffCost:1,landingCost:1},reanimationAttackIds:['basic'],defences:[defence('poison',.5),defence('lightning',.5),defence('cold',1.5)]},[flying()]);
 add('Serpent',7,'Hydra',[5,7,3,4,3],[repeat(melee('Bites',7,3))],{regeneration:3,defences:[defence('poison',.5),defence('fire',1.5),defence('acid',1.5)]});
 add('Serpent',8,'The World Serpent',[8,8,3,4,8],[melee('Bite',9,10),{...melee('Tail Sweep',8,5),id:'tail-sweep',mode:'cleave',minRange:1,targetTeams:'all',areaDamage:true}],{grappleLimbs:1,constriction:{damage:4},reanimationAttackIds:['basic'],defences:[defence('poison',0),defence('cold',.5),defence('light',1.5)]},[ability('tail-sweep',{skill:8,damage:5,targets:'all-adjacent'}),ability('constriction',{damage:4,type:'physical'})]);
 
@@ -84,7 +84,7 @@ add('Dragon',8,'Multi-headed Dragon',[6,8,4,4,8],[repeat(melee('Bites',8,4))],{h
 
 const spirit = (level:number, extra:Partial<Creature> = {}):Partial<Creature> => ({undead:true,undeadClass:level>=3?'higher':'exception',corpseEligible:false,reanimationAttackIds:[],...extra});
 const spiritDefences = (physical:Creature['defences'][number]['multiplier'], light:Creature['defences'][number]['multiplier']=1.5) => [defence('physical',physical),defence('poison',0),defence('light',light)];
-add('Spirit',1,'Wisp',[1,2,4,7,3],[shot('Spark',3,1,3,'magic')],spirit(1,{height:'air',defences:spiritDefences(.5)}),[flying(),ability('haunt',{range:2,duration:'phase'})]);
+add('Spirit',1,'Wisp',[1,2,4,7,3],[shot('Spark',3,1,3,'magic')],spirit(1,{height:'air',flight:{takeoffCost:1,landingCost:1},haunt:{range:2},defences:spiritDefences(.5)}),[flying(),ability('haunt',{range:2,duration:'phase'})]);
 const chill=melee('Touch',4,2,'magic');chill.shots[0]!.secondary.push({kind:'Slowed',potency:2,resistance:'int',duration:1,requiresDamage:true});
 add('Spirit',2,'Haunting shade',[2,3,4,6,4],[chill],spirit(2,{passCreatures:true,defences:spiritDefences(.25)}),[ability('pass-creatures')]);
 add('Spirit',3,'Ghost',[2,4,4,6,5],[melee('Touch',5,3,'magic')],spirit(3,{fearAction:{kind:'Frighten',range:1,potency:4,duration:2},incorporeal:true,defences:spiritDefences(0)}),[ability('frighten',{range:1,potency:4,duration:2})]);
