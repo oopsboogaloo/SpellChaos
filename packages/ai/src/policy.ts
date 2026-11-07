@@ -19,6 +19,7 @@ import {summonProfile} from '../../content/src/summons.js';
 import {createCreature} from '../../engine/src/index.js';
 
 export const POLICY_VERSION='fair-ai-0.1' as const;
+export const MAX_POLICY_WORK=10000000;
 export type Difficulty='easy'|'standard'|'hard';
 export interface PolicyOptions {difficulty?:Difficulty;maxWork?:number}
 export interface PolicyResult {orders:Order[];seed:number;work:number;candidates:number;expanded:number;truncated:boolean;policyVersion:typeof POLICY_VERSION}
@@ -33,7 +34,7 @@ const posed=(s:GameState,c:Creature)=>({...s,creatures:s.creatures.map(t=>t.id==
  * callback is accepted. All hypotheses are constructed from this observation. */
 export function planWizardTurn(view:PlayerView,seed:number,options:PolicyOptions={}):PolicyResult {
  const difficulty=options.difficulty??'standard',budget=options.maxWork??100000;
- if(!(difficulty in limits)||!Number.isInteger(budget)||budget<0||budget>10000000)throw new Error('INVALID_POLICY_OPTIONS');
+ if(!(difficulty in limits)||!Number.isInteger(budget)||budget<0||budget>MAX_POLICY_WORK)throw new Error('INVALID_POLICY_OPTIONS');
  randomBelow(seed,1); // validate explicit seed, without consuming the stream
  if(view.phase!=='planning')throw new Error('AI_PLANNING_ONLY');
  if(view.self.locked||view.players.find(p=>p.id===view.self.id)?.eliminated)return {orders:[],seed,work:0,candidates:0,expanded:0,truncated:false,policyVersion:POLICY_VERSION};
