@@ -1,3 +1,4 @@
+import {prepareUnboundOrders} from './unbound.js';
 import { commandSchema, stateSchema, VERSION, type Creature, type GameState, type Command } from '../../domain/src/state.js';
 import { canonical } from '../../persistence/src/snapshot.js';
 import { staff } from '../../domain/src/combat.js';
@@ -35,7 +36,7 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
     board: { columns: 30, rows: 30 }, walls: [],
     players: playerIds.map((id, i) => ({ id, wizardId: `wizard-${i}`, locked: false, participated: false, missedTurns: 0, eliminated: false })),
     creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard', canRide:true,handlesObjects:true,spellbook:books[i]! })),
-    actedThisPhase:[], orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null }, defending: [], guards: [], holds: [], reactions: [], pendingAttack: null, pendingPower:null, spentActions: [], moved: [], corpses: [], deadHandled: [], endStep: 0, result: null, accepted: [],
+    autonomous:[],actedThisPhase:[], orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null }, defending: [], guards: [], holds: [], reactions: [], pendingAttack: null, pendingPower:null, spentActions: [], moved: [], corpses: [], deadHandled: [], endStep: 0, result: null, accepted: [],
   });
 }
 export function surrender(state: GameState, playerId: string, events: Event[]): void {
@@ -55,7 +56,7 @@ export function checkVictory(state: GameState, events: Event[]): boolean {
 }
 function apply(state: GameState, input: unknown, system: boolean): Transition {
   const command = commandSchema.parse(input);
-  const systemType = command.type === 'DeadlineReached' || command.type === 'StartResolution';
+  const systemType = command.type === 'DeadlineReached' || command.type === 'StartResolution'||command.type==='AdvanceAiStream';
   if (system !== systemType || system !== (command.playerId === '$system')) throw new Error('INVALID_COMMAND_AUTHORITY');
   if (command.matchId !== state.matchId) throw new Error('WRONG_MATCH');
   const prior = state.accepted.find(a => a.command.commandId === command.commandId);
@@ -72,6 +73,7 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
   if ((command.type === 'ClearOrder' || command.type === 'ReleaseHold' || command.type === 'CancelCast') && !state.creatures.some(c => c.id === command.creatureId && c.controller === command.playerId)) throw new Error('NOT_CONTROLLED');
   if (command.type === 'DeadlineReached' && state.phase !== 'planning') throw new Error('DEADLINE_NOT_APPLICABLE');
   if (command.type === 'StartResolution' && state.phase !== 'ready') throw new Error('NOT_READY');
+  if(command.type==='AdvanceAiStream'&&(state.phase!=='planning'||state.random.ai!==command.before))throw new Error('INVALID_AI_STREAM_TRANSITION');
   const next = structuredClone(state), events: Event[] = [];
   if (!system) next.players.find(p => p.id === command.playerId)!.participated = true;
   if (command.type === 'SetOrder') {
@@ -87,6 +89,8 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
   } else if (command.type === 'ClearOrder') {
     next.orders = next.orders.filter(o => o.creatureId !== command.creatureId);
     next.reservations = next.reservations.filter(r => r.orderId !== command.creatureId);
+  } else if(command.type==='AdvanceAiStream'){
+    next.random.ai=command.after;
   } else if (command.type === 'LockTurn') {
     const p = next.players.find(p => p.id === command.playerId)!;
     p.locked = true; p.missedTurns = 0;
@@ -104,6 +108,7 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
     }
     next.phase = 'ready'; checkVictory(next, events);
   } else {
+    prepareUnboundOrders(next);
     for (const c of next.creatures.filter(c => c.alive)) if (!next.orders.some(o => o.creatureId === c.id)) next.orders.push(defaultOrder(c.id));
     // Initialization of the phase queue is delegated to the resolver after this acknowledgement.
     next.phase = 'early';

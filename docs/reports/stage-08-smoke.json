@@ -1,0 +1,297 @@
+{
+  "reportVersion": 1,
+  "node": "v24.22.1",
+  "command": "node tools/run-ai.mjs",
+  "totals": {
+    "wins": 8,
+    "draws": 0,
+    "timeouts": 2,
+    "failures": 0
+  },
+  "results": [
+    {
+      "seed": 123,
+      "players": 2,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p1"
+      },
+      "turn": 17,
+      "atomicSteps": 871,
+      "planningWork": 4704,
+      "candidates": 3517,
+      "expanded": 1080,
+      "fallbacks": 0,
+      "creatures": 8,
+      "fingerprint": "fnv1a32-v1:4da1d2cc"
+    },
+    {
+      "seed": 456,
+      "players": 2,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "timeout",
+        "reason": "turn-limit"
+      },
+      "turn": 61,
+      "atomicSteps": 3605,
+      "planningWork": 16897,
+      "candidates": 14970,
+      "expanded": 1430,
+      "fallbacks": 25,
+      "creatures": 11,
+      "fingerprint": "fnv1a32-v1:4f822677"
+    },
+    {
+      "seed": 123,
+      "players": 4,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p1"
+      },
+      "turn": 53,
+      "atomicSteps": 3602,
+      "planningWork": 15021,
+      "candidates": 13438,
+      "expanded": 1221,
+      "fallbacks": 2,
+      "creatures": 14,
+      "fingerprint": "fnv1a32-v1:9b80d70c"
+    },
+    {
+      "seed": 456,
+      "players": 4,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p2"
+      },
+      "turn": 18,
+      "atomicSteps": 1243,
+      "planningWork": 6265,
+      "candidates": 5087,
+      "expanded": 1045,
+      "fallbacks": 0,
+      "creatures": 12,
+      "fingerprint": "fnv1a32-v1:6f8da7bd"
+    },
+    {
+      "seed": 123,
+      "players": 8,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p3"
+      },
+      "turn": 16,
+      "atomicSteps": 897,
+      "planningWork": 7890,
+      "candidates": 6563,
+      "expanded": 1213,
+      "fallbacks": 0,
+      "creatures": 17,
+      "fingerprint": "fnv1a32-v1:b2cd981b"
+    },
+    {
+      "seed": 456,
+      "players": 8,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p2"
+      },
+      "turn": 20,
+      "atomicSteps": 887,
+      "planningWork": 9771,
+      "candidates": 8955,
+      "expanded": 704,
+      "fallbacks": 0,
+      "creatures": 12,
+      "fingerprint": "fnv1a32-v1:6d749691"
+    },
+    {
+      "seed": 123,
+      "players": 3,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "timeout",
+        "reason": "turn-limit"
+      },
+      "turn": 61,
+      "atomicSteps": 3347,
+      "planningWork": 16694,
+      "candidates": 14840,
+      "expanded": 1410,
+      "fallbacks": 3,
+      "creatures": 13,
+      "fingerprint": "fnv1a32-v1:afcc4db5"
+    },
+    {
+      "seed": 123,
+      "players": 5,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p0"
+      },
+      "turn": 12,
+      "atomicSteps": 1120,
+      "planningWork": 5956,
+      "candidates": 4549,
+      "expanded": 1270,
+      "fallbacks": 0,
+      "creatures": 17,
+      "fingerprint": "fnv1a32-v1:efaeff36"
+    },
+    {
+      "seed": 123,
+      "players": 6,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p5"
+      },
+      "turn": 22,
+      "atomicSteps": 1770,
+      "planningWork": 9946,
+      "candidates": 8285,
+      "expanded": 1438,
+      "fallbacks": 0,
+      "creatures": 16,
+      "fingerprint": "fnv1a32-v1:ee8ac739"
+    },
+    {
+      "seed": 123,
+      "players": 7,
+      "policyVersion": "fair-ai-0.1",
+      "versions": {
+        "schema": 27,
+        "rules": "autonomy-0.1",
+        "content": "gryphon-shepherd-0.1"
+      },
+      "options": {
+        "difficulty": "standard",
+        "maxTurns": 60,
+        "maxAtomicSteps": 100000,
+        "maxPlanningWork": 10000000
+      },
+      "outcome": {
+        "type": "winner",
+        "playerId": "p2"
+      },
+      "turn": 23,
+      "atomicSteps": 1307,
+      "planningWork": 9374,
+      "candidates": 8437,
+      "expanded": 793,
+      "fallbacks": 0,
+      "creatures": 12,
+      "fingerprint": "fnv1a32-v1:ae75d586"
+    }
+  ],
+  "commands": [
+    "node tools/run-ai.mjs --players 2,4,8 --seeds 123,456 --max-turns 60 --output /tmp/ai-report.json",
+    "node tools/run-ai.mjs --players 3,5,6,7 --seeds 123 --max-turns 60 --output /tmp/ai-extra-report.json"
+  ]
+}

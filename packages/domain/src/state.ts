@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { powerActionSchema, validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 26, rules: 'roster-0.15', content: 'gryphon-shepherd-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 27, rules: 'autonomy-0.1', content: 'gryphon-shepherd-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -22,6 +22,7 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('ReleaseHold'), creatureId: id, targetId: id.nullable() }),
   z.strictObject({ ...envelope, type: z.literal('DeadlineReached') }),
   z.strictObject({ ...envelope, type: z.literal('StartResolution') }),
+  z.strictObject({ ...envelope, type: z.literal('AdvanceAiStream'), before:rngState,after:rngState }),
 ]);
 export type Command = z.infer<typeof commandSchema>;
 export const creatureSchema = z.strictObject({
@@ -87,7 +88,7 @@ export const rawStateSchema = z.strictObject({
   defending: z.array(z.strictObject({ creatureId: id, phases: z.array(z.enum(['early','late'])).max(2) })),
   guards:z.array(guardSchema), holds:z.array(holdSchema), reactions:z.array(reactionSchema), pendingAttack:pendingAttackSchema.nullable(),
   pendingPower:z.strictObject({actorId:id,action:powerActionSchema,targets:z.array(id),index:uint,origin:hexSchema.optional(),actionId:id.optional(),damageByTarget:z.array(z.strictObject({targetId:id,amount:uint})).optional()}).nullable(),
-  actedThisPhase:z.array(id),
+  autonomous:z.array(id),actedThisPhase:z.array(id),
   spentActions:z.array(id), moved:z.array(id), corpses:z.array(corpseSchema), deadHandled:z.array(id), endStep:z.number().int().min(0).max(4),
   result: z.discriminatedUnion('type', [z.strictObject({ type: z.literal('winner'), playerId: id }), z.strictObject({ type: z.literal('draw') })]).nullable(),
   accepted: z.array(z.strictObject({ command: commandSchema, revision: uint.min(1) })),
@@ -129,7 +130,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   state.accepted.forEach((a, i) => {
     if (a.revision !== i + 1 || a.command.expectedRevision !== i || a.command.matchId !== state.matchId || a.command.turn > state.turn ||
       (a.command.playerId !== '$system' && !players.includes(a.command.playerId))) invalid('INVALID_COMMAND_HISTORY');
-    const system = ['DeadlineReached', 'StartResolution'].includes(a.command.type);
+    const system = ['DeadlineReached', 'StartResolution','AdvanceAiStream'].includes(a.command.type);
     if (system !== (a.command.playerId === '$system')) invalid('INVALID_COMMAND_AUTHORITY');
     if (a.command.type === 'SetOrder' && !creatures.includes(a.command.order.creatureId)) invalid('INVALID_HISTORY_ENTITY');
     if ((a.command.type === 'ClearOrder' || a.command.type === 'ReleaseHold' || a.command.type === 'CancelCast') && !creatures.includes(a.command.creatureId)) invalid('INVALID_HISTORY_ENTITY');
@@ -250,6 +251,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
    if((r.lastReloadTurn!==null&&r.lastFiredTurn===null)||(r.lastFiredTurn??0)>state.turn||(r.lastReloadTurn??0)>state.turn||(r.lastFiredTurn!==null&&r.lastFiredTurn===r.lastReloadTurn)||(!r.loaded&&(r.lastFiredTurn===null||(r.lastReloadTurn??0)>r.lastFiredTurn))||(r.loaded&&r.lastFiredTurn!==null&&(r.lastReloadTurn??0)<=r.lastFiredTurn))invalid('INVALID_RELOAD_STATE');
   }
   if(state.creatures.some(c=>c.quarryTargetId!==null&&(!c.canMarkQuarry||c.quarryTargetId===c.id||!state.creatures.some(t=>t.id===c.quarryTargetId&&t.alive))))invalid('INVALID_QUARRY');
+  if(!unique(state.autonomous)||state.autonomous.some(id=>!state.creatures.some(c=>c.id===id&&c.controller===null&&c.kind!=='wizard'))||(['planning','ready'].includes(state.phase)&&state.autonomous.length))invalid('INVALID_AUTONOMOUS_ACTORS');
   if(!unique(state.actedThisPhase)||state.actedThisPhase.some(id=>!creatures.includes(id)))invalid('INVALID_PHASE_ACTIVITY');
   if(state.spentActions.some(id=>!creatures.includes(id)) || !unique(state.moved) || state.moved.some(id=>!creatures.includes(id))) invalid('INVALID_TURN_ACTIVITY');
   if(!unique(state.deadHandled) || state.deadHandled.some(id=>!creatures.includes(id)) || !unique(state.corpses.map(c=>c.id)) || state.corpses.some(c=>!creatures.includes(c.creatureId))) invalid('INVALID_CORPSE');
