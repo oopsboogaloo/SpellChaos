@@ -13,6 +13,7 @@ Browser wizard combat, built through a reviewed specification and staged plan.
 - [Combat and lifecycle](docs/stages/04-combat.md)
 - [Casting, mana and control](docs/stages/05-casting.md)
 - [Roster implementation and checkpoint evidence](docs/stages/07-roster.md)
+- [Stage 1–7 code and design review](docs/reviews/2026-11-07-stage-1-7-review.md)
 
 ## Development
 
@@ -65,8 +66,8 @@ GitHub Actions repeats typechecking, tests and build on pushes and pull requests
 
 No deployment is configured yet. Fair AI, the responsive playable UI, complete
 browser workflows and acceptance/performance/soak hardening remain in the plan.
-The verbatim original specification archive remains a release gate; the linked
-condensed specification is not that archive. The permanent full-roster replay in
+The condensed specification is the authoritative specification (owner decision,
+7 November 2026); no verbatim archive of the original text is required. The permanent full-roster replay in
 `tests/fixtures/mounts-v26-full-roster.json` exercises a scripted headless turn
 with all 40 MVP profiles, not an AI match or a finished game.
 
@@ -134,5 +135,4 @@ fire crossing, weed movement and a late shot intercepted by a new crystal wall.
 Schema 9 upgrades explicitly through `migrateTangleweedSnapshot`. Five immutable
 schema-10 fixtures cover planning, casting, crossing, interception and resolution.
 Destroyed wall IDs preserve pending orders after their target disappears.
-Stage 6 mechanics are ready for review; the verbatim specification archive and
-full-source acceptance audit remain outstanding, alongside later MVP stages.
+Stage 6 mechanics are ready for review; later MVP stages remain outstanding.

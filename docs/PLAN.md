@@ -2,6 +2,8 @@
 
 > **Approved scope change — 6 November 2026:** Goblin and Dragon are deferred in full to the next version. The MVP now has five summon families (Cat, Serpent, Spirit, Plant, Archer), 40 profiles, and the same 12 non-summoning spell families. This supersedes seven-family/56-profile MVP requirements below; historical profiles and rules remain preserved for later use. Starting spell guarantees use 14 non-guaranteed families.
 
+> **Owner decisions — 7 November 2026:** (1) [SPECIFICATION.md](SPECIFICATION.md) is now the authoritative specification. The verbatim v0.9 source archive (PLAN Stage 0, `docs/SPECIFICATION-SOURCE-v0.9.md`) is no longer required; statements below that the original supplied text is authoritative, or that archiving it is a gate, are superseded. Where the register is silent or ambiguous, record an owner ruling as a numbered decision rather than appealing to the original source. (2) Development saves need no backward compatibility: legacy schema validators, migration functions and historical save fixtures may be deleted, and the schema may restart at version 1 for release. See the [Stage 1–7 review](reviews/2026-11-07-stage-1-7-review.md).
+
 Version 0.1 · 2 November 2026 · **APPROVED by owner**
 
 ## Authority and execution contract
