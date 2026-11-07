@@ -35,7 +35,7 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
     board: { columns: 30, rows: 30 }, walls: [],
     players: playerIds.map((id, i) => ({ id, wizardId: `wizard-${i}`, locked: false, participated: false, missedTurns: 0, eliminated: false })),
     creatures: playerIds.map((id, i) => createCreature(`wizard-${i}`, id, starts.positions[i]!, { kind: 'wizard', spellbook:books[i]! })),
-    actedThisPhase:[], orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null }, defending: [], guards: [], holds: [], reactions: [], pendingAttack: null, spentActions: [], moved: [], corpses: [], deadHandled: [], endStep: 0, result: null, accepted: [],
+    actedThisPhase:[], orders: [], dashed: [], reservations: [], cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null }, defending: [], guards: [], holds: [], reactions: [], pendingAttack: null, pendingPower:null, spentActions: [], moved: [], corpses: [], deadHandled: [], endStep: 0, result: null, accepted: [],
   });
 }
 export function surrender(state: GameState, playerId: string, events: Event[]): void {
@@ -49,7 +49,7 @@ export function checkVictory(state: GameState, events: Event[]): boolean {
   if (living.length > 1) return false;
   state.phase = 'ended'; state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   state.casts=[]; state.quickQueue=null;
-  state.pendingAttack = null; state.reactions = [];
+  state.pendingPower=null; state.pendingAttack = null; state.reactions = [];
   state.result = living.length ? { type: 'winner', playerId: living[0]!.id } : { type: 'draw' };
   emit(state, events, { type: 'MatchEnded' }); return true;
 }

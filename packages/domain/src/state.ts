@@ -2,10 +2,10 @@ import { implementedSpells } from '../../content/src/spells.js';
 import { summonProfile } from '../../content/src/summons.js';
 import { castActionSchema, castSchema, occupiedSlotSchema, spellSchema, summonFamilies } from './spells.js';
 import { z } from 'zod';
-import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
+import { powerActionSchema, validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 21, rules: 'roster-0.10', content: 'walking-tree-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 22, rules: 'roster-0.11', content: 'condition-actions-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -41,6 +41,8 @@ export const creatureSchema = z.strictObject({
   attackTraits:z.strictObject({aim:z.boolean(),brace:z.boolean(),ambush:z.boolean(),closeDisadvantageBelow:uint,receivesRally:z.boolean(),rallySource:z.boolean()}),
   reload:z.strictObject({loaded:z.boolean(),lastFiredTurn:uint.min(1).nullable(),lastReloadTurn:uint.min(1).nullable()}).nullable(),
   canMarkQuarry:z.boolean(),quarryTargetId:id.nullable(),
+  fearAction:z.strictObject({kind:z.enum(['Roar','Frighten']),range:uint.min(1).max(30),potency:uint.min(1),duration:uint.min(1).max(1000)}).optional(),
+  gaze:z.strictObject({range:uint.min(1).max(30),potency:uint.min(1),duration:uint.min(1).max(1000)}).optional(),
   shove:z.strictObject({attackId:id}).optional(),
   pounce:z.strictObject({attackId:id,steps:uint.min(1).max(1000),damage:uint.min(1).max(1000000)}).optional(),
   pounceTrail:z.array(hexSchema).min(2).max(1001).optional(),
@@ -74,6 +76,7 @@ export const rawStateSchema = z.strictObject({
   cursor: z.strictObject({ entries: z.array(entrySchema), index: uint, pathIndex: uint, initialized: z.boolean(), activePath: z.array(hexSchema).nullable(), lastRestingCentre: hexSchema.nullable() }),
   defending: z.array(z.strictObject({ creatureId: id, phases: z.array(z.enum(['early','late'])).max(2) })),
   guards:z.array(guardSchema), holds:z.array(holdSchema), reactions:z.array(reactionSchema), pendingAttack:pendingAttackSchema.nullable(),
+  pendingPower:z.strictObject({actorId:id,action:powerActionSchema,targets:z.array(id),index:uint}).nullable(),
   actedThisPhase:z.array(id),
   spentActions:z.array(id), moved:z.array(id), corpses:z.array(corpseSchema), deadHandled:z.array(id), endStep:z.number().int().min(0).max(4),
   result: z.discriminatedUnion('type', [z.strictObject({ type: z.literal('winner'), playerId: id }), z.strictObject({ type: z.literal('draw') })]).nullable(),
@@ -151,6 +154,10 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
           if(action.targetIds.some(id=>!creatures.includes(id)) || (action.ground && !inside(action.ground,state.board)))invalid('INVALID_ORDER_TARGET');
           if(attack && !validAttackTargets(attack,action))invalid('INVALID_ORDER_TARGET');
         }else if(action.targetId!==null&&!creatures.includes(action.targetId))invalid('INVALID_ORDER_TARGET');
+      }else if(action.type==='Roar'){
+        if(creature.fearAction?.kind!=='Roar')invalid('INVALID_POWER_ORDER');
+      }else if(action.type==='Frighten'||action.type==='Gaze'){
+        if((action.type==='Frighten'?creature.fearAction?.kind!=='Frighten':!creature.gaze)||action.targetId===creature.id||!creatures.includes(action.targetId))invalid('INVALID_POWER_ORDER');
       }else if(action.type==='Reload'){
         if(creature.reload===null)invalid('INVALID_RELOAD_ORDER');
       }else if(action.type==='MarkQuarry'){
@@ -197,6 +204,11 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     if((pending.areaVictims!==null&&!unique(pending.areaVictims))||!unique(pending.damageByTarget.map(d=>d.targetId)))invalid('DUPLICATE_ATTACK_VICTIM');
     if(!['early','movement','late'].includes(state.phase) || (pending.source==='action' && (state.phase==='movement' || current?.creatureId!==pending.attackerId)))invalid('INVALID_ATTACK_CONTINUATION');
     if(!attack || !validAttackTargets(attack,pending.action,pending.source) || pending.shotIndex>attack.shots.length || pending.victimIndex>(pending.areaVictims?.length ?? 0) || pending.action.targetIds.some(id=>!creatures.includes(id)) || pending.damageByTarget.some(d=>!creatures.includes(d.targetId)) || pending.areaVictims?.some(id=>!creatures.includes(id))) invalid('INVALID_PENDING_ATTACK');
+  }
+  if(state.pendingPower){
+    const p=state.pendingPower,actor=state.creatures.find(c=>c.id===p.actorId);
+    if(!actor||state.pendingAttack||!['early','late'].includes(state.phase)||current?.creatureId!==p.actorId||!state.actedThisPhase.includes(p.actorId)||!state.spentActions.includes(p.actorId))invalid('INVALID_POWER_CONTINUATION');
+    if((p.action.type==='Gaze'?!actor?.gaze:actor?.fearAction?.kind!==p.action.type)||!unique(p.targets)||p.targets.some((id,i)=>!creatures.includes(id)||id===p.actorId||(i>0&&p.targets[i-1]!>=id))||p.index>p.targets.length||(p.action.type!=='Roar'&&(p.targets.length!==1||p.targets[0]!==p.action.targetId)))invalid('INVALID_PENDING_POWER');
   }
   for(const c of state.creatures)if(c.reload){const r=c.reload;
    if((r.lastReloadTurn!==null&&r.lastFiredTurn===null)||(r.lastFiredTurn??0)>state.turn||(r.lastReloadTurn??0)>state.turn||(r.lastFiredTurn!==null&&r.lastFiredTurn===r.lastReloadTurn)||(!r.loaded&&(r.lastFiredTurn===null||(r.lastReloadTurn??0)>r.lastFiredTurn))||(r.loaded&&r.lastFiredTurn!==null&&(r.lastReloadTurn??0)<=r.lastFiredTurn))invalid('INVALID_RELOAD_STATE');

@@ -51,13 +51,13 @@ export function immuneTo(c:Creature,kind:Condition['kind']):boolean {
  if((c.intelligence===0||c.construct)&&['Fear','Unconscious'].includes(kind))return true;
  return false;
 }
-export function addCondition(s:GameState,c:Creature,kind:Condition['kind'],sourceId:string|null,potency:number,duration:number|null,resistance:Condition['resistance']='int'):boolean {
+export function addCondition(s:GameState,c:Creature,kind:Condition['kind'],sourceId:string|null,potency:number,duration:number|null,resistance:Condition['resistance']='int',requiresDamage=true):boolean {
  const illusionId=s.creatures.find(x=>x.id===sourceId)?.kind==='illusion'?sourceId:null;
  if(!c.alive||immuneTo(c,kind)||(illusionId!==null&&c.intelligence===0))return false;
  const startsTurn=s.turn+(['Burning','Acid'].includes(kind)?1:0);
  const turns=kind==='Poisoned'?3:kind==='Burning'||kind==='Acid'?2:duration;
  const existing=c.conditions.find(e=>e.kind===kind&&e.illusionId===illusionId);
- const condition:Condition={kind,illusionId,sourceId,potency,duration:turns,resistance,requiresDamage:true,startsTurn,
+ const condition:Condition={kind,illusionId,sourceId,potency,duration:turns,resistance,requiresDamage,startsTurn,
   endsTurn:turns===null?null:startsTurn+turns-1,activatesTurn:kind==='Disease'?s.turn+2:null,active:kind!=='Disease'};
  if(kind==='Burning'&&existing&&existing.endsTurn!==null&&existing.endsTurn>=s.turn)condition.startsTurn=Math.min(existing.startsTurn,startsTurn);
  if(kind==='Disease' && existing){condition.activatesTurn=existing.activatesTurn;condition.active=existing.active;}

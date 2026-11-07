@@ -44,7 +44,7 @@ const flying = () => ability('flight', { takeoffCost: 1, landingCost: 1 });
 
 add('Cat',1,'Cat familiar',[1,3,5,8,3],[melee('Claws',4,1)],{familiar:true,nimble:true});
 add('Cat',2,'Cougar',[2,4,6,7,2],[melee('Bite',5,3)],{pounce:{attackId:'basic',steps:3,damage:2}},[pounce()]);
-add('Cat',3,'Lion',[3,5,5,6,2],[melee('Bite',6,4)],{packTactics:true},[roar(1,3)]);
+add('Cat',3,'Lion',[3,5,5,6,2],[melee('Bite',6,4)],{packTactics:true,fearAction:{kind:'Roar',range:1,potency:3,duration:2}},[roar(1,3)]);
 const tiger = melee('Bite',7,5,'physical',15);
 tiger.shots[0]!.secondary.push({kind:'Bleeding',potency:4,resistance:'con',duration:null,requiresDamage:true});
 add('Cat',4,'Sabre-toothed tiger',[3,6,4,5,2],[tiger],{defences:[defence('cold',.5)]});
@@ -56,7 +56,7 @@ add('Cat',8,'Bobby the Master Hunter',[2,7,7,10,8],[melee('Claws',9,5,'magic',20
 add('Serpent',1,'Snake familiar',[1,3,3,6,2],[poison(melee('Bite',4,1),2)],{familiar:true,defences:[defence('poison',.5),defence('cold',1.5)]});
 add('Serpent',2,'Adder',[1,4,3,7,1],[poison(melee('Bite',5,2),5)],{defences:[defence('poison',.5),defence('cold',1.5)]},[ability('ambush')]);
 for (const level of [3,4]) rows.push({profile:swarmProfile('Summon Serpent',level)!,abilities:[]});
-add('Serpent',5,'Basilisk',[3,6,3,4,3],[melee('Bite',6,4)],{defences:[defence('poison',.5),defence('cold',1.5)]},[ability('gaze',{range:4,potency:5,duration:2,resistance:'int',escapeResistance:'int'})]);
+add('Serpent',5,'Basilisk',[3,6,3,4,3],[melee('Bite',6,4)],{gaze:{range:4,potency:5,duration:2},defences:[defence('poison',.5),defence('cold',1.5)]},[ability('gaze',{range:4,potency:5,duration:2,resistance:'int',escapeResistance:'int'})]);
 const spit = shot('Spit',7,3,5,'poison');spit.id='spit';
 add('Serpent',6,'Amphiptere',[3,5,7,8,4],[poison(melee('Bite',7,4),6),spit],{height:'air',reanimationAttackIds:['basic'],defences:[defence('poison',.5),defence('lightning',.5),defence('cold',1.5)]},[flying()]);
 add('Serpent',7,'Hydra',[5,7,3,4,3],[repeat(melee('Bites',7,3))],{regeneration:3,defences:[defence('poison',.5),defence('fire',1.5),defence('acid',1.5)]});
@@ -87,7 +87,7 @@ const spiritDefences = (physical:Creature['defences'][number]['multiplier'], lig
 add('Spirit',1,'Wisp',[1,2,4,7,3],[shot('Spark',3,1,3,'magic')],spirit(1,{height:'air',defences:spiritDefences(.5)}),[flying(),ability('haunt',{range:2,duration:'phase'})]);
 const chill=melee('Touch',4,2,'magic');chill.shots[0]!.secondary.push({kind:'Slowed',potency:2,resistance:'int',duration:1,requiresDamage:true});
 add('Spirit',2,'Haunting shade',[2,3,4,6,4],[chill],spirit(2,{passCreatures:true,defences:spiritDefences(.25)}),[ability('pass-creatures')]);
-add('Spirit',3,'Ghost',[2,4,4,6,5],[melee('Touch',5,3,'magic')],spirit(3,{incorporeal:true,defences:spiritDefences(0)}),[ability('frighten',{range:1,potency:4,duration:2})]);
+add('Spirit',3,'Ghost',[2,4,4,6,5],[melee('Touch',5,3,'magic')],spirit(3,{fearAction:{kind:'Frighten',range:1,potency:4,duration:2},incorporeal:true,defences:spiritDefences(0)}),[ability('frighten',{range:1,potency:4,duration:2})]);
 const wither=melee('Touch',6,4,'magic');wither.shots[0]!.secondary.push({kind:'Subdued',potency:4,resistance:'int',duration:1,requiresDamage:true});
 add('Spirit',4,'Spectre',[2,5,5,7,5],[wither],spirit(4,{incorporeal:true,defences:spiritDefences(0)}));
 add('Spirit',5,'Wraith',[2,6,5,7,6],[melee('Touch',7,5,'magic')],spirit(5,{lifeDrain:2,incorporeal:true,defences:[...spiritDefences(0),defence('necrotic',.5)]}),[ability('drain',{healing:2,requires:'living-real-damaged'})]);

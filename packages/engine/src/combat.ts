@@ -1,3 +1,4 @@
+import {validatePowerAction,beginPower} from './powers.js';
 import { attackTraitModifiers } from './attack-traits.js';
 import { structureReach,structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
@@ -22,6 +23,7 @@ const pair=(a:Creature,b:Creature)=>nearestPair(footprint(a.centre,a.size),footp
 const enemies=(a:Creature,b:Creature)=>a.id!==b.id && (a.controller===null || a.controller!==b.controller);
 const melee=(attack:AttackDefinition)=>attack.mode==='melee'||attack.mode==='swarm';
 export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void {
+ if(a.type==='Roar'||a.type==='Frighten'||a.type==='Gaze'){validatePowerAction(s,c,a);return;}
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(a.type))throw new Error('ILLUSION_CANNOT_MANIPULATE');
  const targetIds='targetIds' in a?a.targetIds:('targetId' in a&&a.targetId?[a.targetId]:[]);
  if(targetIds.some(id=>{const t=s.creatures.find(c=>c.id===id);return t&&!visibleTo(s,t,c.controller!);}))throw new Error('UNKNOWN_TARGET');
@@ -213,6 +215,7 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
  }
  if(!action||typeof action==='string'||action.type==='Cast')return;
+ if(action.type==='Roar'||action.type==='Frighten'||action.type==='Gaze'){beginPower(s,c,action,events);return;}
  if(c.kind==='illusion'&&['Treat','Wake','Extinguish'].includes(action.type))return;
  if(action.type==='Reload'){
   if(!c.reload||c.reload.loaded||c.reload.lastFiredTurn===s.turn){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}

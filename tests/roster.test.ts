@@ -62,7 +62,7 @@ describe('approved MVP roster data (runtime ability integration remains gated)',
    const profile=summonProfile(`Summon ${family}` as SpellFamily,level);
    if(profile){enabled++;expect(createCreature('subject','a',{q:10,r:10},profile)).toEqual(c(family,level));}
   }
-  expect(enabled).toBe(29);
+  expect(enabled).toBe(32);
  });
  it('preserves the four explicit caster pools, caps and spell lists',()=>{
   const casters=approvedRoster().filter(r=>r.profile.mana).map(r=>({name:r.profile.species,mana:r.profile.mana,cap:r.profile.spellLevelCap,regen:r.profile.manaRegen,spells:r.profile.spellbook}));

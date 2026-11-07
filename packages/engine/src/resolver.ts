@@ -1,3 +1,4 @@
+import {stepPower} from './powers.js';
 import { wallStepCost,crossWallHazards } from './walls.js';
 import { weedStepCost,contactWeed,pruneWeedHolds } from './tangleweed.js';
 import { regrowSwarms } from './swarms.js';
@@ -62,6 +63,8 @@ export function advanceAtomicStep(state: GameState): Transition {
       case 4: finishTurn(next,events); break;
     }
     if(next.phase === 'end') next.endStep++;
+  } else if(next.pendingPower){
+    if(stepPower(next,events))next.cursor.index++;
   } else if (next.pendingAttack) {
     const source = next.pendingAttack.source;
     if(stepAttack(next,events) && source === 'action') next.cursor.index++;
@@ -124,7 +127,7 @@ export function advanceAtomicStep(state: GameState): Transition {
       if(action&&typeof action==='object'&&action.type==='Cast') startCast(next,c,action,events);
       else resolveCombatAction(next,c,action,events);
       if (action) emit(next, events, { type: 'ActionResolved', creatureId: c.id, action: typeof action === 'string' ? action : action.type });
-      if(!next.pendingAttack) advanceActor();
+      if(!next.pendingAttack&&!next.pendingPower) advanceActor();
     }
   }
   invalidateCasts(next,events);
