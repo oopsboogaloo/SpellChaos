@@ -196,7 +196,7 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
   emit(s,events,{type:'CreatureReanimated',creatureId:servant.id,targetId:a.targetId!});contactWeed(s,servant,events);
  }else if(['Magic Bolt','Fire Bolt','Magic Attack'].includes(a.spell))spellDamage(s,c,origin,a,events,cast.id);
  else if(a.spell==='Healing Bolt')heal(s,s.creatures.find(t=>t.id===a.targetId)!,a.level+3,events,'ordinary',c.id);
- else if(a.spell==='Teleport'){const from={...c.centre};c.centre={...a.ground!};if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});contactWeed(s,c,events);}
+ else if(a.spell==='Teleport'){delete c.pounceTrail;const from={...c.centre};c.centre={...a.ground!};if(!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureTeleported',creatureId:c.id,from,to:c.centre});contactWeed(s,c,events);}
  else if(a.spell==='Bind'||a.spell==='Release'){
   const target=s.creatures.find(t=>t.id===a.targetId)!;
   if(roll(s,effectChance(a.level,target.intelligence))){
@@ -217,5 +217,6 @@ export function completeCast(s:GameState,castId:string,events:Event[]):void {
 }
 export function forceMove(s:GameState,c:Creature,to:Creature['centre'],events:Event[]):void {
  if(!placement(arenaOf(s),c,to).legal||(distance(c.centre,to)===1&&!stepLegality(arenaOf(s),c,c.centre,to,false).legal))throw new Error('INVALID_FORCED_DESTINATION');
+ if(distance(c.centre,to)>0)delete c.pounceTrail;
  const from={...c.centre};c.centre={...to};if(distance(from,to)>0&&!s.moved.includes(c.id))s.moved.push(c.id);emit(s,events,{type:'CreatureForcedMoved',creatureId:c.id,from,to});crossWallHazards(s,c,from,to,events);cleanupDeaths(s,events);contactWeed(s,c,events);invalidateCasts(s,events);
 }

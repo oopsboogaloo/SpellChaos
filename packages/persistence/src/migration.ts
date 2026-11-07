@@ -1,3 +1,4 @@
+import {stateSchema as shadeSchema} from '../../domain/src/legacy-v19.js';
 import {stateSchema as treantSchema} from '../../domain/src/legacy-v18.js';
 import {stateSchema as fiveFamilySchema} from '../../domain/src/legacy-v17.js';
 import {stateSchema as ballistaSchema} from '../../domain/src/legacy-v16.js';
@@ -174,5 +175,11 @@ export function migrateFiveFamilySnapshot(text:string):GameState {
 /** Do not infer creature-passage capability for historical profiles. */
 export function migrateTreantSnapshot(text:string):GameState {
  const old=treantSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve schema-19 transit and committed work without inferring Pounce or movement history. */
+export function migrateShadeSnapshot(text:string):GameState {
+ const old=shadeSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }

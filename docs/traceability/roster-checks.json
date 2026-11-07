@@ -1,7 +1,7 @@
 {
   "stage": 7,
   "status": "in-progress-attack-traits",
-  "scope": "40 MVP profiles across five families; 24 implemented in scope including Haunting Shade; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
+  "scope": "40 MVP profiles across five families; 25 implemented in scope including Cougar; 16 Goblin/Dragon profiles deferred, full 56-profile catalogue preserved",
   "source": "Specification v0.9 approved MVP profiles; accepted D01\u2013D22",
   "checks": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "id": "ROSTER-003",
-      "requirement": "Twenty-seven implemented including three deferred profiles; twenty-four in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
+      "requirement": "Twenty-eight implemented including three deferred profiles; twenty-five in current MVP supported summon profiles use approved production data; unfinished profiles remain gated",
       "testFile": "tests/roster.test.ts",
       "testNames": [
         "matches the enabled engine creatures without enabling unfinished profiles"
@@ -236,6 +236,23 @@
         "damaging Chill uses Int resistance and reversible illusion provenance (%s)",
         "permanent mid-transit fixture restores overlap and continues to a legal endpoint"
       ]
+    },
+    {
+      "id": "ROSTER-021",
+      "requirement": "Cougar Pounce uses resolved approach steps, target revalidation, base damage/defences, Guard exclusions, displacement resets, illusions, reanimation and schema-20 continuation",
+      "testFile": "tests/cougar.test.ts",
+      "browserTestFile": "tests/browser/reload.spec.ts",
+      "status": "verified",
+      "testNames": [
+        "Cougar approaches three steps then bites for five with exact atomic continuation",
+        "a retreat or sideways step breaks the final approach run",
+        "terrain cost is not extra approach distance",
+        "Pounce rechecks the selected target at its current footprint without substitution",
+        "forced movement clears approach history",
+        "illusory Pounce damage reverses for survivors",
+        "permanent %s fixture resumes identically at every atomic boundary",
+        "schema-19 migration preserves transit without granting Pounce or history"
+      ]
     }
   ],
   "pending": [
@@ -243,7 +260,7 @@
     "Movement and attack passives, special actions, flight/mounts and detection",
     "Remaining MVP special actions, cooldowns and constriction; Dragon breath and Goblin False King deferred",
     "Every ability's phase, failure, illusion and reanimation interactions",
-    "Enable remaining 16 MVP profiles only after their complete engine tests",
+    "Enable remaining 15 MVP profiles only after their complete engine tests",
     "Combined full-roster headless and browser scenario"
   ]
 }

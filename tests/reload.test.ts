@@ -71,7 +71,7 @@ it.each(['firing','reload-planning','refire-planning','guard'])('permanent %s fi
 });
 it('schema-13 migration retains quarry state and grants no reload capability',async()=>{
  const {readFileSync}=await import('node:fs');const {migrateQuarrySnapshot}=await import('../packages/persistence/src/migration.js');
- const text=readFileSync('tests/fixtures/quarry-v13-attack.json','utf8'),old=JSON.parse(text),next=migrateQuarrySnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(19);expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null})));expect(next.pendingAttack).toEqual(old.pendingAttack);expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
+ const text=readFileSync('tests/fixtures/quarry-v13-attack.json','utf8'),old=JSON.parse(text),next=migrateQuarrySnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(20);expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null})));expect(next.pendingAttack).toEqual(old.pendingAttack);expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
 });
 it('Trebuchet fire plus physical area damage uses swarm vulnerability only once per component',()=>{
  let s=setup(8);s.creatures=s.creatures.filter(c=>!['target','ally'].includes(c.id));s.creatures.push(createCreature('swarm','b',{q:14,r:5},summonProfile('Summon Serpent',3)!));s=startScenarioTurn(s);s.random.resolution=4;
