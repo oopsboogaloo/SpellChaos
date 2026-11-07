@@ -6,7 +6,7 @@ import {validatePowerAction,beginPower} from './powers.js';
 import { attackTraitModifiers } from './attack-traits.js';
 import { structureReach,structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
-import { sight,darkRay,visibleTo } from './visibility.js';
+import { sight,darkRay,visibleTo,targetVisible } from './visibility.js';
 import { isLethal } from './illusions.js';
 import { concentration,forceMove } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
@@ -127,7 +127,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  const p=s.pendingAttack!;const a=s.creatures.find(c=>c.id===p.attackerId)!;
  const attack=a.attacks.find(x=>x.id===p.action.attackId)!;
  const committedArea=(attack.mode==='area'||attack.penetration===2)&&p.areaVictims!==null&&a.kind!=='illusion';
- if((!committedArea&&(!active(a)||a.controller===null))||p.shotIndex>=attack.shots.length){
+ if((!committedArea&&(!active(a)||(a.controller===null&&!s.autonomous.includes(a.id))))||p.shotIndex>=attack.shots.length){
   emit(s,events,{type:'AttackFinished',creatureId:a.id,damageByTarget:p.damageByTarget});concentration(s,p.damageByTarget,events);s.pendingAttack=null;return true;
  }
  const strikeIndex=p.shotIndex,strike=attack.shots[strikeIndex]!;
@@ -138,7 +138,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
    if(p.action.structure&&!structureCells(s,p.action.structure).length){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
    const selected=s.creatures.find(c=>c.id===p.action.targetIds[0]);
    const aim=p.action.structure?nearestPair(bodyFootprint(s,a),structureCells(s,p.action.structure)).to:p.action.ground??(selected?pair(s,a,selected).to:null);
-   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(bodyFootprint(s,a),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&!!a.controller&&visibleTo(s,selected,a.controller)&&inReach(s,a,selected,attack,p.action.side);
+   const valid=p.action.structure?structureReach(s,a,p.action.structure,attack.range,attack.minRange,p.action.side):p.action.ground?(()=>{const o=nearestPair(bodyFootprint(s,a),[p.action.ground!]);return o.distance>=attack.minRange&&o.distance<=attack.range&&sight(s,a,o.from,o.to,p.action.side);})():!!selected&&targetVisible(s,a,selected)&&inReach(s,a,selected,attack,p.action.side);
    if(!aim||!valid){p.shotIndex++;emit(s,events,{type:'AttackInvalid',creatureId:a.id});return false;}
    const trace=tracePenetratingProjectile(arenaOf(s),a,aim,selected?.height??'ground',p.action.side,attack.range,selected?.id);
    p.areaVictims=trace.hits;
@@ -180,7 +180,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   }
  }else{
   target=s.creatures.find(c=>c.id===(p.action.targetIds[p.shotIndex]??p.action.targetIds[0]));p.shotIndex++;
-  if(target&&(!a.controller||!visibleTo(s,target,a.controller)||!inReach(s,a,target,attack,p.action.side)))target=undefined;
+  if(target&&(!targetVisible(s,a,target)||!inReach(s,a,target,attack,p.action.side)))target=undefined;
   if(target&&attack.mode==='projectile'){
    const trace=traceProjectile(arenaOf(s),a,pair(s,a,target).to,target.height,p.action.side,target.id);
    target=s.creatures.find(c=>c.id===trace.hit);

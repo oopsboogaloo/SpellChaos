@@ -27,6 +27,7 @@ jobs:
       - run: node tools/run-darkness.mjs
       - run: node tools/run-tangleweed.mjs
       - run: node tools/run-walls.mjs
+      - run: node tools/run-ai.mjs --players 2,4 --seeds 123 --max-turns 60
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
       - uses: actions/upload-artifact@v4

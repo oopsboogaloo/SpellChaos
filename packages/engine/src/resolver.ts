@@ -52,7 +52,7 @@ function finishPhase(state: GameState, events: Event[]): void {
 function finishTurn(state: GameState, events: Event[]): void {
   awardAndRegenerate(state); state.castOccupied=[]; state.quickQueue=null;
   state.wallCrossings=[];state.weedAttempts=[];state.movementSpent=[];
-  state.actedThisPhase=[];state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
+  state.actedThisPhase=[];state.autonomous=[];state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
   for (const c of state.creatures){delete c.pounceTrail;delete c.diveTrail;}
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
@@ -101,7 +101,7 @@ export function advanceAtomicStep(state: GameState): Transition {
         delete c.pounceTrail;delete c.diveTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};if(next.cursor.lastRestingHeight)c.height=next.cursor.lastRestingHeight;moveRider(next,c,events);pruneWeedHolds(next);pruneRootNetworks(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
       next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null;delete next.cursor.lastRestingHeight; };
-    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (c.mountId!==undefined||carryingLocked(next,c)|| (order.dragTargetId!==undefined?!canDrag(next,c,order):restrained(next,c)) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
+    if (!eligible(c, next.turn) || (c.controller === null&&!next.autonomous.includes(c.id)) || (next.phase === 'movement' && (c.mountId!==undefined||carryingLocked(next,c)|| (order.dragTargetId!==undefined?!canDrag(next,c,order):restrained(next,c)) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
       emit(next, events, { type: 'ActorSkipped', creatureId: c.id }); advanceActor();
     } else if (next.phase === 'movement') {
       if (next.cursor.activePath === null) {

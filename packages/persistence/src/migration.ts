@@ -1,3 +1,4 @@
+import {stateSchema as rosterSchema} from '../../domain/src/legacy-v26.js';
 import {stateSchema as flightDetectionSchema} from '../../domain/src/legacy-v25.js';
 import {stateSchema as groundSpecialistsSchema} from '../../domain/src/legacy-v24.js';
 import {stateSchema as blinkSporesWailSchema} from '../../domain/src/legacy-v23.js';
@@ -130,7 +131,7 @@ export function migrateTangleweedSnapshot(text:string):GameState {
 
 function parseUpgrade(value: unknown): GameState {
  const old=value as GameState;
- return stateSchema.parse({...old,pendingPower:old.pendingPower??null,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,reload:c.reload??null,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
+ return stateSchema.parse({...old,autonomous:old.autonomous??[],pendingPower:old.pendingPower??null,actedThisPhase:old.actedThisPhase??[],creatures:old.creatures.map(c=>({...c,reload:c.reload??null,canMarkQuarry:c.canMarkQuarry??false,quarryTargetId:c.quarryTargetId??null,bristles:c.bristles??0,lifeDrain:c.lifeDrain??0,attackTraits:c.attackTraits??{aim:false,brace:false,ambush:false,closeDisadvantageBelow:0,receivesRally:false,rallySource:false}}))});
 }
 /** Legacy content had no attack traits; do not infer new abilities from species. */
 export function migrateWallSnapshot(text:string):GameState {
@@ -222,5 +223,11 @@ export function migrateGroundSpecialistsSnapshot(text:string):GameState {
 /** Preserve flight/reveal state and pending work without inferring mounts, riding or Dive. */
 export function migrateFlightDetectionSnapshot(text:string):GameState {
  const old=flightDetectionSchema.parse(JSON.parse(text));
+ return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
+}
+
+/** Preserve already committed turns; autonomous plans are generated only next StartResolution. */
+export function migrateRosterSnapshot(text:string):GameState {
+ const old=rosterSchema.parse(JSON.parse(text));
  return parseUpgrade({...old,schemaVersion:VERSION.schema,rulesVersion:VERSION.rules,contentVersion:VERSION.content});
 }
