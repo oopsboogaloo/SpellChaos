@@ -13,6 +13,7 @@ Browser wizard combat, built through a reviewed specification and staged plan.
 - [Combat and lifecycle](docs/stages/04-combat.md)
 - [Casting, mana and control](docs/stages/05-casting.md)
 - [Roster implementation and checkpoint evidence](docs/stages/07-roster.md)
+- [Stage 1–7 code and design review](docs/reviews/2026-11-07-stage-1-7-review.md)
 
 ## Development
 
