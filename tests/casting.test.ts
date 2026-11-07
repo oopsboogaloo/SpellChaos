@@ -217,7 +217,7 @@ describe('casting portability and privacy',()=>{
  });
  it('explicitly migrates legacy combat saves without silently changing their version',()=>{
   const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(23);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(24);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
 });
 
@@ -328,7 +328,7 @@ it.each([
 ] as const)('uses the approved level-one profile for %s without substituting higher levels',(spell,species,move,dex,intelligence,a)=>{
  const profile=summonProfile(spell,1)!;const c=createCreature('profile','a',h(5,5),profile);
  expect({species:c.species,size:c.size,con:c.con,hp:c.hp,move:c.move,dex:c.dex,intelligence:c.intelligence,mana:c.mana}).toEqual({species,size:1,con:3,hp:3,move,dex,intelligence,mana:0});
- expect(c.familiar).toBe(true);expect(c.attacks[0]!.shots[0]!.skill).toBe(4);expect(c.attacks[0]!.shots[0]!.components[0]!.amount).toBe(1);expect(alignment(spell)).toBe(a);expect(summonProfile(spell,8)).toBeNull();
+ expect(c.familiar).toBe(true);expect(c.attacks[0]!.shots[0]!.skill).toBe(4);expect(c.attacks[0]!.shots[0]!.components[0]!.amount).toBe(1);expect(alignment(spell)).toBe(a);if(spell==='Summon Serpent')expect(summonProfile(spell,8)).toMatchObject({species:'The World Serpent',summonLevel:8,size:8});else expect(summonProfile(spell,8)).toBeNull();
  if(spell==='Summon Cat')expect(c.nimble).toBe(true);
  if(spell==='Summon Serpent')expect(c.attacks[0]!.shots[0]!.secondary[0]!.potency).toBe(2);
  if(spell==='Summon Dragon'){expect(c.height).toBe('air');expect(c.attacks[0]!.range).toBe(3);expect(c.attacks[0]!.shots[0]!.components[0]!.type).toBe('fire');}

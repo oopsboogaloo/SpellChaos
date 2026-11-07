@@ -1,3 +1,4 @@
+import {rootContact,pruneRootNetworks} from './ground-traits.js';
 import type {Creature,GameState} from '../../domain/src/state.js';
 import type {PowerAction} from '../../domain/src/combat.js';
 import {footprint,nearestPair,type Hex} from '../../geometry/src/hex.js';
@@ -14,6 +15,7 @@ function definition(actor:Creature,action:PowerAction) {
   case 'Gaze':return actor.gaze;
   case 'Spores':return actor.spores;
   case 'Wail':return actor.wail;
+  case 'RootNetwork':return actor.rootNetwork;
   default:return actor.fearAction?.kind===action.type?actor.fearAction:undefined;
  }
 }
@@ -22,7 +24,7 @@ const sporesLiving=(target:Creature)=>!target.undead&&!target.construct&&target.
 function eligibleTarget(s:GameState,actor:Creature,target:Creature,action:PowerAction,range:number,origin:Hex=actor.centre):boolean {
  const p=nearestPair(footprint(origin,actor.size),footprint(target.centre,target.size));
  if(action.type==='Wail')return target.alive&&target.id!==actor.id&&p.distance<=range;
- return target.alive&&enemy(actor,target)&&p.distance<=range&&!!actor.controller&&visibleTo(s,target,actor.controller)&&sight(s,actor,p.from,p.to,'left')&&(action.type!=='Spores'||sporesLiving(target));
+ return target.alive&&enemy(actor,target)&&p.distance<=range&&!!actor.controller&&visibleTo(s,target,actor.controller)&&sight(s,actor,p.from,p.to,'left')&&(action.type!=='Spores'||sporesLiving(target))&&(action.type!=='RootNetwork'||(target.size<actor.size&&rootContact(s,actor,target)));
 }
 export function validatePowerAction(s:GameState,actor:Creature,action:PowerAction):void {
  if(!definition(actor,action))throw new Error('NO_SUCH_POWER');
@@ -70,12 +72,13 @@ export function stepPower(s:GameState,events:Event[]):boolean {
   if(!isLethal(target)&&!target.undead&&!target.construct&&!immuneTo(target,'Fear')&&roll(s,effectChance(wail.fearPotency,target.intelligence)))addCondition(s,target,'Fear',actor.id,wail.fearPotency,wail.duration,'int',false);
   cleanupDeaths(s,events);emit(s,events,{type:'WailResolved',...event});return false;
  }
- const kind=pending.action.type==='Spores'?'Unconscious':pending.action.type==='Gaze'?(slowed(target)?'Restrained':'Slowed'):'Fear';
+ const kind=pending.action.type==='RootNetwork'?'Restrained':pending.action.type==='Spores'?'Unconscious':pending.action.type==='Gaze'?(slowed(target)?'Restrained':'Slowed'):'Fear';
  if(immuneTo(target,kind)||(actor.kind==='illusion'&&target.intelligence===0)){emit(s,events,{type:'PowerUnaffected',...event});return false;}
- const resistance=pending.action.type==='Spores'?'con':'int';
- if(roll(s,effectChance(power.potency,resistance==='con'?target.con:target.intelligence))){
-  const duration=pending.action.type==='Spores'?null:pending.action.type==='Gaze'?actor.gaze!.duration:actor.fearAction!.duration;
+ const resistance=pending.action.type==='RootNetwork'?'physical':pending.action.type==='Spores'?'con':'int';
+ if(roll(s,effectChance(power.potency,resistance==='physical'?2*target.size:resistance==='con'?target.con:target.intelligence))){
+  const duration=pending.action.type==='Spores'||pending.action.type==='RootNetwork'?null:pending.action.type==='Gaze'?actor.gaze!.duration:actor.fearAction!.duration;
   addCondition(s,target,kind,actor.id,power.potency,duration,resistance,false);
+  if(pending.action.type==='RootNetwork'){target.conditions.find(e=>e.kind==='Restrained'&&e.sourceId===actor.id)!.rootNetwork=true;pruneRootNetworks(s);}
   if(pending.action.type==='Spores'){
    const sleep=target.conditions.find(e=>e.kind==='Unconscious'&&e.sourceId===actor.id)!;
    sleep.expiresAfterPhase=s.phase==='early'?{turn:s.turn,phase:'late'}:{turn:s.turn+1,phase:'early'};

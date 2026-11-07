@@ -20,7 +20,7 @@ const expected = {
 // Basic attack Skill/Dmg pairs, including every shot and alternative ordinary attack.
 const expectedAttacks = {
  Cat:['4/1','5/3','6/4','7/5','7/4','7/4,6/3','8/8','9/5'],
- Serpent:['4/1','5/2','5/2','6/3','6/4','7/4;7/3','7/3,7/3,7/3','9/10'],
+ Serpent:['4/1','5/2','5/2','6/3','6/4','7/4;7/3','7/3,7/3,7/3','9/10;8/5'],
  Goblin:['4/1','5/2','6/3;5/2','6/4','6/3','8/5','7/5','8/7'],
  Dragon:['4/1','5/3','6/3,5/2','6/4','7/6','7/6','8/8','8/4,8/4,8/4'],
  Spirit:['3/1','4/2','5/3','6/4','7/5','6/3','8/7','9/8'],
@@ -62,7 +62,7 @@ describe('approved MVP roster data (runtime ability integration remains gated)',
    const profile=summonProfile(`Summon ${family}` as SpellFamily,level);
    if(profile){enabled++;expect(createCreature('subject','a',{q:10,r:10},profile)).toEqual(c(family,level));}
   }
-  expect(enabled).toBe(35);
+  expect(enabled).toBe(38);
  });
  it('preserves the four explicit caster pools, caps and spell lists',()=>{
   const casters=approvedRoster().filter(r=>r.profile.mana).map(r=>({name:r.profile.species,mana:r.profile.mana,cap:r.profile.spellLevelCap,regen:r.profile.manaRegen,spells:r.profile.spellbook}));

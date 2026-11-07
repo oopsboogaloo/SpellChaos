@@ -1,9 +1,11 @@
+import {canDrag,dragStepLegal,dragTarget,dragDestination} from './drag.js';
+import {pruneRootNetworks} from './ground-traits.js';
 import {blinkLegal,movementStepCost,prepareMovementPath} from './blink.js';
 import {stepPower} from './powers.js';
 import { crossWallHazards } from './walls.js';
 import { contactWeed,pruneWeedHolds } from './tangleweed.js';
 import { regrowSwarms } from './swarms.js';
-import { startCast, completeCast, invalidateCasts, concentration, castingLocksMovement, slotOccupied } from './casting.js';
+import { startCast, completeCast, invalidateCasts, forceMove, concentration, castingLocksMovement, slotOccupied } from './casting.js';
 import { awardAndRegenerate } from './spellbooks.js';
 import { compareEntries } from './queue.js';
 import { active, restrained, slowed, subdued, fearAllowsStep } from './status.js';
@@ -89,10 +91,10 @@ export function advanceAtomicStep(state: GameState): Transition {
     const order = next.orders.find(o => o.creatureId === c.id) ?? defaultOrder(c.id);
     const advanceActor = () => {
       if(next.phase === 'movement' && c.alive && next.cursor.lastRestingCentre && !placement(arenaOf(next),c,c.centre).legal) {
-        delete c.pounceTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};pruneWeedHolds(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
+        delete c.pounceTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};pruneWeedHolds(next);pruneRootNetworks(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
       next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null; };
-    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (restrained(next,c) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
+    if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && ((order.dragTargetId!==undefined?!canDrag(next,c,order):restrained(next,c)) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
       emit(next, events, { type: 'ActorSkipped', creatureId: c.id }); advanceActor();
     } else if (next.phase === 'movement') {
       if (next.cursor.activePath === null) {
@@ -103,19 +105,23 @@ export function advanceAtomicStep(state: GameState): Transition {
       else {
         const to = next.cursor.activePath[next.cursor.pathIndex]!;
         const blinking=order.blinkIndex===next.cursor.pathIndex;
+        const dragging=order.dragTargetId!==undefined;
         const stepCost=movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to);
-        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
+        if (!fearAllowsStep(next,c,to) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
           if(!next.moved.includes(c.id)) next.moved.push(c.id);
           const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=stepCost;
           if(paid)paid.amount+=cost;else next.movementSpent.push({creatureId:c.id,amount:cost});
           const from = { ...c.centre };
+          const victim=dragging?dragTarget(next,c,order):undefined;
+          const victimTo=victim?dragDestination(next,c,order,to):undefined;
           if(blinking){c.blinkUsedTurn=next.turn;delete c.pounceTrail;}
           else if(c.pounce)c.pounceTrail=[...(c.pounceTrail??[from]),{...to}];
           c.centre = { ...to }; next.cursor.pathIndex++;
           if(placement(arenaOf(next),c,c.centre).legal) next.cursor.lastRestingCentre = {...c.centre};
           emit(next, events, { type: blinking?'CreatureBlinked':'CreatureMoved', creatureId: c.id, from, to: { ...to } });
+          if(victim&&victimTo){forceMove(next,victim,victimTo,events);if(placement(arenaOf(next),c,c.centre).legal)next.cursor.lastRestingCentre={...c.centre};}
           const hazardDamage=blinking?0:crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);
           contactWeed(next,c,events);if(c.alive&&!blinking)enqueueGuards(next,c,from);
         }
@@ -135,6 +141,6 @@ export function advanceAtomicStep(state: GameState): Transition {
       if(!next.pendingAttack&&!next.pendingPower) advanceActor();
     }
   }
-  invalidateCasts(next,events);
+  pruneRootNetworks(next);invalidateCasts(next,events);
   return { state: next, events, acknowledgedRevision: next.revision };
 }

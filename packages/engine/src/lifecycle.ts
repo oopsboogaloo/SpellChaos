@@ -1,3 +1,4 @@
+import {physicalContact,pruneRootNetworks} from './ground-traits.js';
 import { pruneWeedHolds } from './tangleweed.js';
 import { invalidateCasts } from './casting.js';
 import type { GameState } from '../../domain/src/state.js';
@@ -36,10 +37,11 @@ export function cleanupDeaths(s:GameState,events:Event[]):void {
    }
   }
  }
- releaseBrokenHolds(s);invalidateCasts(s,events);
+ releaseBrokenHolds(s);pruneRootNetworks(s);invalidateCasts(s,events);
 }
 export function ongoingDamage(s:GameState,events:Event[]):void {
  const snapshot=structuredClone(s.creatures.filter(c=>c.alive));
+ const holds=structuredClone(s.holds);
  for(const original of snapshot){
   const c=s.creatures.find(c=>c.id===original.id)!;
   const seen=new Set<string>();
@@ -53,6 +55,10 @@ export function ongoingDamage(s:GameState,events:Event[]):void {
    if(effect.kind==='Acid')applyDamage(s,c,[{type:'acid',amount:1}],events,source);
    if(effect.kind==='Burning')applyDamage(s,c,[{type:'fire',amount:2}],events,source);
   }
+ }
+ for(const hold of holds){
+  const source=snapshot.find(c=>c.id===hold.grapplerId),target=snapshot.find(c=>c.id===hold.targetId);
+  if(source?.constriction&&target&&active(source)&&physicalContact(s,source,target,Math.max(1,...source.attacks.filter(a=>a.mode==='melee').map(a=>a.range))))applyDamage(s,s.creatures.find(c=>c.id===target.id)!,[{type:'physical',amount:source.constriction.damage}],events,{sourceId:source.id,actionId:`constriction-${s.turn}-${source.id}`});
  }
  for(const wall of structuredClone(s.walls))if(wall.burning&&s.turn>=wall.burning.startsTurn&&s.turn<=wall.burning.endsTurn)damageWall(s,wall.id,[{type:'fire',amount:2}],events);
  // Death cleanup is the next atomic end-step, after all snapshot damage has applied.
