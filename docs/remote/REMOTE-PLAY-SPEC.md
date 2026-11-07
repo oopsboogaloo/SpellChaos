@@ -35,7 +35,7 @@ Safeguarding stance (REM-002): the service never introduces strangers to each ot
 
 ## 2. Architecture summary
 
-Recommended stack ([FEASIBILITY.md §5](FEASIBILITY.md#5-recommended-architecture)):
+Chosen stack (owner decision D-R9, 7 November 2026; [FEASIBILITY.md §5](FEASIBILITY.md#5-recommended-architecture)):
 - The static client on GitHub Pages.
 - A Cloudflare Worker API.
 - One Durable Object per game (SQLite storage, alarms, WebSockets).
@@ -253,7 +253,7 @@ Per REM-003, the aim is to avoid **spoilers in ordinary play** and to protect th
 | D-R6 | Default deadline and the maximum game length | 48 h; a hard cap of 200 turns, ending in a draw |
 | D-R7 | Can a player hold several seats in one game? | No; one seat per token, and the host approves joiners |
 | D-R8 | Can AI replace a player who conceded or timed out, so the game keeps its numbers? | No for v1 (surrender rules apply as specified) |
-| D-R9 | Hosting provider | Cloudflare Workers Paid + Durable Objects (FEASIBILITY §4) |
+| D-R9 | Hosting provider | **Decided 7 Nov 2026:** Cloudflare Workers Paid + Durable Objects (FEASIBILITY §4). Self-hosting was considered and declined. |
 | D-R10 | Is email notification wanted at all for v1, or Web Push only? | Web Push only for v1; email in a later increment |
 
 ## 14. Verification

@@ -3,6 +3,8 @@
 Status: **draft for owner review** · 7 November 2026 · Companion: [REMOTE-PLAY-SPEC.md](REMOTE-PLAY-SPEC.md)
 
 > **Owner decision — 7 November 2026:** a server is required, because asynchronous play needs somewhere to store orders and resolve turns while players are offline. Protection against players who modify the client to cheat is **not a goal**: the game is played for fun among friends. The server still sends each player only their own view, so ordinary play never shows spoilers, but no anti-cheat hardening is built.
+>
+> **Owner decision — 7 November 2026:** host on **Cloudflare Workers Paid + Durable Objects** (§5). Self-hosting on a VPS or personal web space was considered and declined because of the ongoing maintenance it needs.
 
 ## 1. Question
 
