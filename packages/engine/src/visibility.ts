@@ -25,3 +25,11 @@ export function visibleTo(s:GameState,target:Creature,playerId:string):boolean {
  if(!bodyFootprint(s,target).some(h=>darkAt(s,h)))return true;
  return s.creatures.some(c=>c.controller===playerId&&active(c)&&seesCreature(s,c,target));
 }
+
+/** Independent units do not share a controller's or any other observer's sight. */
+export function perceives(s:GameState,observer:Creature,target:Creature):boolean {
+ if(!target.alive)return false;
+ if(target.invisible&&!(observer.seeInvisibleRange!==undefined&&nearestPair(bodyFootprint(s,observer),bodyFootprint(s,target)).distance<=observer.seeInvisibleRange))return false;
+ return seesCreature(s,observer,target);
+}
+export const targetVisible=(s:GameState,observer:Creature,target:Creature)=>observer.controller===null?perceives(s,observer,target):visibleTo(s,target,observer.controller);

@@ -146,7 +146,7 @@ describe('reanimation persistence and permitted views',()=>{
  it('explicitly migrates the frozen v4 fixture without altering RNG or corpse data',()=>{
   const text=readFileSync('tests/fixtures/casting-v4.json','utf8').trim();const old=legacySchema.parse(JSON.parse(text));
   expect(canonical(old)).toBe(text);expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(26);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
+  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(27);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
   expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   expect(()=>migrateCastingSnapshot(encodeSnapshot(s))).toThrow();
  });
@@ -158,7 +158,7 @@ describe('reanimation persistence and permitted views',()=>{
  });
  it('exposes corpse targeting information without exact HP, exposure or hidden spell orders',()=>{
   const s=draft(setup()),view=projectView(s,'b');
-  expect(view.corpses).toEqual([{id:'corpse:body',centre:h(8,5),size:1,skeletal:false,restorationUsed:false}]);
+  expect(view.corpses).toHaveLength(1);expect(view.corpses).toMatchObject([{id:'corpse:body',creatureId:'body',centre:h(8,5),size:1,skeletal:false,restorationUsed:false}]);expect(view.corpses[0]).not.toHaveProperty('hp');expect(view.corpses[0]).not.toHaveProperty('fireAcidDamage');
   expect(view.orders).toEqual([]);expect(view.casts).toEqual([]);
  });
 });

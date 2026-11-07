@@ -13,6 +13,7 @@ Browser wizard combat, built through a reviewed specification and staged plan.
 - [Combat and lifecycle](docs/stages/04-combat.md)
 - [Casting, mana and control](docs/stages/05-casting.md)
 - [Roster implementation and checkpoint evidence](docs/stages/07-roster.md)
+- [Fair AI and unattended matches](docs/stages/08-ai.md)
 - [Stage 1–7 code and design review](docs/reviews/2026-11-07-stage-1-7-review.md)
 - Future work, not to be started yet: [remote play feasibility](docs/remote/FEASIBILITY.md) and [build specification](docs/remote/REMOTE-PLAY-SPEC.md)
 
@@ -41,18 +42,19 @@ mana, alignment and control now resolve in the same engine. Run
 implemented; Goblin/Dragon remain deferred with their historical content preserved. Reanimate
 now resolves against eligible corpses at levels 1–8; run
 `node tools/run-reanimation.mjs` for zombie/skeleton replay checks. Stage 6 mechanics are implemented, including all eight Wall materials.
-Stage 7 implements the retained roster and creature abilities. Fair AI and the complete playable browser UI
-are later stages; this is still a development preview.
+Stage 8 adds view-only wizard AI, per-creature unbound behavior and portable
+unattended matches. The complete playable browser UI is Stage 9; this remains a
+development preview.
 Snake Swarm, Greater Snake Swarm and Strangling Grove now support shrinking,
 legal regrowth, coverage restraint and per-enemy attacks. Run
 `node tools/run-swarms.mjs` for a movement/coverage/attack replay.
 
 ## Saves
 
-Current saves use schema 26 / rules `roster-0.15` / content `gryphon-shepherd-0.1`.
-Historical schemas 1–25 retain frozen validators and explicit migration functions;
-`migrateFlightDetectionSnapshot` upgrades schema 25 without granting mounts, riding
-or Dive to historical creatures. Normal
+Current saves use schema 27 / rules `autonomy-0.1` / content `gryphon-shepherd-0.1`.
+Historical schemas 1–26 retain frozen validators and explicit migration functions;
+`migrateRosterSnapshot` preserves schema-26 committed work without generating
+autonomous plans mid-resolution. Older migrations never infer new creature powers. Normal
 loading never silently migrates or changes the rules version.
 Unknown versions fail explicitly. This development format will not be silently
 interpreted as a future complete game save. All state is JSON-safe and validated
@@ -65,10 +67,10 @@ idempotency, immutable transitions, view filtering, snapshot corruption, and
 identical continuation after fresh decoding. Generated RNG tests use seed 12345.
 GitHub Actions repeats typechecking, tests and build on pushes and pull requests.
 
-No deployment is configured yet. Fair AI, the responsive playable UI, complete
-browser workflows and acceptance/performance/soak hardening remain in the plan.
-The condensed specification is the authoritative specification (owner decision,
-7 November 2026); no verbatim archive of the original text is required. The permanent full-roster replay in
+No deployment is configured yet. The responsive playable UI, complete browser
+workflows and acceptance/performance/soak hardening remain in the plan.
+The condensed specification is authoritative (owner decision, 7 November 2026);
+no verbatim source archive is required. The permanent full-roster replay in
 `tests/fixtures/mounts-v26-full-roster.json` exercises a scripted headless turn
 with all 40 MVP profiles, not an AI match or a finished game.
 
@@ -137,3 +139,26 @@ Schema 9 upgrades explicitly through `migrateTangleweedSnapshot`. Five immutable
 schema-10 fixtures cover planning, casting, crossing, interception and resolution.
 Destroyed wall IDs preserve pending orders after their target disappears.
 Stage 6 mechanics are ready for review; later MVP stages remain outstanding.
+
+## Unattended matches
+
+After building, run `node tools/run-ai.mjs` for seeded 2/4-player matches. A larger
+smoke run is reproducible with:
+
+```sh
+node tools/run-ai.mjs --players 2,4,8 --seeds 123,456 --max-turns 60 --output /tmp/ai-report.json
+node tools/run-ai.mjs --players 3,5,6,7 --seeds 123 --max-turns 60 --output /tmp/ai-extra-report.json
+```
+
+The [Stage 8 smoke report](docs/reports/stage-08-smoke.json) records eight engine
+wins, two harness timeouts and no failures. Timeouts remain separate from draws.
+AI difficulty (`--difficulty easy|standard|hard`) changes search/scoring only.
+`--save /path/session.json` exports a single match's **private** session, including
+hidden engine state and command history; `--resume /path/session.json` restores its
+recorded policy version, limits and progress. Failures save private diagnostics to
+`/tmp/spellchaos-ai-failures` by default (`--capture-dir` overrides the directory).
+
+The policy takes only `projectView` observations plus an explicit AI seed. It
+validates hypotheses from those observations, and rejected uncertain proposals
+receive one fixed fallback rather than probing hidden information. The match
+harness preserves full planning batches and every native atomic resolution step.
