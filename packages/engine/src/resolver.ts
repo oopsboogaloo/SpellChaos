@@ -44,6 +44,7 @@ function finishTurn(state: GameState, events: Event[]): void {
   state.wallCrossings=[];state.weedAttempts=[];state.movementSpent=[];
   state.actedThisPhase=[];state.turn++; state.phase = 'planning'; state.orders = []; state.dashed = []; state.reservations = []; state.defending = []; state.guards = []; state.spentActions = []; state.moved = [];
   state.cursor = { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null };
+  for (const c of state.creatures) delete c.pounceTrail;
   for (const p of state.players) { p.locked = p.eliminated; p.participated = false; }
   regrowSwarms(state,events);
   emit(state, events, { type: 'TurnStarted' });
@@ -83,7 +84,7 @@ export function advanceAtomicStep(state: GameState): Transition {
     const order = next.orders.find(o => o.creatureId === c.id) ?? defaultOrder(c.id);
     const advanceActor = () => {
       if(next.phase === 'movement' && c.alive && next.cursor.lastRestingCentre && !placement(arenaOf(next),c,c.centre).legal) {
-        const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};pruneWeedHolds(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
+        delete c.pounceTrail; const from={...c.centre}; c.centre={...next.cursor.lastRestingCentre};pruneWeedHolds(next); emit(next,events,{type:'MovementInterrupted',creatureId:c.id,from,to:{...c.centre}});
       }
       next.cursor.index++; next.cursor.pathIndex = 0; next.cursor.activePath = null; next.cursor.lastRestingCentre = null; };
     if (!eligible(c, next.turn) || c.controller === null || (next.phase === 'movement' && (restrained(next,c) || castingLocksMovement(next,c) || (subdued(c) && next.spentActions.includes(c.id))))) {
@@ -102,7 +103,9 @@ export function advanceAtomicStep(state: GameState): Transition {
           if(!next.moved.includes(c.id)) next.moved.push(c.id);
           const paid=next.movementSpent.find(m=>m.creatureId===c.id);const cost=Math.max(weedStepCost(next,c,to),wallStepCost(next,c,c.centre,to));
           if(paid)paid.amount+=cost;else next.movementSpent.push({creatureId:c.id,amount:cost});
-          const from = { ...c.centre }; c.centre = { ...to }; next.cursor.pathIndex++;
+          const from = { ...c.centre };
+          if(c.pounce)c.pounceTrail=[...(c.pounceTrail??[from]),{...to}];
+          c.centre = { ...to }; next.cursor.pathIndex++;
           if(placement(arenaOf(next),c,c.centre).legal) next.cursor.lastRestingCentre = {...c.centre};
           emit(next, events, { type: 'CreatureMoved', creatureId: c.id, from, to: { ...to } });
           const hazardDamage=crossWallHazards(next,c,from,to,events);cleanupDeaths(next,events);concentration(next,[{targetId:c.id,amount:hazardDamage}],events);

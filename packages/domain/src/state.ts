@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
 
-export const VERSION = { schema: 19, rules: 'roster-0.8', content: 'haunting-shade-0.1', rng: 'xorshift32-v1' } as const;
+export const VERSION = { schema: 20, rules: 'roster-0.9', content: 'cougar-0.1', rng: 'xorshift32-v1' } as const;
 export const id = z.string().min(1).max(128);
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const rngState = z.number().int().min(1).max(0xffffffff);
@@ -41,6 +41,8 @@ export const creatureSchema = z.strictObject({
   attackTraits:z.strictObject({aim:z.boolean(),brace:z.boolean(),ambush:z.boolean(),closeDisadvantageBelow:uint,receivesRally:z.boolean(),rallySource:z.boolean()}),
   reload:z.strictObject({loaded:z.boolean(),lastFiredTurn:uint.min(1).nullable(),lastReloadTurn:uint.min(1).nullable()}).nullable(),
   canMarkQuarry:z.boolean(),quarryTargetId:id.nullable(),
+  pounce:z.strictObject({attackId:id,steps:uint.min(1).max(1000),damage:uint.min(1).max(1000000)}).optional(),
+  pounceTrail:z.array(hexSchema).min(2).max(1001).optional(),
   bristles:uint.max(1000000),lifeDrain:uint.max(1000000),
   packTactics:z.boolean(), regeneration:uint, regenerationBlockedTurn:uint.nullable(), fireAcidDamage:uint,
   grappleLimbs:uint, grappleEqualSize:z.boolean(), corpseEligible:z.boolean(), restorationUsed:z.boolean(), reanimationAttackIds:z.array(id).nullable(),
@@ -83,6 +85,13 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   const players = state.players.map(p => p.id), creatures = state.creatures.map(c => c.id);
   if (!unique(players) || players.includes('$system')) invalid('INVALID_PLAYERS');
   if (!unique(creatures)) invalid('DUPLICATE_CREATURE');
+  for(const c of state.creatures){
+    if(c.pounce&&!c.attacks.some(a=>a.id===c.pounce!.attackId&&a.mode==='melee'))invalid('INVALID_POUNCE_ATTACK');
+    if(c.pounceTrail){
+      const trail=c.pounceTrail;
+      if(!c.pounce||!state.moved.includes(c.id)||!['movement','late','end','ended'].includes(state.phase)||distance(trail[trail.length-1]!,c.centre)!==0||trail.some((h,i)=>!inside(h,state.board)||(i>0&&distance(trail[i-1]!,h)!==1)))invalid('INVALID_POUNCE_TRAIL');
+    }
+  }
   if(!unique(state.wallCrossings.map(w=>`${w.creatureId}:${w.networkId}`))||state.wallCrossings.some(w=>!creatures.includes(w.creatureId)))invalid('INVALID_WALL_CROSSINGS');
   for(const w of state.walls)if((w.casterId!==undefined&&w.casterId!==null&&!creatures.includes(w.casterId))||((w.casterId!==undefined)!==(w.networkId!==undefined)))invalid('INVALID_WALL_OWNER');
   if(!unique(state.tangleweed.map(w=>w.id))||!unique(state.weedAttempts)||!unique(state.weedHolds.map(h=>h.creatureId))||!unique(state.movementSpent.map(m=>m.creatureId)))invalid('DUPLICATE_WEED_OR_MOVEMENT');

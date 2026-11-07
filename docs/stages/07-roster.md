@@ -438,3 +438,54 @@ Verification: 669 headless tests, type checking, production build, 29 Chromium
 tests and all nine CLI scenarios pass. Wall outcomes remain HP 4/11; schema-19
 fingerprint is `fnv1a32-v1:27175c58`. The browser run was resumed successfully
 on 7 November after an automatic approval-review usage limit interrupted it.
+
+## Cougar / Pounce interpretation (continuation checkpoint)
+
+Implementation interpretation of “after at least three steps towards the target”:
+count the final consecutive voluntary movement steps this turn that each strictly
+reduce minimum occupied-footprint distance to the bite target's current footprint.
+Use resolved steps, including a legal prefix of a blocked path; planned steps and
+extra terrain movement cost do not count. A sideways/retreating step breaks the
+approach run. Teleport and forced displacement clear the trail. Revalidate target
+identity, reach and its current position at attack execution. The +2 is base bite
+damage before critical hits and damage defences, and never applies to structures
+or Guard reactions. Early bites have no preceding movement. Clear history at turn
+start; never reconstruct it for historical snapshots. Illusions copy Pounce with
+ordinary reversible damage; reanimated bodies retain basic bites but lose Pounce.
+This is a routine implementation interpretation within the owner's delegated
+Stage 7 scope, not a new accepted design decision.
+
+Cougar (Cat 2) is enabled with its approved Size 2, Con 4, Move 6, Dex 7,
+Int 2, HP 8 and Skill 5 / physical damage 3 bite. This brings the current MVP
+to 25 of 40 implemented profiles; three deferred Goblin/Dragon profiles also
+remain supported. Stage 7 is still in progress.
+
+Schema 20 / rules `roster-0.9` / content `cougar-0.1` stores an optional explicit
+Pounce capability and private resolved movement trail. Frozen schema-19 and
+combat validators plus `migrateShadeSnapshot` preserve existing creatures,
+committed work, transit cursors and RNG without inferring Pounce or past steps.
+Historical fixtures remain unchanged. New permanent fixtures are
+`cougar-v20-movement.json` and `cougar-v20-bite.json`; both continue identically
+at every atomic boundary in the headless engine and Chromium. Public views copy
+the ability independently and omit the authoritative trail.
+
+Coverage includes three-step and shorter approaches, retreat/sideways paths,
+blocked prefixes, terrain costs, current target identity/position and large
+footprints, criticals, physical defences/immunity, misses, Guard interruption and
+exclusion, structure attacks, displacement/teleport resets, invalid and no-op
+forced moves, turn reset, illusion reversal, reanimation stripping, all three
+Quick summon variants, malformed snapshots and explicit legacy migration.
+
+Remaining MVP profiles: Lion, Fey leopard, Gryphon, Giant puma, Bobby the Master
+Hunter; Basilisk, Amphiptere, The World Serpent; Wisp, Ghost, Banshee; Walking
+mushroom, Walking tree, The Walking Forest; Shepherd. Their abilities, shared
+flight/mount/detection/cover work and combined roster scenarios remain outstanding.
+Full UI, AI and deployment remain later stages. The verbatim source archive
+remains a release gate.
+
+Verification: `pnpm check` passes 702 headless tests and type checking;
+`pnpm build`, all 31 Chromium tests (`pnpm test:browser`) and all nine
+`tools/run-*.mjs` CLI scenarios pass. Wall outcomes remain HP 4/11; schema-20
+fingerprint is `fnv1a32-v1:75a01a30`. Local verification used Node 24.22.1,
+pnpm 11.25.0 and the pinned Playwright 1.56.1 Chromium build; CI retains the
+repository's pinned Node version.

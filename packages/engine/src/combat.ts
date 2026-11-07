@@ -67,6 +67,19 @@ export function creatureAttackModifiers(s:GameState,a:Creature,b:Creature,source
  });
  return {...result,skill:result.skill+(a.canMarkQuarry&&a.quarryTargetId===b.id?2:0)};
 }
+/** Only the resolved voluntary approach to this target can empower a bite. */
+export function pounceDamage(a:Creature,b:Creature,attackId:string,source:'action'|'guard'):number {
+ if(!a.pounce||source!=='action'||attackId!==a.pounce.attackId||!a.pounceTrail)return 0;
+ const trail=a.pounceTrail;
+ let steps=0;
+ for(let i=trail.length-1;i>0;i--){
+  const before=nearestPair(footprint(trail[i-1]!,a.size),footprint(b.centre,b.size)).distance;
+  const after=nearestPair(footprint(trail[i]!,a.size),footprint(b.centre,b.size)).distance;
+  if(after>=before)break;
+  steps++;
+ }
+ return steps>=a.pounce.steps?a.pounce.damage:0;
+}
 export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):[boolean,boolean]{
  const allies=s.creatures.filter(x=>x.id!==a.id && a.controller!==null && x.controller===a.controller && active(x) && x.height===b.height && pair(x,b).distance===1);
  const advantage=allies.some(x=>a.packTactics||(pair(a,b).distance===1&&oppositeSectors(b.centre,a.centre,x.centre)));
@@ -165,7 +178,8 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
  if(!hit){emit(s,events,{type:'AttackMissed',creatureId:a.id,targetId:target.id});return false;}
  const critical=!area&&roll(s,strike.crit);
  const half=area&&!roll(s,effectChance(strike.skill,target.dex));
- const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:(penetrationSecond?Math.ceil(component.amount/2):component.amount)+(index===0?modifiers.damage:0)})),events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
+ const pounce=pounceDamage(a,target,attack.id,p.source);
+ const damage=applyDamage(s,target,strike.components.map((component,index)=>({...component,amount:(penetrationSecond?Math.ceil(component.amount/2):component.amount)+(index===0?modifiers.damage+pounce:0)})),events,{area,critical,half,sourceId:a.id,actionId:p.actionId});
  const previous=p.damageByTarget.find(d=>d.targetId===target!.id);
  if(previous)previous.amount+=damage;else p.damageByTarget.push({targetId:target.id,amount:damage});
  emit(s,events,{type:'AttackHit',creatureId:a.id,targetId:target.id,critical});

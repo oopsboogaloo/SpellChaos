@@ -43,7 +43,7 @@ const roar = (range: number, potency: number) => ability('fear-action', { range,
 const flying = () => ability('flight', { takeoffCost: 1, landingCost: 1 });
 
 add('Cat',1,'Cat familiar',[1,3,5,8,3],[melee('Claws',4,1)],{familiar:true,nimble:true});
-add('Cat',2,'Cougar',[2,4,6,7,2],[melee('Bite',5,3)],{},[pounce()]);
+add('Cat',2,'Cougar',[2,4,6,7,2],[melee('Bite',5,3)],{pounce:{attackId:'basic',steps:3,damage:2}},[pounce()]);
 add('Cat',3,'Lion',[3,5,5,6,2],[melee('Bite',6,4)],{packTactics:true},[roar(1,3)]);
 const tiger = melee('Bite',7,5,'physical',15);
 tiger.shots[0]!.secondary.push({kind:'Bleeding',potency:4,resistance:'con',duration:null,requiresDamage:true});
