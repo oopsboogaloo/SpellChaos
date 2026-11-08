@@ -4,7 +4,7 @@ import type {Creature,GameState} from '../../domain/src/state.js';
 import type {PowerAction} from '../../domain/src/combat.js';
 import {footprint,nearestPair,type Hex} from '../../geometry/src/hex.js';
 import {active,slowed} from './status.js';
-import {sight,visibleTo} from './visibility.js';
+import {sight,visibleTo,clearNearestPair} from './visibility.js';
 import {addCondition,applyDamage,effectChance,immuneTo,roll} from './damage.js';
 import {concentration} from './casting.js';
 import {cleanupDeaths} from './lifecycle.js';
@@ -25,7 +25,7 @@ const sporesLiving=(target:Creature)=>!target.undead&&!target.construct&&target.
 function eligibleTarget(s:GameState,actor:Creature,target:Creature,action:PowerAction,range:number,origin:Hex=actor.centre):boolean {
  const p=nearestPair(bodyFootprint(s,actor,origin),bodyFootprint(s,target));
  if(action.type==='Wail')return target.alive&&target.id!==actor.id&&p.distance<=range;
- return target.alive&&enemy(actor,target)&&p.distance<=range&&!!actor.controller&&visibleTo(s,target,actor.controller)&&sight(s,actor,p.from,p.to,'left')&&(action.type!=='Spores'||sporesLiving(target))&&(action.type!=='RootNetwork'||(target.size<actor.size&&rootContact(s,actor,target)));
+ return target.alive&&enemy(actor,target)&&p.distance<=range&&!!actor.controller&&visibleTo(s,target,actor.controller)&&clearNearestPair(bodyFootprint(s,actor,origin),bodyFootprint(s,target),(from,to,side)=>sight(s,actor,from,to,side))!==null&&(action.type!=='Spores'||sporesLiving(target))&&(action.type!=='RootNetwork'||(target.size<actor.size&&rootContact(s,actor,target)));
 }
 export function validatePowerAction(s:GameState,actor:Creature,action:PowerAction):void {
  if(!definition(actor,action))throw new Error('NO_SUCH_POWER');

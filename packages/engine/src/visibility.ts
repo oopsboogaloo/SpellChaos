@@ -1,6 +1,6 @@
 import {bodyFootprint} from './bodies.js';
 import type { Creature,GameState } from '../../domain/src/state.js';
-import { distance,footprint,nearestPair,type Hex } from '../../geometry/src/hex.js';
+import { distance,footprint,nearestPair,nearestPairs,type Hex } from '../../geometry/src/hex.js';
 import { traceRay,type RaySide } from '../../geometry/src/ray.js';
 import { clearSight } from '../../geometry/src/walls.js';
 import { active } from './status.js';
@@ -14,9 +14,18 @@ export function darkRay(s:GameState,from:Hex,to:Hex,side:RaySide):boolean {
 export function sight(s:GameState,observer:Creature,from:Hex,to:Hex,side:RaySide):boolean {
  return clearSight(from,to,side,s.walls)&&(!darkRay(s,from,to,side)||(observer.darknessSightRange>0&&distance(from,to)<=observer.darknessSightRange));
 }
+export const BOTH_SIDES:readonly RaySide[]=['left','right'];
+/**
+ * #20/#22: range is the minimum distance between footprints, so a check passes if ANY minimum-distance
+ * cell pair passes it. Pairs are tried in canonical order, then the given ray sides; the first passing
+ * pair (with its side) is returned, or null.
+ */
+export function clearNearestPair(from:readonly Hex[],to:readonly Hex[],test:(from:Hex,to:Hex,side:RaySide)=>boolean,sides:readonly RaySide[]=BOTH_SIDES):{from:Hex;to:Hex;distance:number;side:RaySide}|null {
+ for(const p of nearestPairs(from,to))for(const side of sides)if(test(p.from,p.to,side))return {...p,side};
+ return null;
+}
 export function seesCreature(s:GameState,observer:Creature,target:Creature,adjacent=true):boolean {
- const p=nearestPair(bodyFootprint(s,observer),bodyFootprint(s,target));
- return (adjacent&&p.distance<=1&&clearSight(p.from,p.to,'left',s.walls))||sight(s,observer,p.from,p.to,'left');
+ return clearNearestPair(bodyFootprint(s,observer),bodyFootprint(s,target),(from,to,side)=>(adjacent&&distance(from,to)<=1&&clearSight(from,to,side,s.walls))||sight(s,observer,from,to,side))!==null;
 }
 export function visibleTo(s:GameState,target:Creature,playerId:string):boolean {
  if(target.controller===playerId)return true;

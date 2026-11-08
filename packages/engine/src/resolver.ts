@@ -114,7 +114,7 @@ export function advanceAtomicStep(state: GameState): Transition {
         const blinking=order.blinkIndex===next.cursor.pathIndex;
         const dragging=order.dragTargetId!==undefined;
         const stepCost=movementStepCost(next,c,order,next.cursor.pathIndex,c.centre,to);
-        if (!fearAllowsStep(next,c,to)||!carryingFearAllows(next,c,to)||carryingLocked(next,c) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>movementAllowance(c,order) || !(order.flightSteps?flightStepLegal(next,c,order,next.cursor.pathIndex,c.centre,to,next.cursor.pathIndex<next.cursor.activePath.length-1):dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
+        if (!fearAllowsStep(next,c,to)||!carryingFearAllows(next,c,to)||carryingLocked(next,c) || (next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)+stepCost>allowance || !(order.flightSteps?flightStepLegal(next,c,order,next.cursor.pathIndex,c.centre,to,next.cursor.pathIndex<next.cursor.activePath.length-1):dragging?dragStepLegal(next,c,order,c.centre,to):blinking?blinkLegal(next,c,c.centre,to):stepLegality(arenaOf(next), c, c.centre, to, next.cursor.pathIndex < next.cursor.activePath.length - 1).legal)) {
           revealContact(to);
           emit(next, events, { type: 'MovementBlocked', creatureId: c.id }); advanceActor();
         } else {
@@ -144,7 +144,7 @@ export function advanceAtomicStep(state: GameState): Transition {
       const completing=next.casts.find(cast=>cast.casterId===c.id&&cast.timing!=='quick'&&cast.dueTurn===next.turn&&cast.duePhase===phase);
       if(completing){if(!next.actedThisPhase.includes(c.id))next.actedThisPhase.push(c.id);completeCast(next,completing.id,events);advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
       if(slotOccupied(next,c,phase)){advanceActor();return {state:next,events,acknowledgedRevision:next.revision};}
-      if(subdued(c) && (next.moved.includes(c.id) || next.spentActions.includes(c.id))) { advanceActor(); return {state:next,events,acknowledgedRevision:next.revision}; }
+      if(subdued(c) && ((next.movementSpent.find(m=>m.creatureId===c.id)?.amount??0)>0 || next.spentActions.includes(c.id))) { advanceActor(); return {state:next,events,acknowledgedRevision:next.revision}; }
       const action = next.phase === 'early' ? order.early : order.late;
       if (action === 'Dash') next.dashed.push(c.id);
       if(action){next.spentActions.push(c.id);if(!next.actedThisPhase.includes(c.id))next.actedThisPhase.push(c.id);}

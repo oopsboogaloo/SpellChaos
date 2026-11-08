@@ -46,6 +46,17 @@ export function footprint(centre: Hex, size: number): Hex[] {
   if (!Number.isInteger(size) || size < 1 || size > 10) throw new Error('INVALID_SIZE');
   return disk(centre, Math.floor((size - 1) / 2));
 }
+/** Every minimum-distance cell pair, in the same canonical order nearestPair uses (its first element). */
+export function nearestPairs(a: readonly Hex[], b: readonly Hex[]): { from: Hex; to: Hex; distance: number }[] {
+  if (!a.length || !b.length) throw new Error('EMPTY_FOOTPRINT');
+  let min = Infinity; const pairs: { from: Hex; to: Hex; distance: number }[] = [];
+  for (const from of a) for (const to of b) {
+    const d = distance(from, to);
+    if (d < min) { min = d; pairs.length = 0; }
+    if (d === min) pairs.push({ from, to, distance: d });
+  }
+  return pairs.sort((x, y) => compareHex(x.from, y.from) || compareHex(x.to, y.to));
+}
 export function nearestPair(a: readonly Hex[], b: readonly Hex[]): { from: Hex; to: Hex; distance: number } {
   if (!a.length || !b.length) throw new Error('EMPTY_FOOTPRINT');
   let best = { from: a[0]!, to: b[0]!, distance: Infinity };
@@ -67,6 +78,14 @@ export function sector(centre: Hex, other: Hex): number {
   const scores = DIRECTIONS.map(d => 2 * q * d.q + q * d.r + r * d.q + 2 * r * d.r);
   return scores.indexOf(Math.max(...scores));
 }
-export function oppositeSectors(centre: Hex, a: Hex, b: Hex): boolean { return (sector(centre, a) + 3) % 6 === sector(centre, b); }
+/** All sectors tied for nearest direction (two on an exact boundary). */
+function sectors(centre: Hex, other: Hex): number[] {
+  if (equal(centre, other)) throw new Error('UNDEFINED_SECTOR');
+  const q = other.q - centre.q, r = other.r - centre.r;
+  const scores = DIRECTIONS.map(d => 2 * q * d.q + q * d.r + r * d.q + 2 * r * d.r), best = Math.max(...scores);
+  return scores.flatMap((score, i) => score === best ? [i] : []);
+}
+/** Symmetric: boundary positions count for both neighbouring sectors, so exact opposites always qualify (#21). */
+export function oppositeSectors(centre: Hex, a: Hex, b: Hex): boolean { const sb = sectors(centre, b); return sectors(centre, a).some(i => sb.includes((i + 3) % 6)); }
 /** Rendering conversion only. Adjacent centre separation is one metre. */
 export function worldPoint(h: Hex): { x: number; y: number } { return { x: h.q + h.r / 2, y: h.r * Math.sqrt(3) / 2 }; }

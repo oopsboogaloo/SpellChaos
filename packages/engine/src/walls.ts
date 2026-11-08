@@ -42,7 +42,7 @@ export function crossWallHazards(s:GameState,c:Creature,from:Hex,to:Hex,events:E
   const networkId=w.networkId??w.id;
   if(s.wallCrossings.some(x=>x.creatureId===c.id&&x.networkId===networkId))continue;
   s.wallCrossings.push({creatureId:c.id,networkId});
-  if(w.material==='death'&&c.undead)heal(s,c,10,events,'necromantic');
+  if(w.material==='death'&&c.undead){if(c.kind!=='illusion')heal(s,c,10,events,'necromantic');}
   else total+=applyDamage(s,c,[{type:w.material==='thorns'?'physical':w.material==='fire'?'fire':'necrotic',amount:w.material==='thorns'?3:w.material==='fire'?6:10}],events,{sourceId:w.casterId??null,actionId:networkId});
  }
  return total;
