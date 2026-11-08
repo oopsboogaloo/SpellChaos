@@ -10,6 +10,8 @@ export function Board({
   onSelect,
   onTarget,
   onPath,
+  onCommand,
+  marked = [],
 }: {
   view: PlayerView;
   selected: string;
@@ -17,6 +19,10 @@ export function Board({
   onSelect: (id: string) => void;
   onTarget: (id: string) => void;
   onPath: (h: Hex) => void;
+  /** Click handler for select mode: the clicked hex and the top creature on it, if any. */
+  onCommand?: (h: Hex, creatureId: string | undefined) => void;
+  /** Hexes to highlight, such as Tangleweed cells being chosen. */
+  marked?: Hex[];
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     [mode, setMode] = useState('select'),
@@ -70,16 +76,49 @@ export function Board({
       ctx.stroke();
       ctx.lineWidth = 1;
     }
-    for (const c of view.creatures) {
-      const own = c.controller === view.self.id;
-      for (const h of c.occupied) hex(h, own ? '#615130' : '#344c66', c.id === selected ? '#ffda7e' : '#a8bdd4');
-      const p = point(c.centre);
-      ctx.fillStyle = '#fff';
-      ctx.font = '12px system-ui';
+    for (const h of marked) hex(h, '#2f6b3a', '#9be29a');
+    for (const corpse of view.corpses) {
+      const p = point(corpse.centre);
+      ctx.fillStyle = '#8a7a6a';
+      ctx.font = '16px system-ui';
       ctx.textAlign = 'center';
-      const index = view.players.findIndex(p => p.id === c.controller);
-      ctx.fillText(`${index < 0 ? '◇' : index + 1} ${c.species}`, p.x, p.y);
-      ctx.fillText(`${c.health}${c.height === 'air' ? ' ↑' : ''}`, p.x, p.y + 13);
+      ctx.fillText('✝', p.x, p.y + 5);
+    }
+    const colours = ['#e0b44c', '#5aa9e6', '#e0605a', '#7bc96f', '#b58be0', '#e08bc4', '#5fd0c0', '#d0d0d0'];
+    const healthColour: Record<string, string> = { healthy: '#6fd36f', wounded: '#e7c34a', critical: '#e5604f' };
+    for (const c of view.creatures) {
+      const index = view.players.findIndex(p => p.id === c.controller),
+        colour = index < 0 ? '#9a9a9a' : colours[index % colours.length]!;
+      for (const h of c.occupied) hex(h, `${colour}33`, c.id === selected ? '#ffda7e' : `${colour}aa`);
+      const p = point(c.centre),
+        r = radius * (0.8 + Math.floor((c.size - 1) / 2) * 1.5);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = c.height === 'air' ? '#1d2b3c' : '#0f1722';
+      ctx.fill();
+      ctx.lineWidth = c.id === selected ? 4 : 2.5;
+      ctx.strokeStyle = c.id === selected ? '#ffda7e' : colour;
+      if (c.height === 'air') ctx.setLineDash([5, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.round(Math.min(16, r * 0.7))}px system-ui`;
+      ctx.textAlign = 'center';
+      const short = c.species.replace(
+        /^(The|Giant|Greater|Ancient|Haunting|Walking|Snake|Grasping|Thorn|Fey|Elven|Siege)\s+/,
+        '',
+      );
+      ctx.fillText(short.slice(0, 7), p.x, p.y + 4);
+      ctx.font = '11px system-ui';
+      ctx.fillStyle = colour;
+      ctx.fillText(index < 0 ? '◇' : `P${index + 1}`, p.x, p.y - r * 0.45);
+      // Health bar under the token.
+      const share = c.health === 'healthy' ? 1 : c.health === 'wounded' ? 0.6 : c.health === 'critical' ? 0.3 : 0.05;
+      ctx.fillStyle = '#00000088';
+      ctx.fillRect(p.x - r * 0.7, p.y + r * 0.45, r * 1.4, 4);
+      ctx.fillStyle = healthColour[c.health] ?? '#888';
+      ctx.fillRect(p.x - r * 0.7, p.y + r * 0.45, r * 1.4 * share, 4);
     }
     const actor = view.creatures.find(c => c.id === selected);
     if (actor && path.length) {
@@ -99,7 +138,7 @@ export function Board({
       }
     }
     ctx.restore();
-  }, [view, selected, path, zoom, pan]);
+  }, [view, selected, path, zoom, pan, marked]);
   function location(e: React.PointerEvent<HTMLCanvasElement>) {
     const box = e.currentTarget.getBoundingClientRect();
     return { x: ((e.clientX - box.left) * width) / box.width, y: ((e.clientY - box.top) * height) / box.height };
@@ -130,6 +169,11 @@ export function Board({
       return;
     }
     const c = [...view.creatures].reverse().find(c => c.occupied.some(h => distance(h, best!) === 0));
+    if (onCommand) {
+      onCommand(best, c?.id);
+      if (c) setMessage(`${c.species}: ${c.health}`);
+      return;
+    }
     if (c) {
       if (c.controller === view.self.id) onSelect(c.id);
       else onTarget(c.id);

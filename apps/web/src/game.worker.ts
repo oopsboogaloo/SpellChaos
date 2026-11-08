@@ -5,12 +5,44 @@ import { projectEvents, projectView } from '../../../packages/views/src/index.js
 import type { Event } from '../../../packages/engine/src/events.js';
 import { submitAiTurn } from '../../../packages/ai/src/coordinator.js';
 import { knowledgeState } from '../../../packages/ai/src/knowledge.js';
-import { validateOrder } from '../../../packages/engine/src/orders.js';
+import { validateOrder, movementAllowance } from '../../../packages/engine/src/orders.js';
+import { routeTowards } from '../../../packages/engine/src/navigation.js';
+import { distance } from '../../../packages/geometry/src/hex.js';
+
+// Order refusals worth explaining to the player. Planning checks use only what the player can see,
+// so these codes reveal nothing hidden; anything else gets the generic message.
+const REASONS: Record<string, string> = {
+  INSUFFICIENT_MANA: 'Not enough mana for that spell.',
+  RESTRAINED: 'That creature is restrained and cannot move.',
+  FEAR_APPROACH: 'That creature is too frightened to move closer to the source of its fear.',
+  INVALID_PATH: 'That route is blocked.',
+  INVALID_DESTINATION: 'That creature cannot end its move there.',
+  MOVEMENT_BUDGET: 'That route is longer than the creature can move this turn.',
+  CASTING_IMMOBILE: 'A creature finishing a slow spell cannot move this turn.',
+  CASTING_OCCUPIES_ACTION: 'This creature is busy casting and cannot take that action.',
+  SUBDUED_BUDGET: 'A subdued creature can either move or act, not both.',
+  TOTAL_DEFENCE_WHOLE_TURN: 'Total Defence takes the whole turn.',
+  DASH_EARLY_ONLY: 'Dash can only be used before moving (Early).',
+  GUARD_EARLY_ONLY: 'Guard can only be ordered before moving (Early).',
+  ACTION_BUDGET: 'This creature has already used its action for that phase.',
+  INVALID_SPELL_TARGET: 'That is not a valid target for this spell.',
+  INVALID_SUMMON_PLACEMENT: 'The summoned creature would not fit there.',
+  INVALID_TELEPORT_DESTINATION: 'The caster cannot teleport there.',
+  INVALID_ATTACK_TARGETS: 'That is not a valid target for this attack.',
+  UNKNOWN_TARGET: 'That target cannot be seen.',
+  INVALID_POWER_TARGET: 'That is not a valid target for this power.',
+  POWER_COOLDOWN: 'That power is still recovering.',
+  RELOAD_REQUIRED: 'This weapon must be reloaded first.',
+  SPELL_NOT_KNOWN: 'This creature cannot cast that spell at that level.',
+  NOT_CONTROLLED: 'You do not control that creature.',
+  ORDERS_LOCKED: 'Your orders are locked for this turn.',
+};
 import { encodeSnapshot, restoreSnapshot } from '../../../packages/persistence/src/snapshot.js';
 import type { Order } from '../../../packages/domain/src/state.js';
 let state = createMatch('local', ['human', 'ai-1'], 123);
 let saveStatus = 'Local saves stay in this browser.';
 let settings: LocalSettings = DEFAULT_SETTINGS;
+let notice = '';
 // The human player's permitted events, grouped by turn (most recent 20 turns, kept in memory).
 let log: { turn: number; events: ReturnType<typeof projectEvents> }[] = [];
 function record(events: readonly Event[]) {
@@ -27,8 +59,10 @@ function step() {
   state = r.state;
   record(r.events);
 }
-const send = (extra: object = {}) =>
-  postMessage({ view: projectView(state, 'human'), saveStatus, log, settings, ...extra });
+const send = (extra: object = {}) => {
+  postMessage({ view: projectView(state, 'human'), saveStatus, log, settings, notice, ...extra });
+  notice = '';
+};
 function command(type: 'LockTurn' | 'SetOrder', order?: Order) {
   const base = {
     matchId: state.matchId,
@@ -95,8 +129,59 @@ async function handle(data: any) {
             view.holds.some(h => h.grapplerId === order.creatureId && h.targetId === order.dragTargetId)
           )
             c.restrained = false;
+      try {
+        validateOrder(knowledge, order, 'human');
+      } catch (e) {
+        // Most creatures get one action a turn: a new action replaces the one planned for the other phase.
+        if (
+          !(e instanceof Error) ||
+          e.message !== 'ACTION_BUDGET' ||
+          !(data.phase === 'early' || data.phase === 'late')
+        )
+          throw e;
+        const other = data.phase === 'early' ? 'late' : 'early';
+        if (order[other] === null) throw e;
+        order[other] = null;
+        validateOrder(knowledge, order, 'human');
+        notice = `This creature has one action a turn, so this replaces its ${other === 'early' ? 'before-moving' : 'after-moving'} action.`;
+      }
+      state = command('SetOrder', order);
+    }
+    if (data.type === 'moveTo') {
+      // Click-to-move: plan a legal route with the same pathfinder the AI uses, over what the player can see,
+      // then keep the creature's other orders and save the new path.
+      const view = projectView(state, 'human'),
+        knowledge = knowledgeState(view),
+        previous = state.orders.find(o => o.creatureId === data.creatureId),
+        actor = knowledge.creatures.find(c => c.id === data.creatureId);
+      if (!actor) throw new Error('NOT_CONTROLLED');
+      const base = { creatureId: actor.id, path: [], early: previous?.early ?? null, late: previous?.late ?? null };
+      // An Early Teleport moves the creature first, so the route starts at its destination.
+      const start =
+        base.early && typeof base.early === 'object' && base.early.type === 'Cast' && base.early.spell === 'Teleport'
+          ? base.early.ground
+          : null;
+      const route = routeTowards(
+        knowledge,
+        start ? { ...actor, centre: start } : actor,
+        movementAllowance(actor, base),
+        c => distance(c.centre, data.to),
+        c => distance(c.centre, data.to) === 0,
+        1800,
+      );
+      const order = {
+        ...base,
+        path: route.path,
+        ...(route.flightSteps?.length ? { flightSteps: route.flightSteps } : {}),
+      };
       validateOrder(knowledge, order, 'human');
       state = command('SetOrder', order);
+      notice =
+        route.path.length === 0
+          ? 'No route found towards that hex.'
+          : route.reached
+            ? ''
+            : 'Moving as far as possible this turn.';
     }
     if (data.type === 'clear')
       state = applyCommand(state, {
@@ -173,8 +258,9 @@ async function handle(data: any) {
       }
     }
     send();
-  } catch {
-    send({ error: 'That request could not be completed. Check your order or save file.' });
+  } catch (e) {
+    const reason = e instanceof Error ? REASONS[e.message] : undefined;
+    send({ error: reason ?? 'That request could not be completed. Check your order or save file.' });
   }
 }
 let queue = Promise.resolve();
