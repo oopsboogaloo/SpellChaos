@@ -1,99 +1,991 @@
-import {fullRosterScenario} from '../packages/scenario/src/roster.js';
-import {it,expect} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {beginAttack,stepAttack,resolveCombatAction,diveDamage} from '../packages/engine/src/combat.js';
-import {bodyFootprint} from '../packages/engine/src/bodies.js';
-import {resolveMountAction,dismountLegal} from '../packages/engine/src/mounts.js';
-import {forceMove,startCast,completeCast,validateCast} from '../packages/engine/src/casting.js';
-import {addCondition,applyDamage} from '../packages/engine/src/damage.js';
-import {cleanupDeaths,expireConditions} from '../packages/engine/src/lifecycle.js';
-import {reanimatedProfile} from '../packages/engine/src/reanimation.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {restrained} from '../packages/engine/src/status.js';
-import {contactWeed} from '../packages/engine/src/tangleweed.js';
-import {physicalContact,rootContact} from '../packages/engine/src/ground-traits.js';
-import {projectView,projectEvents} from '../packages/views/src/index.js';
-import {placement,nearestLegal,traceProjectile,affectedCreatures} from '../packages/geometry/src/occupancy.js';
-import {arenaOf} from '../packages/engine/src/orders.js';
-import {footprint,fromOffset} from '../packages/geometry/src/hex.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import type {GameState,Creature,Order} from '../packages/domain/src/state.js';
-import type {AttackAction} from '../packages/domain/src/combat.js';
-import type {Event} from '../packages/engine/src/events.js';
-const h=(q:number,r=10)=>({q,r});
-const mount=(s:GameState)=>s.creatures.find(c=>c.id==='gryphon')!;
-const rider=(s:GameState)=>s.creatures.find(c=>c.id==='shepherd')!;
-const target=(s:GameState)=>s.creatures.find(c=>c.id==='target')!;
-function setup(){const s=createMatch('mounts-dive',['a','b','c'],456);s.creatures[0]!.centre=h(1,2);s.creatures[1]!.centre=h(16,20);s.creatures[2]!.centre=h(0,20);s.creatures.push(createCreature('gryphon','a',h(8),summonProfile('Summon Cat',6)!),createCreature('shepherd','a',h(6),summonProfile('Summon Archer',1)!),createCreature('target','b',h(13),{con:20,incapacitated:true}));for(const c of [mount(s),rider(s)])for(const a of c.attacks)for(const hit of a.shots)hit.crit=0;return s;}
-function paired(){const s=setup();mount(s).height='ground';rider(s).mountId='gryphon';rider(s).centre=h(8);return s;}
-function order(s:GameState,id:string,early:Order['early']=null,late:Order['late']=null,path:Order['path']=[],extra:Partial<Order>={}){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:s.creatures.find(c=>c.id===id)!.controller!,turn:s.turn,commandId:`order-${s.revision}`,expectedRevision:s.revision,order:{creatureId:id,path,early,late,...extra}}).state;}
-function until(s:GameState,predicate:(s:GameState)=>boolean){for(let n=0;!predicate(s);n++){if(n>2000)throw new Error('STEP_LIMIT');s=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;}return s;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>2000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-const strike=(id='basic',victim='target'):AttackAction=>({type:'Attack',attackId:id,targetIds:[victim],ground:null,side:'left'});
-function attack(s:GameState,id='gryphon',action=strike()){s.phase='early';s.random.resolution=3;beginAttack(s,s.creatures.find(c=>c.id===id)!,action,'action');const events:Event[]=[];for(let n=0;s.pendingAttack;n++){if(n>20)throw new Error('ATTACK_LIMIT');stepAttack(s,events);}return events;}
-function movingPair(path=[h(9)],extra:Partial<Order>={}){let s=paired();s=order(s,'shepherd');return startScenarioTurn(order(s,'gryphon',null,null,path,extra));}
+import { fullRosterScenario } from '../packages/scenario/src/roster.js';
+import { it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createMatch, createCreature, applyCommand } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { beginAttack, stepAttack, resolveCombatAction, diveDamage } from '../packages/engine/src/combat.js';
+import { bodyFootprint } from '../packages/engine/src/bodies.js';
+import { resolveMountAction, dismountLegal } from '../packages/engine/src/mounts.js';
+import { forceMove, startCast, completeCast, validateCast } from '../packages/engine/src/casting.js';
+import { addCondition, applyDamage } from '../packages/engine/src/damage.js';
+import { cleanupDeaths, expireConditions } from '../packages/engine/src/lifecycle.js';
+import { reanimatedProfile } from '../packages/engine/src/reanimation.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { restrained } from '../packages/engine/src/status.js';
+import { contactWeed } from '../packages/engine/src/tangleweed.js';
+import { physicalContact, rootContact } from '../packages/engine/src/ground-traits.js';
+import { projectView, projectEvents } from '../packages/views/src/index.js';
+import { placement, nearestLegal, traceProjectile, affectedCreatures } from '../packages/geometry/src/occupancy.js';
+import { arenaOf } from '../packages/engine/src/orders.js';
+import { footprint, fromOffset } from '../packages/geometry/src/hex.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import type { GameState, Creature, Order } from '../packages/domain/src/state.js';
+import type { AttackAction } from '../packages/domain/src/combat.js';
+import type { Event } from '../packages/engine/src/events.js';
+const h = (q: number, r = 10) => ({ q, r });
+const mount = (s: GameState) => s.creatures.find(c => c.id === 'gryphon')!;
+const rider = (s: GameState) => s.creatures.find(c => c.id === 'shepherd')!;
+const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
+function setup() {
+  const s = createMatch('mounts-dive', ['a', 'b', 'c'], 456);
+  s.creatures[0]!.centre = h(1, 2);
+  s.creatures[1]!.centre = h(16, 20);
+  s.creatures[2]!.centre = h(0, 20);
+  s.creatures.push(
+    createCreature('gryphon', 'a', h(8), summonProfile('Summon Cat', 6)!),
+    createCreature('shepherd', 'a', h(6), summonProfile('Summon Archer', 1)!),
+    createCreature('target', 'b', h(13), { con: 20, incapacitated: true }),
+  );
+  for (const c of [mount(s), rider(s)]) for (const a of c.attacks) for (const hit of a.shots) hit.crit = 0;
+  return s;
+}
+function paired() {
+  const s = setup();
+  mount(s).height = 'ground';
+  rider(s).mountId = 'gryphon';
+  rider(s).centre = h(8);
+  return s;
+}
+function order(
+  s: GameState,
+  id: string,
+  early: Order['early'] = null,
+  late: Order['late'] = null,
+  path: Order['path'] = [],
+  extra: Partial<Order> = {},
+) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: s.creatures.find(c => c.id === id)!.controller!,
+    turn: s.turn,
+    commandId: `order-${s.revision}`,
+    expectedRevision: s.revision,
+    order: { creatureId: id, path, early, late, ...extra },
+  }).state;
+}
+function until(s: GameState, predicate: (s: GameState) => boolean) {
+  for (let n = 0; !predicate(s); n++) {
+    if (n > 2000) throw new Error('STEP_LIMIT');
+    s = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;
+  }
+  return s;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 2000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+const strike = (id = 'basic', victim = 'target'): AttackAction => ({
+  type: 'Attack',
+  attackId: id,
+  targetIds: [victim],
+  ground: null,
+  side: 'left',
+});
+function attack(s: GameState, id = 'gryphon', action = strike()) {
+  s.phase = 'early';
+  s.random.resolution = 3;
+  beginAttack(
+    s,
+    s.creatures.find(c => c.id === id)!,
+    action,
+    'action',
+  );
+  const events: Event[] = [];
+  for (let n = 0; s.pendingAttack; n++) {
+    if (n > 20) throw new Error('ATTACK_LIMIT');
+    stepAttack(s, events);
+  }
+  return events;
+}
+function movingPair(path = [h(9)], extra: Partial<Order> = {}) {
+  let s = paired();
+  s = order(s, 'shepherd');
+  return startScenarioTurn(order(s, 'gryphon', null, null, path, extra));
+}
 
-it('Gryphon resolves Beak and Claws as one action and one planned identity',()=>{let s=setup();target(s).centre=h(10);target(s).height='air';s=order(s,'gryphon',strike());const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(33);expect(a.events.filter(e=>e.type==='ActionResolved'&&e.creatureId==='gryphon')).toHaveLength(1);expect(a.events.filter(e=>e.type==='AttackHit'&&e.creatureId==='gryphon')).toHaveLength(2);expect(()=>order(setup(),'gryphon',{...strike(),targetIds:['target','wizard-1']})).toThrow('INVALID_ATTACK_TARGETS');});
-it('three airborne approach steps add two only to Beak, followed by legal landing and ground attack',()=>{let s=setup();target(s).centre=h(13);s=order(s,'gryphon',null,strike(),[h(9),h(10),h(11),h(11)],{flightSteps:[{index:3,height:'ground'}]});const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(31);expect(mount(a.state).height).toBe('ground');expect(a.events.filter(e=>e.type==='DamageApplied'&&e.creatureId==='target').map(e=>e.amount)).toEqual([6,3]);});
-it('airborne Dive also works against an airborne target without landing',()=>{let s=setup();target(s).height='air';s=order(s,'gryphon',null,strike(),[h(9),h(10),h(11)]);const r=run(startScenarioTurn(s),true);expect(target(r.state).hp).toBe(31);});
-it('two approach steps or a final retreat cannot grant Dive',()=>{for(const trail of [[h(9),h(10),h(11)],[h(9),h(10),h(11),h(10)]]){const s=setup();mount(s).diveTrail=trail;mount(s).centre=trail.at(-1)!;expect(diveDamage(s,mount(s),target(s),'basic',0,'action')).toBe(0);}});
-it('ground-only approach and take-off cannot create a Dive',()=>{let s=setup();mount(s).height='ground';target(s).height='air';s=order(s,'gryphon',null,strike(),[h(9),h(10),h(11),h(11)],{flightSteps:[{index:3,height:'air'}]});expect(target(run(startScenarioTurn(s),true).state).hp).toBe(33);});
-it('Dive rechecks the selected target and never boosts Claws or Guard',()=>{const s=setup();mount(s).centre=h(11);mount(s).diveTrail=[h(8),h(9),h(10),h(11)];expect(diveDamage(s,mount(s),target(s),'basic',0,'action')).toBe(2);expect(diveDamage(s,mount(s),target(s),'basic',1,'action')).toBe(0);expect(diveDamage(s,mount(s),target(s),'basic',0,'guard')).toBe(0);target(s).centre=h(8,13);expect(diveDamage(s,mount(s),target(s),'basic',0,'action')).toBe(0);});
-it('forced displacement clears the airborne approach trail',()=>{const s=setup();mount(s).centre=h(11);mount(s).diveTrail=[h(8),h(9),h(10),h(11)];forceMove(s,mount(s),h(11,11),[]);expect(mount(s).diveTrail).toBeUndefined();});
-it('Bristles can stop the Gryphon between Beak and Claws',()=>{const s=setup();mount(s).height='ground';mount(s).hp=1;Object.assign(target(s),summonProfile('Summon Plant',3)!,{centre:h(11),incapacitated:true});const events=attack(s);expect(mount(s).hp).toBe(0);expect(events.filter(e=>e.type==='AttackHit')).toHaveLength(1);});
-it('Mount costs the Shepherd its ordinary action and then the Gryphon supplies movement',()=>{let s=setup();mount(s).height='ground';s=order(s,'shepherd',{type:'Mount',targetId:'gryphon'});s=order(s,'gryphon',null,null,[h(9)]);const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(rider(a.state).mountId).toBe('gryphon');expect(rider(a.state).centre).toEqual(h(9));expect(a.events.filter(e=>e.type==='Mounted')).toHaveLength(1);expect(()=>order(setup(),'shepherd',{type:'Mount',targetId:'gryphon'},strike())).toThrow('ACTION_BUDGET');});
-it('failed distant mounting grants neither shared movement nor a fallback path',()=>{let s=setup();mount(s).height='ground';rider(s).centre=h(4);s=order(s,'shepherd',{type:'Mount',targetId:'gryphon'});s=order(s,'gryphon',null,null,[h(9)]);const r=run(startScenarioTurn(s),true);expect(rider(r.state).mountId).toBeUndefined();expect(rider(r.state).centre).toEqual(h(4));});
-it.each(['enemy','not-suitable','equal-size','already-ridden','illusion-mount','illusion-rider','non-rider'] as const)('Mount rejects %s',kind=>{const s=setup();mount(s).height='ground';if(kind==='enemy')mount(s).controller='b';if(kind==='not-suitable')delete mount(s).mountable;if(kind==='equal-size')rider(s).size=4;if(kind==='already-ridden')s.creatures[0]!.mountId='gryphon';if(kind==='illusion-mount')mount(s).kind='illusion';if(kind==='illusion-rider')rider(s).kind='illusion';if(kind==='non-rider')delete rider(s).canRide;expect(()=>order(s,'shepherd',{type:'Mount',targetId:'gryphon'})).toThrow('INVALID_MOUNT_TARGET');});
-it.each(['airborne','incapacitated','unready','wall'] as const)('Mount rechecks %s mount eligibility at execution',kind=>{let s=setup();mount(s).height='ground';s=order(s,'shepherd',{type:'Mount',targetId:'gryphon'});if(kind==='airborne')mount(s).height='air';if(kind==='incapacitated')mount(s).incapacitated=true;if(kind==='unready')mount(s).readyTurn=2;if(kind==='wall')s.walls.push({id:'wall',edge:{a:h(6),b:h(7)},material:'stone',hp:20,maxHp:20,burning:null});const r=run(startScenarioTurn(s),true);expect(rider(r.state).mountId).toBeUndefined();});
-it('mounted riders cannot issue their own movement or combine Mount with a fallback path',()=>{expect(()=>order(paired(),'shepherd',null,null,[h(9)])).toThrow('RIDER_USES_MOUNT_MOVEMENT');expect(()=>order(setup(),'shepherd',{type:'Mount',targetId:'gryphon'},null,[h(7)])).toThrow('RIDER_USES_MOUNT_MOVEMENT');});
-it('pair take-off and landing retain one centre, height and independent movement history',()=>{const initial=movingPair([h(8),h(9),h(9)],{flightSteps:[{index:0,height:'air'},{index:2,height:'ground'}]}),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(mount(a.state).centre).toEqual(h(9));expect(rider(a.state).centre).toEqual(h(9));expect(rider(a.state).height).toBe('ground');const midway=until(initial,s=>s.phase==='movement'&&s.cursor.pathIndex===3);expect(midway.moved).toContain('gryphon');expect(midway.moved).toContain('shepherd');});
-it('rider keeps its own Size and resistance but shares all seven occupied Gryphon hexes',()=>{const s=paired();expect(rider(s).size).toBe(2);expect(bodyFootprint(s,rider(s))).toEqual(bodyFootprint(s,mount(s)));expect(bodyFootprint(s,rider(s))).toHaveLength(7);expect(placement(arenaOf(s),mount(s),h(8)).legal).toBe(true);});
-it('the mounted Sling fires from the shared footprint boundary with unlimited stones',()=>{const s=paired();target(s).centre=h(14);attack(s,'shepherd');expect(target(s).hp).toBe(39);expect(rider(s).reload).toBeNull();attack(s,'shepherd');expect(target(s).hp).toBe(38);});
-it.each(['shepherd','gryphon'])('projectiles preserve the explicit %s target at shared interception',id=>{const s=paired();s.creatures.push(createCreature('shooter','b',h(4),summonProfile('Summon Archer',2)!));const shooter=s.creatures.at(-1)!;shooter.attacks[0]!.shots[0]!.crit=0;mount(s).incapacitated=true;rider(s).incapacitated=true;expect(traceProjectile(arenaOf(s),shooter,h(8),'ground','left',id).hit).toBe(id);attack(s,'shooter',strike('basic',id));expect(rider(s).hp).toBe(id==='shepherd'?4:6);expect(mount(s).hp).toBe(id==='gryphon'?22:24);});
-it('an area touching only a boundary hex includes rider and mount once each',()=>{const s=paired();expect(affectedCreatures([h(9)],s.creatures)).toEqual(['gryphon','shepherd']);});
-it.each(['restrained','grappled','casting','total-defence','subdued'] as const)('voluntary carriage cannot bypass rider %s',kind=>{let s=paired();s=order(s,'shepherd');if(kind==='restrained')rider(s).restrained=true;if(kind==='grappled'){target(s).grappleLimbs=1;s.holds.push({grapplerId:'target',targetId:'shepherd',limb:0});}if(kind==='casting'){rider(s).mana=30;rider(s).maxMana=30;rider(s).spellbook=['Bind'];rider(s).spellLevelCap=8;s.phase='early';startCast(s,rider(s),{type:'Cast',spell:'Bind',level:3,variant:'bound',targetId:'target',ground:null,side:'left'},[]);s.phase='planning';}if(kind==='total-defence')s=order(s,'shepherd','TotalDefence');if(kind==='subdued'){rider(s).subdued=true;s.spentActions.push('shepherd');}expect(()=>order(s,'gryphon',null,null,[h(9)])).toThrow('RIDER_IMMOBILE');});
-it('rider Fear is rechecked if it is applied after the mount movement order',()=>{let s=paired();s=order(s,'shepherd');s=order(s,'gryphon',null,null,[h(9)]);addCondition(s,rider(s),'Fear','target',3,2,'int',false);const r=run(startScenarioTurn(s),true);expect(mount(r.state).centre).toEqual(h(8));expect(rider(r.state).centre).toEqual(h(8));});
-it('forced carrier movement carries the rider and interrupts its paid cast once',()=>{const s=paired();rider(s).mana=30;rider(s).maxMana=30;s.phase='early';startCast(s,rider(s),{type:'Cast',spell:'Bind',level:3,variant:'bound',targetId:'target',ground:null,side:'left'},[]);const events:Event[]=[];forceMove(s,mount(s),h(9),events);expect(rider(s).centre).toEqual(h(9));expect(rider(s).mana).toBe(15);expect(events.filter(e=>e.type==='CastInterrupted')).toHaveLength(1);expect(s.reactions).toEqual([]);});
-it('direct rider displacement must legally detach and cannot move the mount through smaller Size',()=>{const s=paired();expect(()=>forceMove(s,rider(s),h(9),[])).toThrow('INVALID_FORCED_DESTINATION');forceMove(s,rider(s),h(11),[]);expect(rider(s).mountId).toBeUndefined();expect(rider(s).centre).toEqual(h(11));expect(mount(s).centre).toEqual(h(8));});
-it('mounted Teleport is rejected instead of bypassing Dismount',()=>{const s=paired();rider(s).mana=30;rider(s).maxMana=30;rider(s).spellbook=['Teleport'];rider(s).spellLevelCap=8;expect(()=>validateCast(s,rider(s),{type:'Cast',spell:'Teleport',level:1,variant:'bound',targetId:null,ground:h(11),side:'left'})).toThrow('INVALID_TELEPORT_DESTINATION');});
-it('voluntary Dismount costs an action and can precede ordinary movement',()=>{let s=paired();s=order(s,'shepherd',{type:'Dismount',ground:h(6)},null,[h(5)]);const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(rider(a.state).mountId).toBeUndefined();expect(rider(a.state).centre).toEqual(h(5));expect(mount(a.state).centre).toEqual(h(8));});
-it.each(['occupied','too-far','airborne'] as const)('Dismount rejects %s placement without changing the pair',kind=>{const s=paired(),before=encodeSnapshot(s);if(kind==='occupied')target(s).centre=h(6);if(kind==='airborne'){mount(s).height='air';rider(s).height='air';}expect(()=>order(s,'shepherd',{type:'Dismount',ground:h(kind==='too-far'?4:6)})).toThrow('INVALID_DISMOUNT_DESTINATION');expect(rider(s).mountId).toBe('gryphon');});
-it('ordinary ground mount death dismounts at the nearest legal centre and Subdues through next turn',()=>{const s=paired();mount(s).hp=-24;const events:Event[]=[];cleanupDeaths(s,events);expect(rider(s).mountId).toBeUndefined();expect(rider(s).centre).toEqual(h(8));expect(rider(s).hp).toBe(6);expect(rider(s).conditions).toContainEqual(expect.objectContaining({kind:'Subdued',endsTurn:2}));expect(events.some(e=>e.type==='EmergencyDismount')).toBe(true);s.turn=1;expireConditions(s);expect(rider(s).conditions).toHaveLength(1);s.turn=2;expireConditions(s);expect(rider(s).conditions).toEqual([]);});
-it('airborne mount death gives a non-flying rider five physical fall damage',()=>{const s=paired();mount(s).height='air';rider(s).height='air';mount(s).hp=-24;cleanupDeaths(s,[]);expect(rider(s).height).toBe('ground');expect(rider(s).hp).toBe(1);expect(rider(s).alive).toBe(true);});
-it('a flying rider remains airborne after mount death without fall damage',()=>{const s=paired();mount(s).height='air';rider(s).height='air';rider(s).flight={takeoffCost:1,landingCost:1};mount(s).hp=-24;cleanupDeaths(s,[]);expect(rider(s).height).toBe('air');expect(rider(s).hp).toBe(6);});
-it('fall damage can kill a rider and is handled in the next frozen death batch',()=>{const s=paired();mount(s).height='air';rider(s).height='air';rider(s).hp=-2;mount(s).hp=-24;const events:Event[]=[];cleanupDeaths(s,events);expect(rider(s).alive).toBe(false);expect(s.deadHandled).toEqual(['gryphon','shepherd']);expect(events.filter(e=>e.type==='CreatureDied'&&e.creatureId==='shepherd')).toHaveLength(1);});
-it('D12 kills a rider with an explicit event when every legal landing is blocked',()=>{const s=paired();mount(s).height='air';rider(s).height='air';mount(s).hp=-24;for(let row=0;row<30;row++)for(let column=0;column<30;column++){const centre=fromOffset({column,row});s.creatures.push(createCreature(`block-${column}-${row}`,'b',centre,{size:1}));}const events:Event[]=[];cleanupDeaths(s,events);expect(rider(s).alive).toBe(false);expect(events.filter(e=>e.type==='NoLegalDismount')).toHaveLength(1);});
-it('incapacitation alone preserves a rider but rider death frees the mount seat',()=>{const s=paired();mount(s).hp=0;cleanupDeaths(s,[]);expect(rider(s).mountId).toBe('gryphon');rider(s).hp=-6;cleanupDeaths(s,[]);expect(rider(s).mountId).toBeUndefined();});
-it('controller loss performs emergency dismount instead of transferring rider orders',()=>{const s=paired();mount(s).controller=null;mount(s).bindingLevel=null;cleanupDeaths(s,[]);expect(rider(s).mountId).toBeUndefined();expect(rider(s).controller).toBe('a');expect(rider(s).conditions.some(c=>c.kind==='Subdued')).toBe(true);});
-it('a ground pair contacts Tangleweed across its shared footprint independently',()=>{const s=paired();s.tangleweed.push({id:'weed',casterId:'wizard-1',level:8,createdTurn:1,endsTurn:9,cells:[{hex:h(9),hp:24}]});s.random.resolution=1;contactWeed(s,rider(s),[]);contactWeed(s,mount(s),[]);expect(s.weedAttempts).toEqual(['shepherd','gryphon']);});
-it('reanimation retains Gryphon wings/mount body and Shepherd riding/objects without Dive',()=>{for(const id of ['gryphon','shepherd']){const s=setup(),body=createCreature('body','a',h(8),reanimatedProfile(s.creatures.find(c=>c.id===id)!,false));expect(body.dive).toBeUndefined();expect(body.mountId).toBeUndefined();if(id==='gryphon'){expect(body.flight).toBeDefined();expect(body.mountable).toBe(true);expect(body.attacks[0]!.shots).toHaveLength(2);}else{expect(body.canRide).toBe(true);expect(body.handlesObjects).toBe(true);}}});
-it('illusory Dive damage reverses for survivors and cannot harm Int0',()=>{const s=setup();mount(s).centre=h(11);mount(s).height='ground';mount(s).diveTrail=[h(8),h(9),h(10),h(11)];Object.assign(mount(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});attack(s);expect(target(s).hp).toBe(31);reverseIllusion(s,'gryphon',[]);expect(target(s).hp).toBe(40);target(s).intelligence=0;attack(s);expect(target(s).hp).toBe(40);});
-it.each([['Summon Cat',6,'Gryphon'],['Summon Archer',1,'Shepherd']] as const)('%s supports bound/unbound/illusion variants with ordinary readiness',(spell,level,species)=>{for(const variant of ['bound','unbound','illusion'] as const){const s=createMatch('summon-last',['a','b'],456),wizard=s.creatures[0]!;wizard.centre=h(4);s.creatures[1]!.centre=h(16,20);wizard.spellbook=[spell];s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell,level,variant,targetId:null,ground:h(8),side:'left'},[]);completeCast(s,s.casts[0]!.id,[]);expect(s.creatures.find(c=>c.species===species)!.readyTurn).toBe(2);}});
-it('views clone shared footprint and public suitability without revealing private movement cursors',()=>{const s=paired(),view=projectView(s,'b'),shown=view.creatures.find(c=>c.id==='shepherd')!;expect(shown.mountId).toBe('gryphon');expect(shown.occupied).toHaveLength(7);shown.occupied[0]!.q=99;expect(bodyFootprint(s,rider(s))[0]!.q).not.toBe(99);expect(view).not.toHaveProperty('diveTrail');});
-it('malformed mount links, duplicate riders, Dive and compound targets fail transactionally',()=>{const s=paired(),before=encodeSnapshot(s);for(const mutate of [(raw:GameState)=>{rider(raw).mountId='missing';},(raw:GameState)=>{mount(raw).mountId='shepherd';},(raw:GameState)=>{rider(raw).height='air';},(raw:GameState)=>{rider(raw).centre=h(9);},(raw:GameState)=>{rider(raw).size=4;},(raw:GameState)=>{raw.creatures[0]!.mountId='gryphon';raw.creatures[0]!.centre=h(8);},(raw:GameState)=>{mount(raw).diveTrail=[h(7),h(9)];}]){const raw=JSON.parse(before) as GameState;mutate(raw);expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();}expect(encodeSnapshot(s)).toBe(before);});
-it('Guard can explicitly attack a carried rider when the shared footprint enters reach',()=>{let s=paired();target(s).centre=h(11);target(s).incapacitated=false;s=order(s,'shepherd');s=order(s,'target',{type:'Guard',attackId:'staff',targetId:'shepherd',area:[]});s=order(s,'gryphon',null,null,[h(9)]);const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(a.events.filter(e=>e.creatureId==='target'&&['AttackHit','AttackMissed'].includes(e.type))).toHaveLength(1);expect(mount(a.state).hp).toBe(24);});
-it('untargeted melee Guard treats rider and mount as separate entering creatures',()=>{let s=paired();target(s).centre=h(11);target(s).incapacitated=false;s=order(s,'shepherd');s=order(s,'target',{type:'Guard',attackId:'staff',targetId:null,area:[]});s=order(s,'gryphon',null,null,[h(9)]);const r=run(startScenarioTurn(s),true);expect(r.events.filter(e=>e.creatureId==='target'&&['AttackHit','AttackMissed'].includes(e.type))).toHaveLength(2);});
-it('a shared fire-wall crossing damages each body once per network',()=>{let s=paired();for(const q of [9,10])s.walls.push({id:`fire-${q}`,casterId:'wizard-1',networkId:'fire',edge:{a:h(q),b:h(q+1)},material:'fire',hp:20,maxHp:20,burning:null});s=order(s,'shepherd');s=order(s,'gryphon',null,null,[h(9),h(10)]);const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(mount(a.state).hp).toBe(18);expect(rider(a.state).hp).toBe(0);expect(a.events.filter(e=>e.type==='DamageApplied'&&e.creatureId==='shepherd')).toHaveLength(1);});
-it('a mounted wizard uses the shared boundary for spell range without changing its resistance stats',()=>{const s=paired(),wizard=s.creatures[0]!;delete rider(s).mountId;rider(s).centre=h(6);wizard.centre=h(8);wizard.mountId='gryphon';wizard.spellbook=['Magic Bolt'];target(s).centre=h(15);s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell:'Magic Bolt',level:1,variant:'bound',targetId:'target',ground:null,side:'left'},[]);expect(target(s).hp).toBe(37);expect(wizard.size).toBe(2);expect(wizard.intelligence).toBe(7);});
-it('a siege impact touching the shared boundary damages each member once',()=>{const s=paired(),siege=createCreature('siege','b',h(4),summonProfile('Summon Archer',6)!);s.creatures.push(siege);const events=attack(s,'siege',{type:'Attack',attackId:'basic',targetIds:[],ground:h(9),side:'left'});expect(events.filter(e=>e.type==='DamageApplied'&&e.creatureId==='gryphon')).toHaveLength(1);expect(events.filter(e=>e.type==='DamageApplied'&&e.creatureId==='shepherd')).toHaveLength(1);expect(mount(s).hp).toBeLessThan(24);expect(rider(s).hp).toBeLessThan(6);});
-it('a Dismount destination occupied after submission wastes the action and keeps the pair',()=>{let s=paired();s=order(s,'shepherd',{type:'Dismount',ground:h(6)});target(s).centre=h(6);const r=run(startScenarioTurn(s),true);expect(rider(r.state).mountId).toBe('gryphon');expect(rider(r.state).centre).toEqual(h(8));});
-it('death placement follows canonical nearest-legal coordinates when the centre is blocked',()=>{const s=paired();mount(s).hp=-24;target(s).centre=h(8);const expected=nearestLegal({...arenaOf(s),creatures:arenaOf(s).creatures.filter(c=>c.id!=='gryphon'&&c.id!=='shepherd')},{...rider(s),mountId:undefined},h(8));cleanupDeaths(s,[]);expect(rider(s).centre).toEqual(expected);expect(rider(s).centre).not.toEqual(h(8));});
-it('controller loss after a real Release cast detaches the rider within the same atomic result',()=>{let s=paired();s.creatures[1]!.centre=h(12);s.creatures[1]!.spellbook=['Release'];mount(s).intelligence=0;s=order(s,'wizard-1',{type:'Cast',spell:'Release',level:6,variant:'bound',targetId:'gryphon',ground:null,side:'left'});s=until(startScenarioTurn(s),s=>s.phase==='early'&&s.cursor.initialized&&s.cursor.entries[s.cursor.index]?.creatureId==='wizard-1');s.random.resolution=4;s=advanceAtomicStep(s).state;expect(mount(s).controller).toBeNull();expect(rider(s).mountId).toBeUndefined();expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);});
-it('a rider killed between compound hits detaches before the remaining hit revalidates',()=>{const s=paired();rider(s).hp=-5;target(s).incapacitated=false;target(s).centre=h(10);target(s).attacks=structuredClone(mount(s).attacks);target(s).attacks[0]!.id='compound';s.phase='early';beginAttack(s,target(s),{...strike('compound','shepherd')},'action');s.random.resolution=3;stepAttack(s,[]);expect(rider(s).alive).toBe(false);expect(rider(s).mountId).toBeUndefined();const hp=mount(s).hp;while(s.pendingAttack)stepAttack(s,[]);expect(mount(s).hp).toBe(hp);});
-it('voluntary Dismount cannot pass through a solid wall bordering the mount',()=>{const s=paired();s.walls.push({id:'wall',edge:{a:h(6),b:h(7)},material:'stone',hp:20,maxHp:20,burning:null});expect(()=>order(s,'shepherd',{type:'Dismount',ground:h(6)})).toThrow('INVALID_DISMOUNT_DESTINATION');});
-it('Giant Puma can Drag a held ground mount together with its rider',()=>{let s=paired();s.creatures.push(createCreature('puma','b',h(4),summonProfile('Summon Cat',7)!));s.holds.push({grapplerId:'puma',targetId:'gryphon',limb:0});s=order(s,'puma',null,null,[h(3)],{dragTargetId:'gryphon'});const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(mount(a.state).centre).toEqual(h(7));expect(rider(a.state).centre).toEqual(h(7));expect(rider(a.state).mountId).toBe('gryphon');});
-it.each(['carried-flight','dive-between-strikes','rider-guard','death-dismount','mounted-sling','full-roster'])('permanent %s fixture restores every atomic step with exact continuation',name=>{const text=readFileSync(`tests/fixtures/mounts-${name}.json`,'utf8').trim();let s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);if(s.phase==='planning')s=startScenarioTurn(s);const a=run(s),b=run(s,true);expect(b).toEqual(a);for(const p of a.state.players){expect(projectView(b.state,p.id)).toEqual(projectView(a.state,p.id));expect(projectEvents(b.state,p.id,b.events)).toEqual(projectEvents(a.state,p.id,a.events));}if(name==='dive-between-strikes')expect(a.events.filter(e=>e.type==='DamageApplied'&&e.creatureId==='target').map(e=>e.amount)).toEqual([3]);if(name==='death-dismount'){expect(rider(a.state).hp).toBe(1);expect(rider(a.state).mountId).toBeUndefined();}if(name==='full-roster'){expect(s.creatures.filter(c=>c.kind!=='wizard')).toHaveLength(40);expect(a.events.filter(e=>e.type==='AttackHit').length).toBeGreaterThan(30);expect(a.events.filter(e=>e.type==='PowerStarted')).toHaveLength(6);expect(a.state.turn).toBe(2);}},15000);
-it('D12 no-space death cleanup itself round-trips before replacing the current atomic state',()=>{let s=paired();mount(s).height='air';rider(s).height='air';s=until(startScenarioTurn(s),s=>s.phase==='end'&&s.endStep===1);mount(s).hp=-24;const taken=new Set(s.creatures.filter(c=>c.alive&&c.height==='ground').flatMap(c=>footprint(c.centre,c.size)).map(x=>`${x.q},${x.r}`));for(let row=0;row<30;row++)for(let column=0;column<30;column++){const at=fromOffset({column,row});if(!taken.has(`${at.q},${at.r}`))s.creatures.push(createCreature(`block-${column}-${row}`,'b',at,{size:1}));}const text=encodeSnapshot(s),a=advanceAtomicStep(s),b=advanceAtomicStep(restoreSnapshot(text));expect(b).toEqual(a);expect(rider(b.state).alive).toBe(false);expect(b.events.some(e=>e.type==='NoLegalDismount')).toBe(true);expect(restoreSnapshot(encodeSnapshot(b.state))).toEqual(b.state);},15000);
+it('Gryphon resolves Beak and Claws as one action and one planned identity', () => {
+  let s = setup();
+  target(s).centre = h(10);
+  target(s).height = 'air';
+  s = order(s, 'gryphon', strike());
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(33);
+  expect(a.events.filter(e => e.type === 'ActionResolved' && e.creatureId === 'gryphon')).toHaveLength(1);
+  expect(a.events.filter(e => e.type === 'AttackHit' && e.creatureId === 'gryphon')).toHaveLength(2);
+  expect(() => order(setup(), 'gryphon', { ...strike(), targetIds: ['target', 'wizard-1'] })).toThrow(
+    'INVALID_ATTACK_TARGETS',
+  );
+});
+it('three airborne approach steps add two only to Beak, followed by legal landing and ground attack', () => {
+  let s = setup();
+  target(s).centre = h(13);
+  s = order(s, 'gryphon', null, strike(), [h(9), h(10), h(11), h(11)], {
+    flightSteps: [{ index: 3, height: 'ground' }],
+  });
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(31);
+  expect(mount(a.state).height).toBe('ground');
+  expect(a.events.filter(e => e.type === 'DamageApplied' && e.creatureId === 'target').map(e => e.amount)).toEqual([
+    6, 3,
+  ]);
+});
+it('airborne Dive also works against an airborne target without landing', () => {
+  let s = setup();
+  target(s).height = 'air';
+  s = order(s, 'gryphon', null, strike(), [h(9), h(10), h(11)]);
+  const r = run(startScenarioTurn(s), true);
+  expect(target(r.state).hp).toBe(31);
+});
+it('two approach steps or a final retreat cannot grant Dive', () => {
+  for (const trail of [
+    [h(9), h(10), h(11)],
+    [h(9), h(10), h(11), h(10)],
+  ]) {
+    const s = setup();
+    mount(s).diveTrail = trail;
+    mount(s).centre = trail.at(-1)!;
+    expect(diveDamage(s, mount(s), target(s), 'basic', 0, 'action')).toBe(0);
+  }
+});
+it('ground-only approach and take-off cannot create a Dive', () => {
+  let s = setup();
+  mount(s).height = 'ground';
+  target(s).height = 'air';
+  s = order(s, 'gryphon', null, strike(), [h(9), h(10), h(11), h(11)], { flightSteps: [{ index: 3, height: 'air' }] });
+  expect(target(run(startScenarioTurn(s), true).state).hp).toBe(33);
+});
+it('Dive rechecks the selected target and never boosts Claws or Guard', () => {
+  const s = setup();
+  mount(s).centre = h(11);
+  mount(s).diveTrail = [h(8), h(9), h(10), h(11)];
+  expect(diveDamage(s, mount(s), target(s), 'basic', 0, 'action')).toBe(2);
+  expect(diveDamage(s, mount(s), target(s), 'basic', 1, 'action')).toBe(0);
+  expect(diveDamage(s, mount(s), target(s), 'basic', 0, 'guard')).toBe(0);
+  target(s).centre = h(8, 13);
+  expect(diveDamage(s, mount(s), target(s), 'basic', 0, 'action')).toBe(0);
+});
+it('forced displacement clears the airborne approach trail', () => {
+  const s = setup();
+  mount(s).centre = h(11);
+  mount(s).diveTrail = [h(8), h(9), h(10), h(11)];
+  forceMove(s, mount(s), h(11, 11), []);
+  expect(mount(s).diveTrail).toBeUndefined();
+});
+it('Bristles can stop the Gryphon between Beak and Claws', () => {
+  const s = setup();
+  mount(s).height = 'ground';
+  mount(s).hp = 1;
+  Object.assign(target(s), summonProfile('Summon Plant', 3)!, { centre: h(11), incapacitated: true });
+  const events = attack(s);
+  expect(mount(s).hp).toBe(0);
+  expect(events.filter(e => e.type === 'AttackHit')).toHaveLength(1);
+});
+it('Mount costs the Shepherd its ordinary action and then the Gryphon supplies movement', () => {
+  let s = setup();
+  mount(s).height = 'ground';
+  s = order(s, 'shepherd', { type: 'Mount', targetId: 'gryphon' });
+  s = order(s, 'gryphon', null, null, [h(9)]);
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(rider(a.state).mountId).toBe('gryphon');
+  expect(rider(a.state).centre).toEqual(h(9));
+  expect(a.events.filter(e => e.type === 'Mounted')).toHaveLength(1);
+  expect(() => order(setup(), 'shepherd', { type: 'Mount', targetId: 'gryphon' }, strike())).toThrow('ACTION_BUDGET');
+});
+it('failed distant mounting grants neither shared movement nor a fallback path', () => {
+  let s = setup();
+  mount(s).height = 'ground';
+  rider(s).centre = h(4);
+  s = order(s, 'shepherd', { type: 'Mount', targetId: 'gryphon' });
+  s = order(s, 'gryphon', null, null, [h(9)]);
+  const r = run(startScenarioTurn(s), true);
+  expect(rider(r.state).mountId).toBeUndefined();
+  expect(rider(r.state).centre).toEqual(h(4));
+});
+it.each([
+  'enemy',
+  'not-suitable',
+  'equal-size',
+  'already-ridden',
+  'illusion-mount',
+  'illusion-rider',
+  'non-rider',
+] as const)('Mount rejects %s', kind => {
+  const s = setup();
+  mount(s).height = 'ground';
+  if (kind === 'enemy') mount(s).controller = 'b';
+  if (kind === 'not-suitable') delete mount(s).mountable;
+  if (kind === 'equal-size') rider(s).size = 4;
+  if (kind === 'already-ridden') s.creatures[0]!.mountId = 'gryphon';
+  if (kind === 'illusion-mount') mount(s).kind = 'illusion';
+  if (kind === 'illusion-rider') rider(s).kind = 'illusion';
+  if (kind === 'non-rider') delete rider(s).canRide;
+  expect(() => order(s, 'shepherd', { type: 'Mount', targetId: 'gryphon' })).toThrow('INVALID_MOUNT_TARGET');
+});
+it.each(['airborne', 'incapacitated', 'unready', 'wall'] as const)(
+  'Mount rechecks %s mount eligibility at execution',
+  kind => {
+    let s = setup();
+    mount(s).height = 'ground';
+    s = order(s, 'shepherd', { type: 'Mount', targetId: 'gryphon' });
+    if (kind === 'airborne') mount(s).height = 'air';
+    if (kind === 'incapacitated') mount(s).incapacitated = true;
+    if (kind === 'unready') mount(s).readyTurn = 2;
+    if (kind === 'wall')
+      s.walls.push({ id: 'wall', edge: { a: h(6), b: h(7) }, material: 'stone', hp: 20, maxHp: 20, burning: null });
+    const r = run(startScenarioTurn(s), true);
+    expect(rider(r.state).mountId).toBeUndefined();
+  },
+);
+it('mounted riders cannot issue their own movement or combine Mount with a fallback path', () => {
+  expect(() => order(paired(), 'shepherd', null, null, [h(9)])).toThrow('RIDER_USES_MOUNT_MOVEMENT');
+  expect(() => order(setup(), 'shepherd', { type: 'Mount', targetId: 'gryphon' }, null, [h(7)])).toThrow(
+    'RIDER_USES_MOUNT_MOVEMENT',
+  );
+});
+it('pair take-off and landing retain one centre, height and independent movement history', () => {
+  const initial = movingPair([h(8), h(9), h(9)], {
+      flightSteps: [
+        { index: 0, height: 'air' },
+        { index: 2, height: 'ground' },
+      ],
+    }),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(mount(a.state).centre).toEqual(h(9));
+  expect(rider(a.state).centre).toEqual(h(9));
+  expect(rider(a.state).height).toBe('ground');
+  const midway = until(initial, s => s.phase === 'movement' && s.cursor.pathIndex === 3);
+  expect(midway.moved).toContain('gryphon');
+  expect(midway.moved).toContain('shepherd');
+});
+it('rider keeps its own Size and resistance but shares all seven occupied Gryphon hexes', () => {
+  const s = paired();
+  expect(rider(s).size).toBe(2);
+  expect(bodyFootprint(s, rider(s))).toEqual(bodyFootprint(s, mount(s)));
+  expect(bodyFootprint(s, rider(s))).toHaveLength(7);
+  expect(placement(arenaOf(s), mount(s), h(8)).legal).toBe(true);
+});
+it('the mounted Sling fires from the shared footprint boundary with unlimited stones', () => {
+  const s = paired();
+  target(s).centre = h(14);
+  attack(s, 'shepherd');
+  expect(target(s).hp).toBe(39);
+  expect(rider(s).reload).toBeNull();
+  attack(s, 'shepherd');
+  expect(target(s).hp).toBe(38);
+});
+it.each(['shepherd', 'gryphon'])('projectiles preserve the explicit %s target at shared interception', id => {
+  const s = paired();
+  s.creatures.push(createCreature('shooter', 'b', h(4), summonProfile('Summon Archer', 2)!));
+  const shooter = s.creatures.at(-1)!;
+  shooter.attacks[0]!.shots[0]!.crit = 0;
+  mount(s).incapacitated = true;
+  rider(s).incapacitated = true;
+  expect(traceProjectile(arenaOf(s), shooter, h(8), 'ground', 'left', id).hit).toBe(id);
+  attack(s, 'shooter', strike('basic', id));
+  expect(rider(s).hp).toBe(id === 'shepherd' ? 4 : 6);
+  expect(mount(s).hp).toBe(id === 'gryphon' ? 22 : 24);
+});
+it('an area touching only a boundary hex includes rider and mount once each', () => {
+  const s = paired();
+  expect(affectedCreatures([h(9)], s.creatures)).toEqual(['gryphon', 'shepherd']);
+});
+it.each(['restrained', 'grappled', 'casting', 'total-defence', 'subdued'] as const)(
+  'voluntary carriage cannot bypass rider %s',
+  kind => {
+    let s = paired();
+    s = order(s, 'shepherd');
+    if (kind === 'restrained') rider(s).restrained = true;
+    if (kind === 'grappled') {
+      target(s).grappleLimbs = 1;
+      s.holds.push({ grapplerId: 'target', targetId: 'shepherd', limb: 0 });
+    }
+    if (kind === 'casting') {
+      rider(s).mana = 30;
+      rider(s).maxMana = 30;
+      rider(s).spellbook = ['Bind'];
+      rider(s).spellLevelCap = 8;
+      s.phase = 'early';
+      startCast(
+        s,
+        rider(s),
+        { type: 'Cast', spell: 'Bind', level: 3, variant: 'bound', targetId: 'target', ground: null, side: 'left' },
+        [],
+      );
+      s.phase = 'planning';
+    }
+    if (kind === 'total-defence') s = order(s, 'shepherd', 'TotalDefence');
+    if (kind === 'subdued') {
+      rider(s).subdued = true;
+      s.spentActions.push('shepherd');
+    }
+    expect(() => order(s, 'gryphon', null, null, [h(9)])).toThrow('RIDER_IMMOBILE');
+  },
+);
+it('rider Fear is rechecked if it is applied after the mount movement order', () => {
+  let s = paired();
+  s = order(s, 'shepherd');
+  s = order(s, 'gryphon', null, null, [h(9)]);
+  addCondition(s, rider(s), 'Fear', 'target', 3, 2, 'int', false);
+  const r = run(startScenarioTurn(s), true);
+  expect(mount(r.state).centre).toEqual(h(8));
+  expect(rider(r.state).centre).toEqual(h(8));
+});
+it('forced carrier movement carries the rider and interrupts its paid cast once', () => {
+  const s = paired();
+  rider(s).mana = 30;
+  rider(s).maxMana = 30;
+  s.phase = 'early';
+  startCast(
+    s,
+    rider(s),
+    { type: 'Cast', spell: 'Bind', level: 3, variant: 'bound', targetId: 'target', ground: null, side: 'left' },
+    [],
+  );
+  const events: Event[] = [];
+  forceMove(s, mount(s), h(9), events);
+  expect(rider(s).centre).toEqual(h(9));
+  expect(rider(s).mana).toBe(15);
+  expect(events.filter(e => e.type === 'CastInterrupted')).toHaveLength(1);
+  expect(s.reactions).toEqual([]);
+});
+it('direct rider displacement must legally detach and cannot move the mount through smaller Size', () => {
+  const s = paired();
+  expect(() => forceMove(s, rider(s), h(9), [])).toThrow('INVALID_FORCED_DESTINATION');
+  forceMove(s, rider(s), h(11), []);
+  expect(rider(s).mountId).toBeUndefined();
+  expect(rider(s).centre).toEqual(h(11));
+  expect(mount(s).centre).toEqual(h(8));
+});
+it('mounted Teleport is rejected instead of bypassing Dismount', () => {
+  const s = paired();
+  rider(s).mana = 30;
+  rider(s).maxMana = 30;
+  rider(s).spellbook = ['Teleport'];
+  rider(s).spellLevelCap = 8;
+  expect(() =>
+    validateCast(s, rider(s), {
+      type: 'Cast',
+      spell: 'Teleport',
+      level: 1,
+      variant: 'bound',
+      targetId: null,
+      ground: h(11),
+      side: 'left',
+    }),
+  ).toThrow('INVALID_TELEPORT_DESTINATION');
+});
+it('voluntary Dismount costs an action and can precede ordinary movement', () => {
+  let s = paired();
+  s = order(s, 'shepherd', { type: 'Dismount', ground: h(6) }, null, [h(5)]);
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(rider(a.state).mountId).toBeUndefined();
+  expect(rider(a.state).centre).toEqual(h(5));
+  expect(mount(a.state).centre).toEqual(h(8));
+});
+it.each(['occupied', 'too-far', 'airborne'] as const)(
+  'Dismount rejects %s placement without changing the pair',
+  kind => {
+    const s = paired(),
+      before = encodeSnapshot(s);
+    if (kind === 'occupied') target(s).centre = h(6);
+    if (kind === 'airborne') {
+      mount(s).height = 'air';
+      rider(s).height = 'air';
+    }
+    expect(() => order(s, 'shepherd', { type: 'Dismount', ground: h(kind === 'too-far' ? 4 : 6) })).toThrow(
+      'INVALID_DISMOUNT_DESTINATION',
+    );
+    expect(rider(s).mountId).toBe('gryphon');
+  },
+);
+it('ordinary ground mount death dismounts at the nearest legal centre and Subdues through next turn', () => {
+  const s = paired();
+  mount(s).hp = -24;
+  const events: Event[] = [];
+  cleanupDeaths(s, events);
+  expect(rider(s).mountId).toBeUndefined();
+  expect(rider(s).centre).toEqual(h(8));
+  expect(rider(s).hp).toBe(6);
+  expect(rider(s).conditions).toContainEqual(expect.objectContaining({ kind: 'Subdued', endsTurn: 2 }));
+  expect(events.some(e => e.type === 'EmergencyDismount')).toBe(true);
+  s.turn = 1;
+  expireConditions(s);
+  expect(rider(s).conditions).toHaveLength(1);
+  s.turn = 2;
+  expireConditions(s);
+  expect(rider(s).conditions).toEqual([]);
+});
+it('airborne mount death gives a non-flying rider five physical fall damage', () => {
+  const s = paired();
+  mount(s).height = 'air';
+  rider(s).height = 'air';
+  mount(s).hp = -24;
+  cleanupDeaths(s, []);
+  expect(rider(s).height).toBe('ground');
+  expect(rider(s).hp).toBe(1);
+  expect(rider(s).alive).toBe(true);
+});
+it('a flying rider remains airborne after mount death without fall damage', () => {
+  const s = paired();
+  mount(s).height = 'air';
+  rider(s).height = 'air';
+  rider(s).flight = { takeoffCost: 1, landingCost: 1 };
+  mount(s).hp = -24;
+  cleanupDeaths(s, []);
+  expect(rider(s).height).toBe('air');
+  expect(rider(s).hp).toBe(6);
+});
+it('fall damage can kill a rider and is handled in the next frozen death batch', () => {
+  const s = paired();
+  mount(s).height = 'air';
+  rider(s).height = 'air';
+  rider(s).hp = -2;
+  mount(s).hp = -24;
+  const events: Event[] = [];
+  cleanupDeaths(s, events);
+  expect(rider(s).alive).toBe(false);
+  expect(s.deadHandled).toEqual(['gryphon', 'shepherd']);
+  expect(events.filter(e => e.type === 'CreatureDied' && e.creatureId === 'shepherd')).toHaveLength(1);
+});
+it('D12 kills a rider with an explicit event when every legal landing is blocked', () => {
+  const s = paired();
+  mount(s).height = 'air';
+  rider(s).height = 'air';
+  mount(s).hp = -24;
+  for (let row = 0; row < 30; row++)
+    for (let column = 0; column < 30; column++) {
+      const centre = fromOffset({ column, row });
+      s.creatures.push(createCreature(`block-${column}-${row}`, 'b', centre, { size: 1 }));
+    }
+  const events: Event[] = [];
+  cleanupDeaths(s, events);
+  expect(rider(s).alive).toBe(false);
+  expect(events.filter(e => e.type === 'NoLegalDismount')).toHaveLength(1);
+});
+it('incapacitation alone preserves a rider but rider death frees the mount seat', () => {
+  const s = paired();
+  mount(s).hp = 0;
+  cleanupDeaths(s, []);
+  expect(rider(s).mountId).toBe('gryphon');
+  rider(s).hp = -6;
+  cleanupDeaths(s, []);
+  expect(rider(s).mountId).toBeUndefined();
+});
+it('controller loss performs emergency dismount instead of transferring rider orders', () => {
+  const s = paired();
+  mount(s).controller = null;
+  mount(s).bindingLevel = null;
+  cleanupDeaths(s, []);
+  expect(rider(s).mountId).toBeUndefined();
+  expect(rider(s).controller).toBe('a');
+  expect(rider(s).conditions.some(c => c.kind === 'Subdued')).toBe(true);
+});
+it('a ground pair contacts Tangleweed across its shared footprint independently', () => {
+  const s = paired();
+  s.tangleweed.push({
+    id: 'weed',
+    casterId: 'wizard-1',
+    level: 8,
+    createdTurn: 1,
+    endsTurn: 9,
+    cells: [{ hex: h(9), hp: 24 }],
+  });
+  s.random.resolution = 1;
+  contactWeed(s, rider(s), []);
+  contactWeed(s, mount(s), []);
+  expect(s.weedAttempts).toEqual(['shepherd', 'gryphon']);
+});
+it('reanimation retains Gryphon wings/mount body and Shepherd riding/objects without Dive', () => {
+  for (const id of ['gryphon', 'shepherd']) {
+    const s = setup(),
+      body = createCreature(
+        'body',
+        'a',
+        h(8),
+        reanimatedProfile(
+          s.creatures.find(c => c.id === id)!,
+          false,
+        ),
+      );
+    expect(body.dive).toBeUndefined();
+    expect(body.mountId).toBeUndefined();
+    if (id === 'gryphon') {
+      expect(body.flight).toBeDefined();
+      expect(body.mountable).toBe(true);
+      expect(body.attacks[0]!.shots).toHaveLength(2);
+    } else {
+      expect(body.canRide).toBe(true);
+      expect(body.handlesObjects).toBe(true);
+    }
+  }
+});
+it('illusory Dive damage reverses for survivors and cannot harm Int0', () => {
+  const s = setup();
+  mount(s).centre = h(11);
+  mount(s).height = 'ground';
+  mount(s).diveTrail = [h(8), h(9), h(10), h(11)];
+  Object.assign(mount(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  attack(s);
+  expect(target(s).hp).toBe(31);
+  reverseIllusion(s, 'gryphon', []);
+  expect(target(s).hp).toBe(40);
+  target(s).intelligence = 0;
+  attack(s);
+  expect(target(s).hp).toBe(40);
+});
+it.each([
+  ['Summon Cat', 6, 'Gryphon'],
+  ['Summon Archer', 1, 'Shepherd'],
+] as const)('%s supports bound/unbound/illusion variants with ordinary readiness', (spell, level, species) => {
+  for (const variant of ['bound', 'unbound', 'illusion'] as const) {
+    const s = createMatch('summon-last', ['a', 'b'], 456),
+      wizard = s.creatures[0]!;
+    wizard.centre = h(4);
+    s.creatures[1]!.centre = h(16, 20);
+    wizard.spellbook = [spell];
+    s.phase = 'early';
+    s.random.resolution = 1;
+    startCast(s, wizard, { type: 'Cast', spell, level, variant, targetId: null, ground: h(8), side: 'left' }, []);
+    completeCast(s, s.casts[0]!.id, []);
+    expect(s.creatures.find(c => c.species === species)!.readyTurn).toBe(2);
+  }
+});
+it('views clone shared footprint and public suitability without revealing private movement cursors', () => {
+  const s = paired(),
+    view = projectView(s, 'b'),
+    shown = view.creatures.find(c => c.id === 'shepherd')!;
+  expect(shown.mountId).toBe('gryphon');
+  expect(shown.occupied).toHaveLength(7);
+  shown.occupied[0]!.q = 99;
+  expect(bodyFootprint(s, rider(s))[0]!.q).not.toBe(99);
+  expect(view).not.toHaveProperty('diveTrail');
+});
+it('malformed mount links, duplicate riders, Dive and compound targets fail transactionally', () => {
+  const s = paired(),
+    before = encodeSnapshot(s);
+  for (const mutate of [
+    (raw: GameState) => {
+      rider(raw).mountId = 'missing';
+    },
+    (raw: GameState) => {
+      mount(raw).mountId = 'shepherd';
+    },
+    (raw: GameState) => {
+      rider(raw).height = 'air';
+    },
+    (raw: GameState) => {
+      rider(raw).centre = h(9);
+    },
+    (raw: GameState) => {
+      rider(raw).size = 4;
+    },
+    (raw: GameState) => {
+      raw.creatures[0]!.mountId = 'gryphon';
+      raw.creatures[0]!.centre = h(8);
+    },
+    (raw: GameState) => {
+      mount(raw).diveTrail = [h(7), h(9)];
+    },
+  ]) {
+    const raw = JSON.parse(before) as GameState;
+    mutate(raw);
+    expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  }
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it('Guard can explicitly attack a carried rider when the shared footprint enters reach', () => {
+  let s = paired();
+  target(s).centre = h(11);
+  target(s).incapacitated = false;
+  s = order(s, 'shepherd');
+  s = order(s, 'target', { type: 'Guard', attackId: 'staff', targetId: 'shepherd', area: [] });
+  s = order(s, 'gryphon', null, null, [h(9)]);
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(
+    a.events.filter(e => e.creatureId === 'target' && ['AttackHit', 'AttackMissed'].includes(e.type)),
+  ).toHaveLength(1);
+  expect(mount(a.state).hp).toBe(24);
+});
+it('untargeted melee Guard treats rider and mount as separate entering creatures', () => {
+  let s = paired();
+  target(s).centre = h(11);
+  target(s).incapacitated = false;
+  s = order(s, 'shepherd');
+  s = order(s, 'target', { type: 'Guard', attackId: 'staff', targetId: null, area: [] });
+  s = order(s, 'gryphon', null, null, [h(9)]);
+  const r = run(startScenarioTurn(s), true);
+  expect(
+    r.events.filter(e => e.creatureId === 'target' && ['AttackHit', 'AttackMissed'].includes(e.type)),
+  ).toHaveLength(2);
+});
+it('a shared fire-wall crossing damages each body once per network', () => {
+  let s = paired();
+  for (const q of [9, 10])
+    s.walls.push({
+      id: `fire-${q}`,
+      casterId: 'wizard-1',
+      networkId: 'fire',
+      edge: { a: h(q), b: h(q + 1) },
+      material: 'fire',
+      hp: 20,
+      maxHp: 20,
+      burning: null,
+    });
+  s = order(s, 'shepherd');
+  s = order(s, 'gryphon', null, null, [h(9), h(10)]);
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(mount(a.state).hp).toBe(18);
+  expect(rider(a.state).hp).toBe(0);
+  expect(a.events.filter(e => e.type === 'DamageApplied' && e.creatureId === 'shepherd')).toHaveLength(1);
+});
+it('a mounted wizard uses the shared boundary for spell range without changing its resistance stats', () => {
+  const s = paired(),
+    wizard = s.creatures[0]!;
+  delete rider(s).mountId;
+  rider(s).centre = h(6);
+  wizard.centre = h(8);
+  wizard.mountId = 'gryphon';
+  wizard.spellbook = ['Magic Bolt'];
+  target(s).centre = h(15);
+  s.phase = 'early';
+  s.random.resolution = 1;
+  startCast(
+    s,
+    wizard,
+    { type: 'Cast', spell: 'Magic Bolt', level: 1, variant: 'bound', targetId: 'target', ground: null, side: 'left' },
+    [],
+  );
+  expect(target(s).hp).toBe(37);
+  expect(wizard.size).toBe(2);
+  expect(wizard.intelligence).toBe(7);
+});
+it('a siege impact touching the shared boundary damages each member once', () => {
+  const s = paired(),
+    siege = createCreature('siege', 'b', h(4), summonProfile('Summon Archer', 6)!);
+  s.creatures.push(siege);
+  const events = attack(s, 'siege', { type: 'Attack', attackId: 'basic', targetIds: [], ground: h(9), side: 'left' });
+  expect(events.filter(e => e.type === 'DamageApplied' && e.creatureId === 'gryphon')).toHaveLength(1);
+  expect(events.filter(e => e.type === 'DamageApplied' && e.creatureId === 'shepherd')).toHaveLength(1);
+  expect(mount(s).hp).toBeLessThan(24);
+  expect(rider(s).hp).toBeLessThan(6);
+});
+it('a Dismount destination occupied after submission wastes the action and keeps the pair', () => {
+  let s = paired();
+  s = order(s, 'shepherd', { type: 'Dismount', ground: h(6) });
+  target(s).centre = h(6);
+  const r = run(startScenarioTurn(s), true);
+  expect(rider(r.state).mountId).toBe('gryphon');
+  expect(rider(r.state).centre).toEqual(h(8));
+});
+it('death placement follows canonical nearest-legal coordinates when the centre is blocked', () => {
+  const s = paired();
+  mount(s).hp = -24;
+  target(s).centre = h(8);
+  const expected = nearestLegal(
+    { ...arenaOf(s), creatures: arenaOf(s).creatures.filter(c => c.id !== 'gryphon' && c.id !== 'shepherd') },
+    { ...rider(s), mountId: undefined },
+    h(8),
+  );
+  cleanupDeaths(s, []);
+  expect(rider(s).centre).toEqual(expected);
+  expect(rider(s).centre).not.toEqual(h(8));
+});
+it('controller loss after a real Release cast detaches the rider within the same atomic result', () => {
+  let s = paired();
+  s.creatures[1]!.centre = h(12);
+  s.creatures[1]!.spellbook = ['Release'];
+  mount(s).intelligence = 0;
+  s = order(s, 'wizard-1', {
+    type: 'Cast',
+    spell: 'Release',
+    level: 6,
+    variant: 'bound',
+    targetId: 'gryphon',
+    ground: null,
+    side: 'left',
+  });
+  s = until(
+    startScenarioTurn(s),
+    s => s.phase === 'early' && s.cursor.initialized && s.cursor.entries[s.cursor.index]?.creatureId === 'wizard-1',
+  );
+  s.random.resolution = 4;
+  s = advanceAtomicStep(s).state;
+  expect(mount(s).controller).toBeNull();
+  expect(rider(s).mountId).toBeUndefined();
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+});
+it('a rider killed between compound hits detaches before the remaining hit revalidates', () => {
+  const s = paired();
+  rider(s).hp = -5;
+  target(s).incapacitated = false;
+  target(s).centre = h(10);
+  target(s).attacks = structuredClone(mount(s).attacks);
+  target(s).attacks[0]!.id = 'compound';
+  s.phase = 'early';
+  beginAttack(s, target(s), { ...strike('compound', 'shepherd') }, 'action');
+  s.random.resolution = 3;
+  stepAttack(s, []);
+  expect(rider(s).alive).toBe(false);
+  expect(rider(s).mountId).toBeUndefined();
+  const hp = mount(s).hp;
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(mount(s).hp).toBe(hp);
+});
+it('voluntary Dismount cannot pass through a solid wall bordering the mount', () => {
+  const s = paired();
+  s.walls.push({ id: 'wall', edge: { a: h(6), b: h(7) }, material: 'stone', hp: 20, maxHp: 20, burning: null });
+  expect(() => order(s, 'shepherd', { type: 'Dismount', ground: h(6) })).toThrow('INVALID_DISMOUNT_DESTINATION');
+});
+it('Giant Puma can Drag a held ground mount together with its rider', () => {
+  let s = paired();
+  s.creatures.push(createCreature('puma', 'b', h(4), summonProfile('Summon Cat', 7)!));
+  s.holds.push({ grapplerId: 'puma', targetId: 'gryphon', limb: 0 });
+  s = order(s, 'puma', null, null, [h(3)], { dragTargetId: 'gryphon' });
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(mount(a.state).centre).toEqual(h(7));
+  expect(rider(a.state).centre).toEqual(h(7));
+  expect(rider(a.state).mountId).toBe('gryphon');
+});
+it.each(['carried-flight', 'dive-between-strikes', 'rider-guard', 'death-dismount', 'mounted-sling', 'full-roster'])(
+  'permanent %s fixture restores every atomic step with exact continuation',
+  name => {
+    const text = readFileSync(`tests/fixtures/mounts-${name}.json`, 'utf8').trim();
+    let s = restoreSnapshot(text);
+    expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+    if (s.phase === 'planning') s = startScenarioTurn(s);
+    const a = run(s),
+      b = run(s, true);
+    expect(b).toEqual(a);
+    for (const p of a.state.players) {
+      expect(projectView(b.state, p.id)).toEqual(projectView(a.state, p.id));
+      expect(projectEvents(b.state, p.id, b.events)).toEqual(projectEvents(a.state, p.id, a.events));
+    }
+    if (name === 'dive-between-strikes')
+      expect(a.events.filter(e => e.type === 'DamageApplied' && e.creatureId === 'target').map(e => e.amount)).toEqual([
+        3,
+      ]);
+    if (name === 'death-dismount') {
+      expect(rider(a.state).hp).toBe(1);
+      expect(rider(a.state).mountId).toBeUndefined();
+    }
+    if (name === 'full-roster') {
+      expect(s.creatures.filter(c => c.kind !== 'wizard')).toHaveLength(40);
+      expect(a.events.filter(e => e.type === 'AttackHit').length).toBeGreaterThan(30);
+      expect(a.events.filter(e => e.type === 'PowerStarted')).toHaveLength(6);
+      expect(a.state.turn).toBe(2);
+    }
+  },
+  15000,
+);
+it('D12 no-space death cleanup itself round-trips before replacing the current atomic state', () => {
+  let s = paired();
+  mount(s).height = 'air';
+  rider(s).height = 'air';
+  s = until(startScenarioTurn(s), s => s.phase === 'end' && s.endStep === 1);
+  mount(s).hp = -24;
+  const taken = new Set(
+    s.creatures
+      .filter(c => c.alive && c.height === 'ground')
+      .flatMap(c => footprint(c.centre, c.size))
+      .map(x => `${x.q},${x.r}`),
+  );
+  for (let row = 0; row < 30; row++)
+    for (let column = 0; column < 30; column++) {
+      const at = fromOffset({ column, row });
+      if (!taken.has(`${at.q},${at.r}`))
+        s.creatures.push(createCreature(`block-${column}-${row}`, 'b', at, { size: 1 }));
+    }
+  const text = encodeSnapshot(s),
+    a = advanceAtomicStep(s),
+    b = advanceAtomicStep(restoreSnapshot(text));
+  expect(b).toEqual(a);
+  expect(rider(b.state).alive).toBe(false);
+  expect(b.events.some(e => e.type === 'NoLegalDismount')).toBe(true);
+  expect(restoreSnapshot(encodeSnapshot(b.state))).toEqual(b.state);
+}, 15000);
 
-it('the full roster scenario is a reproducible legal production setup for all 40 MVP profiles',()=>{const s=fullRosterScenario();expect(s.creatures.filter(c=>c.kind!=='wizard')).toHaveLength(40);expect(new Set(s.creatures.filter(c=>c.kind!=='wizard').map(c=>c.family+':'+c.summonLevel)).size).toBe(40);expect(s.orders).toHaveLength(40);for(const c of s.creatures)expect(placement(arenaOf(s),c,c.centre).legal).toBe(true);expect(encodeSnapshot(s)).toBe(encodeSnapshot(restoreSnapshot(readFileSync('tests/fixtures/mounts-full-roster.json','utf8'))));});
-it('simultaneous carrier deaths detach the whole batch before nearest placement',()=>{let s=paired();s.creatures.push(createCreature('second-mount','b',h(15),summonProfile('Summon Cat',6)!),createCreature('second-rider','b',h(15),{...summonProfile('Summon Archer',1)!,height:'air',mountId:'second-mount'}));mount(s).height='air';rider(s).height='air';s=until(startScenarioTurn(s),s=>s.phase==='end'&&s.endStep===1);mount(s).hp=-24;s.creatures.find(c=>c.id==='second-mount')!.hp=-24;const a=advanceAtomicStep(s),b=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s)));expect(b).toEqual(a);expect(rider(b.state).mountId).toBeUndefined();expect(b.state.creatures.find(c=>c.id==='second-rider')!.mountId).toBeUndefined();expect(rider(b.state).hp).toBe(1);expect(b.state.creatures.find(c=>c.id==='second-rider')!.hp).toBe(1);expect(restoreSnapshot(encodeSnapshot(b.state))).toEqual(b.state);});
-it.each(['death','control-loss'] as const)('emergency %s dismount releases a hold that only reached the shared boundary',kind=>{let s=paired();s.creatures.push(createCreature('grappler','b',h(10),{grappleLimbs:1}));s.holds.push({grapplerId:'grappler',targetId:'shepherd',limb:0});s=until(startScenarioTurn(s),s=>s.phase==='end'&&s.endStep===1);const restored=restoreSnapshot(encodeSnapshot(s));for(const state of [s,restored]){if(kind==='death')mount(state).hp=-24;else {mount(state).controller=null;mount(state).bindingLevel=null;}}const a=advanceAtomicStep(s),b=advanceAtomicStep(restored);expect(b).toEqual(a);expect(b.state.holds).toEqual([]);expect(restrained(b.state,rider(b.state))).toBe(false);expect(restrained(b.state,b.state.creatures.find(c=>c.id==='grappler')!)).toBe(false);});
-it('an emergency dismount retains a hold still within real reach of the smaller rider',()=>{const s=paired();s.creatures.push(createCreature('grappler','b',h(10),{grappleLimbs:1,attacks:[{...target(s).attacks[0]!,range:2}]}));s.holds.push({grapplerId:'grappler',targetId:'shepherd',limb:0});mount(s).hp=-24;cleanupDeaths(s,[]);expect(s.holds).toEqual([{grapplerId:'grappler',targetId:'shepherd',limb:0}]);expect(restrained(s,rider(s))).toBe(true);});
-it('forced carrier displacement rechecks holds on its carried rider as well as the mount',()=>{const s=paired();s.creatures.push(createCreature('grappler','b',h(6),{grappleLimbs:1}));s.holds.push({grapplerId:'grappler',targetId:'shepherd',limb:0});forceMove(s,mount(s),h(9),[]);expect(s.holds).toEqual([]);expect(rider(s).centre).toEqual(h(9));});
-it.each(['Mount','Dismount'] as const)('%s applies bordering fire, death and thorn wall hazards once per network',type=>{for(const [material,amount] of [['fire',6],['death',10],['thorns',3]] as const){let s=type==='Mount'?setup():paired();mount(s).height='ground';rider(s).con=20;rider(s).maxHp=40;rider(s).hp=40;s.walls.push({id:'hazard',casterId:'wizard-1',networkId:'hazard',edge:{a:h(6),b:h(7)},material,hp:20,maxHp:20,burning:null});s.walls.push({id:'hazard-2',casterId:'wizard-1',networkId:'hazard',edge:{a:h(7),b:h(8)},material,hp:20,maxHp:20,burning:null});s=order(s,'shepherd',type==='Mount'?{type:'Mount',targetId:'gryphon'}:{type:'Dismount',ground:h(6)});const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(rider(a.state).hp).toBe(40-amount);expect(a.events.filter(e=>e.type==='DamageApplied'&&e.creatureId==='shepherd')).toHaveLength(1);expect(mount(a.state).hp).toBe(24);}});
-it('lethal mounting wall damage detaches the rider and releases the seat before returning',()=>{let s=setup();mount(s).height='ground';rider(s).hp=1;s.walls.push({id:'fire',edge:{a:h(6),b:h(7)},material:'death',hp:20,maxHp:20,burning:null});s=order(s,'shepherd',{type:'Mount',targetId:'gryphon'});const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(rider(a.state).alive).toBe(false);expect(rider(a.state).mountId).toBeUndefined();expect(a.events.filter(e=>e.type==='CreatureDied'&&e.creatureId==='shepherd')).toHaveLength(1);});
-it('death-wall boarding heals an undead rider and never damages its carrier',()=>{const s=setup();mount(s).height='ground';rider(s).undead=true;rider(s).hp=1;s.walls.push({id:'death',edge:{a:h(6),b:h(7)},material:'death',hp:20,maxHp:20,burning:null});resolveMountAction(s,rider(s),{type:'Mount',targetId:'gryphon'},[]);expect(rider(s).hp).toBe(6);expect(mount(s).hp).toBe(24);});
+it('the full roster scenario is a reproducible legal production setup for all 40 MVP profiles', () => {
+  const s = fullRosterScenario();
+  expect(s.creatures.filter(c => c.kind !== 'wizard')).toHaveLength(40);
+  expect(new Set(s.creatures.filter(c => c.kind !== 'wizard').map(c => c.family + ':' + c.summonLevel)).size).toBe(40);
+  expect(s.orders).toHaveLength(40);
+  for (const c of s.creatures) expect(placement(arenaOf(s), c, c.centre).legal).toBe(true);
+  expect(encodeSnapshot(s)).toBe(
+    encodeSnapshot(restoreSnapshot(readFileSync('tests/fixtures/mounts-full-roster.json', 'utf8'))),
+  );
+});
+it('simultaneous carrier deaths detach the whole batch before nearest placement', () => {
+  let s = paired();
+  s.creatures.push(
+    createCreature('second-mount', 'b', h(15), summonProfile('Summon Cat', 6)!),
+    createCreature('second-rider', 'b', h(15), {
+      ...summonProfile('Summon Archer', 1)!,
+      height: 'air',
+      mountId: 'second-mount',
+    }),
+  );
+  mount(s).height = 'air';
+  rider(s).height = 'air';
+  s = until(startScenarioTurn(s), s => s.phase === 'end' && s.endStep === 1);
+  mount(s).hp = -24;
+  s.creatures.find(c => c.id === 'second-mount')!.hp = -24;
+  const a = advanceAtomicStep(s),
+    b = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s)));
+  expect(b).toEqual(a);
+  expect(rider(b.state).mountId).toBeUndefined();
+  expect(b.state.creatures.find(c => c.id === 'second-rider')!.mountId).toBeUndefined();
+  expect(rider(b.state).hp).toBe(1);
+  expect(b.state.creatures.find(c => c.id === 'second-rider')!.hp).toBe(1);
+  expect(restoreSnapshot(encodeSnapshot(b.state))).toEqual(b.state);
+});
+it.each(['death', 'control-loss'] as const)(
+  'emergency %s dismount releases a hold that only reached the shared boundary',
+  kind => {
+    let s = paired();
+    s.creatures.push(createCreature('grappler', 'b', h(10), { grappleLimbs: 1 }));
+    s.holds.push({ grapplerId: 'grappler', targetId: 'shepherd', limb: 0 });
+    s = until(startScenarioTurn(s), s => s.phase === 'end' && s.endStep === 1);
+    const restored = restoreSnapshot(encodeSnapshot(s));
+    for (const state of [s, restored]) {
+      if (kind === 'death') mount(state).hp = -24;
+      else {
+        mount(state).controller = null;
+        mount(state).bindingLevel = null;
+      }
+    }
+    const a = advanceAtomicStep(s),
+      b = advanceAtomicStep(restored);
+    expect(b).toEqual(a);
+    expect(b.state.holds).toEqual([]);
+    expect(restrained(b.state, rider(b.state))).toBe(false);
+    expect(
+      restrained(
+        b.state,
+        b.state.creatures.find(c => c.id === 'grappler')!,
+      ),
+    ).toBe(false);
+  },
+);
+it('an emergency dismount retains a hold still within real reach of the smaller rider', () => {
+  const s = paired();
+  s.creatures.push(
+    createCreature('grappler', 'b', h(10), { grappleLimbs: 1, attacks: [{ ...target(s).attacks[0]!, range: 2 }] }),
+  );
+  s.holds.push({ grapplerId: 'grappler', targetId: 'shepherd', limb: 0 });
+  mount(s).hp = -24;
+  cleanupDeaths(s, []);
+  expect(s.holds).toEqual([{ grapplerId: 'grappler', targetId: 'shepherd', limb: 0 }]);
+  expect(restrained(s, rider(s))).toBe(true);
+});
+it('forced carrier displacement rechecks holds on its carried rider as well as the mount', () => {
+  const s = paired();
+  s.creatures.push(createCreature('grappler', 'b', h(6), { grappleLimbs: 1 }));
+  s.holds.push({ grapplerId: 'grappler', targetId: 'shepherd', limb: 0 });
+  forceMove(s, mount(s), h(9), []);
+  expect(s.holds).toEqual([]);
+  expect(rider(s).centre).toEqual(h(9));
+});
+it.each(['Mount', 'Dismount'] as const)(
+  '%s applies bordering fire, death and thorn wall hazards once per network',
+  type => {
+    for (const [material, amount] of [
+      ['fire', 6],
+      ['death', 10],
+      ['thorns', 3],
+    ] as const) {
+      let s = type === 'Mount' ? setup() : paired();
+      mount(s).height = 'ground';
+      rider(s).con = 20;
+      rider(s).maxHp = 40;
+      rider(s).hp = 40;
+      s.walls.push({
+        id: 'hazard',
+        casterId: 'wizard-1',
+        networkId: 'hazard',
+        edge: { a: h(6), b: h(7) },
+        material,
+        hp: 20,
+        maxHp: 20,
+        burning: null,
+      });
+      s.walls.push({
+        id: 'hazard-2',
+        casterId: 'wizard-1',
+        networkId: 'hazard',
+        edge: { a: h(7), b: h(8) },
+        material,
+        hp: 20,
+        maxHp: 20,
+        burning: null,
+      });
+      s = order(
+        s,
+        'shepherd',
+        type === 'Mount' ? { type: 'Mount', targetId: 'gryphon' } : { type: 'Dismount', ground: h(6) },
+      );
+      const initial = startScenarioTurn(s),
+        a = run(initial),
+        b = run(initial, true);
+      expect(b).toEqual(a);
+      expect(rider(a.state).hp).toBe(40 - amount);
+      expect(a.events.filter(e => e.type === 'DamageApplied' && e.creatureId === 'shepherd')).toHaveLength(1);
+      expect(mount(a.state).hp).toBe(24);
+    }
+  },
+);
+it('lethal mounting wall damage detaches the rider and releases the seat before returning', () => {
+  let s = setup();
+  mount(s).height = 'ground';
+  rider(s).hp = 1;
+  s.walls.push({ id: 'fire', edge: { a: h(6), b: h(7) }, material: 'death', hp: 20, maxHp: 20, burning: null });
+  s = order(s, 'shepherd', { type: 'Mount', targetId: 'gryphon' });
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(rider(a.state).alive).toBe(false);
+  expect(rider(a.state).mountId).toBeUndefined();
+  expect(a.events.filter(e => e.type === 'CreatureDied' && e.creatureId === 'shepherd')).toHaveLength(1);
+});
+it('death-wall boarding heals an undead rider and never damages its carrier', () => {
+  const s = setup();
+  mount(s).height = 'ground';
+  rider(s).undead = true;
+  rider(s).hp = 1;
+  s.walls.push({ id: 'death', edge: { a: h(6), b: h(7) }, material: 'death', hp: 20, maxHp: 20, burning: null });
+  resolveMountAction(s, rider(s), { type: 'Mount', targetId: 'gryphon' }, []);
+  expect(rider(s).hp).toBe(6);
+  expect(mount(s).hp).toBe(24);
+});

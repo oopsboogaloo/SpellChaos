@@ -10,10 +10,12 @@
     "typecheck": "tsc --noEmit && tsc -p apps/web/tsconfig.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage --testTimeout=30000",
-    "check": "pnpm typecheck && pnpm test",
+    "check": "pnpm format:check && pnpm typecheck && pnpm test",
     "build": "tsc -p tsconfig.build.json && vite build apps/web --base=/SpellChaos/ --outDir ../../dist/web",
     "dev": "vite apps/web",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
@@ -22,6 +24,7 @@
     "@types/react-dom": "19.2.2",
     "@vitest/coverage-v8": "3.2.4",
     "fast-check": "4.3.0",
+    "prettier": "3.9.10",
     "typescript": "5.9.3",
     "vite": "6.4.1",
     "vitest": "3.2.4"

@@ -1,33 +1,60 @@
-import type {Event} from '../../packages/engine/src/events.js';
-import {test,expect} from '@playwright/test';
-import {readFileSync} from 'node:fs';
-import {restoreSnapshot,encodeSnapshot} from '../../packages/persistence/src/snapshot.js';
-import {startScenarioTurn} from '../../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../../packages/engine/src/resolver.js';
-import {projectView,projectEvents} from '../../packages/views/src/index.js';
+import type { Event } from '../../packages/engine/src/events.js';
+import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { restoreSnapshot, encodeSnapshot } from '../../packages/persistence/src/snapshot.js';
+import { startScenarioTurn } from '../../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../../packages/engine/src/resolver.js';
+import { projectView, projectEvents } from '../../packages/views/src/index.js';
 
-for(const name of ['airborne-transit','landing-guard','haunt-reveal','contact-reveal','spit-pending','bobby-attack']){
- test(`Node and Chromium agree on ${name} at every saved boundary`,async({page})=>{
-  const initial=encodeSnapshot(restoreSnapshot(readFileSync(`tests/fixtures/flight-${name}.json`,'utf8')));
-  let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);const events:Event[]=[];
-  for(let n=0;!['planning','ended'].includes(s.phase);n++){
-   if(n>1000)throw new Error('STEP_LIMIT');
-   const r=advanceAtomicStep(s);s=r.state;events.push(...r.events);
-  }
-  await page.goto('/');
-  const actual=await page.evaluate(async({root,initial})=>{
-   const persistence=await import(root+'/packages/persistence/src/snapshot.ts');
-   const resolver=await import(root+'/packages/engine/src/resolver.ts');
-   const scenario=await import(root+'/packages/scenario/src/casting.ts');
-   const views=await import(root+'/packages/views/src/index.ts');
-   let state=persistence.restoreSnapshot(initial);if(state.phase==='planning')state=scenario.startScenarioTurn(state);const events:Event[]=[];
-   for(let n=0;!['planning','ended'].includes(state.phase);n++){
-    if(n>1000)throw new Error('STEP_LIMIT');
-    const r=resolver.advanceAtomicStep(persistence.restoreSnapshot(persistence.encodeSnapshot(state)));
-    state=r.state;events.push(...r.events);
-   }
-   return {snapshot:persistence.encodeSnapshot(state),events,views:['a','b','c'].map(id=>views.projectView(state,id)),permittedEvents:['a','b','c'].map(id=>views.projectEvents(state,id,events))};
-  },{root:'/@fs'+process.cwd(),initial});
-  expect(actual).toEqual({snapshot:encodeSnapshot(s),events,views:['a','b','c'].map(id=>projectView(s,id)),permittedEvents:['a','b','c'].map(id=>projectEvents(s,id,events))});
- });
+for (const name of [
+  'airborne-transit',
+  'landing-guard',
+  'haunt-reveal',
+  'contact-reveal',
+  'spit-pending',
+  'bobby-attack',
+]) {
+  test(`Node and Chromium agree on ${name} at every saved boundary`, async ({ page }) => {
+    const initial = encodeSnapshot(restoreSnapshot(readFileSync(`tests/fixtures/flight-${name}.json`, 'utf8')));
+    let s = restoreSnapshot(initial);
+    if (s.phase === 'planning') s = startScenarioTurn(s);
+    const events: Event[] = [];
+    for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+      if (n > 1000) throw new Error('STEP_LIMIT');
+      const r = advanceAtomicStep(s);
+      s = r.state;
+      events.push(...r.events);
+    }
+    await page.goto('/');
+    const actual = await page.evaluate(
+      async ({ root, initial }) => {
+        const persistence = await import(root + '/packages/persistence/src/snapshot.ts');
+        const resolver = await import(root + '/packages/engine/src/resolver.ts');
+        const scenario = await import(root + '/packages/scenario/src/casting.ts');
+        const views = await import(root + '/packages/views/src/index.ts');
+        let state = persistence.restoreSnapshot(initial);
+        if (state.phase === 'planning') state = scenario.startScenarioTurn(state);
+        const events: Event[] = [];
+        for (let n = 0; !['planning', 'ended'].includes(state.phase); n++) {
+          if (n > 1000) throw new Error('STEP_LIMIT');
+          const r = resolver.advanceAtomicStep(persistence.restoreSnapshot(persistence.encodeSnapshot(state)));
+          state = r.state;
+          events.push(...r.events);
+        }
+        return {
+          snapshot: persistence.encodeSnapshot(state),
+          events,
+          views: ['a', 'b', 'c'].map(id => views.projectView(state, id)),
+          permittedEvents: ['a', 'b', 'c'].map(id => views.projectEvents(state, id, events)),
+        };
+      },
+      { root: '/@fs' + process.cwd(), initial },
+    );
+    expect(actual).toEqual({
+      snapshot: encodeSnapshot(s),
+      events,
+      views: ['a', 'b', 'c'].map(id => projectView(s, id)),
+      permittedEvents: ['a', 'b', 'c'].map(id => projectEvents(s, id, events)),
+    });
+  });
 }

@@ -11,8 +11,13 @@ import type { Event } from '../packages/engine/src/events.js';
 const h = (q: number, r = 10) => ({ q, r });
 function setup(): GameState {
   const s = createMatch('stacking', ['a', 'b'], 456);
-  s.creatures[0]!.centre = h(2, 2); s.creatures[1]!.centre = h(16, 20);
-  s.creatures.push(createCreature('target', 'b', h(10), { con: 10, intelligence: 1 }), createCreature('lion', 'a', h(9)), createCreature('ghost', 'a', h(11)));
+  s.creatures[0]!.centre = h(2, 2);
+  s.creatures[1]!.centre = h(16, 20);
+  s.creatures.push(
+    createCreature('target', 'b', h(10), { con: 10, intelligence: 1 }),
+    createCreature('lion', 'a', h(9)),
+    createCreature('ghost', 'a', h(11)),
+  );
   return s;
 }
 const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
@@ -40,12 +45,17 @@ it('ties keep the existing instance and an open-ended condition outlasts any fix
   expect(kinds(target(s), 'Fear')[0]!.sourceId).toBe('lion');
   addCondition(s, target(s), 'Restrained', 'lion', 8, null, 'physical', false, { rootNetwork: true });
   expect(addCondition(s, target(s), 'Restrained', 'ghost', 5, 2, 'int', false)).toBe(false);
-  expect(kinds(target(s), 'Restrained')).toEqual([expect.objectContaining({ sourceId: 'lion', rootNetwork: true, endsTurn: null })]);
+  expect(kinds(target(s), 'Restrained')).toEqual([
+    expect.objectContaining({ sourceId: 'lion', rootNetwork: true, endsTurn: null }),
+  ]);
 });
 
 it('illusion-sourced instances stay separate so illusion removal can still reverse them', () => {
   const s = setup();
-  Object.assign(s.creatures.find(c => c.id === 'ghost')!, { kind: 'illusion', creatorId: 'wizard-0' });
+  Object.assign(
+    s.creatures.find(c => c.id === 'ghost')!,
+    { kind: 'illusion', creatorId: 'wizard-0' },
+  );
   addCondition(s, target(s), 'Slowed', 'lion', 5, 2, 'int', false);
   expect(addCondition(s, target(s), 'Slowed', 'ghost', 5, 1, 'int', false)).toBe(true);
   expect(kinds(target(s), 'Slowed').map(e => e.illusionId)).toEqual([null, 'ghost']);
@@ -54,21 +64,42 @@ it('illusion-sourced instances stay separate so illusion removal can still rever
 it('a second Root Network on an already-rooted target keeps one hold without failing', () => {
   const s = setup();
   s.creatures = s.creatures.filter(c => c.id !== 'lion' && c.id !== 'ghost');
-  for (const [id, q] of [['forest-1', 6], ['forest-2', 14]] as const) s.creatures.push(createCreature(id, 'a', h(q), summonProfile('Summon Plant', 8)!));
+  for (const [id, q] of [
+    ['forest-1', 6],
+    ['forest-2', 14],
+  ] as const)
+    s.creatures.push(createCreature(id, 'a', h(q), summonProfile('Summon Plant', 8)!));
   s.phase = 'early';
   const events: Event[] = [];
   for (const id of ['forest-1', 'forest-2']) {
     s.random.resolution = 3;
-    beginPower(s, s.creatures.find(c => c.id === id)!, { type: 'RootNetwork' }, events);
+    beginPower(
+      s,
+      s.creatures.find(c => c.id === id)!,
+      { type: 'RootNetwork' },
+      events,
+    );
     while (s.pendingPower) stepPower(s, events);
   }
   expect(events.filter(e => e.type === 'PowerApplied' && e.targetId === 'target')).toHaveLength(2);
-  expect(kinds(target(s), 'Restrained')).toEqual([expect.objectContaining({ sourceId: 'forest-1', rootNetwork: true, endsTurn: null })]);
+  expect(kinds(target(s), 'Restrained')).toEqual([
+    expect.objectContaining({ sourceId: 'forest-1', rootNetwork: true, endsTurn: null }),
+  ]);
 });
 
 it('Guard can be ordered Early but is rejected in the Late phase', () => {
-  const s = setup(), wizard = s.creatures[0]!;
-  const order = (o: Partial<Order>) => applyCommand(s, { type: 'SetOrder', matchId: s.matchId, playerId: 'a', turn: 1, commandId: `o-${JSON.stringify(o).length}`, expectedRevision: s.revision, order: { creatureId: wizard.id, path: [], early: null, late: null, ...o } });
+  const s = setup(),
+    wizard = s.creatures[0]!;
+  const order = (o: Partial<Order>) =>
+    applyCommand(s, {
+      type: 'SetOrder',
+      matchId: s.matchId,
+      playerId: 'a',
+      turn: 1,
+      commandId: `o-${JSON.stringify(o).length}`,
+      expectedRevision: s.revision,
+      order: { creatureId: wizard.id, path: [], early: null, late: null, ...o },
+    });
   const guard = { type: 'Guard' as const, attackId: wizard.attacks[0]!.id, targetId: null, area: [] };
   expect(() => order({ early: guard })).not.toThrow();
   expect(() => order({ late: guard })).toThrow('GUARD_EARLY_ONLY');

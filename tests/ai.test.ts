@@ -1,72 +1,622 @@
 import * as nativeResolver from '../packages/engine/src/resolver.js';
-import {it,expect,vi} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand,applySystemCommand,systemCommand} from '../packages/engine/src/index.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {projectView} from '../packages/views/src/index.js';
-import {planWizardTurn} from '../packages/ai/src/policy.js';
-import {knowledgeState} from '../packages/ai/src/knowledge.js';
-import {submitAiTurn} from '../packages/ai/src/coordinator.js';
-import {createMatchSession,advanceMatchSession,runMatch,encodeMatchSession,restoreMatchSession,matchReport} from '../packages/ai/src/session.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {fullRosterScenario} from '../packages/scenario/src/roster.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {addCondition} from '../packages/engine/src/damage.js';
-import {routeTowards} from '../packages/engine/src/navigation.js';
-import {arenaOf,validateOrder} from '../packages/engine/src/orders.js';
-import {placement} from '../packages/geometry/src/occupancy.js';
-import {DIRECTIONS,add,distance} from '../packages/geometry/src/hex.js';
-import type {Creature,GameState} from '../packages/domain/src/state.js';
-const h=(q:number,r=10)=>({q,r});
-function small(){const s=createMatch('ai-tests',['a','b'],123);s.creatures[0]!.centre=h(5);s.creatures[1]!.centre=h(10);return s;}
-function noBooks(s:GameState){for(const c of s.creatures)c.spellbook=[];return s;}
-function unbound(overrides:Partial<Creature>={}){const s=noBooks(small());s.creatures[0]!.centre=h(3);s.creatures[1]!.centre=h(15);s.creatures.push(createCreature('loose',null,h(8),{...(overrides.family?{}:summonProfile('Summon Cat',2)!),...overrides}));return s;}
-function loose(s:GameState){return s.creatures.find(c=>c.id==='loose')!;}
-function finish(s:GameState,reload=false){for(let i=0;!['planning','ended'].includes(s.phase);i++){if(i>2000)throw Error('STEP_LIMIT');s=advanceAtomicStep(reload?restoreSnapshot(encodeSnapshot(s)):s).state;}return s;}
-function freeze<T>(value:T):T {if(value&&typeof value==='object'){Object.freeze(value);for(const child of Object.values(value))freeze(child);}return value;}
+import { it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import {
+  createMatch,
+  createCreature,
+  applyCommand,
+  applySystemCommand,
+  systemCommand,
+} from '../packages/engine/src/index.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { projectView } from '../packages/views/src/index.js';
+import { planWizardTurn } from '../packages/ai/src/policy.js';
+import { knowledgeState } from '../packages/ai/src/knowledge.js';
+import { submitAiTurn } from '../packages/ai/src/coordinator.js';
+import {
+  createMatchSession,
+  advanceMatchSession,
+  runMatch,
+  encodeMatchSession,
+  restoreMatchSession,
+  matchReport,
+} from '../packages/ai/src/session.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { fullRosterScenario } from '../packages/scenario/src/roster.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { addCondition } from '../packages/engine/src/damage.js';
+import { routeTowards } from '../packages/engine/src/navigation.js';
+import { arenaOf, validateOrder } from '../packages/engine/src/orders.js';
+import { placement } from '../packages/geometry/src/occupancy.js';
+import { DIRECTIONS, add, distance } from '../packages/geometry/src/hex.js';
+import type { Creature, GameState } from '../packages/domain/src/state.js';
+const h = (q: number, r = 10) => ({ q, r });
+function small() {
+  const s = createMatch('ai-tests', ['a', 'b'], 123);
+  s.creatures[0]!.centre = h(5);
+  s.creatures[1]!.centre = h(10);
+  return s;
+}
+function noBooks(s: GameState) {
+  for (const c of s.creatures) c.spellbook = [];
+  return s;
+}
+function unbound(overrides: Partial<Creature> = {}) {
+  const s = noBooks(small());
+  s.creatures[0]!.centre = h(3);
+  s.creatures[1]!.centre = h(15);
+  s.creatures.push(
+    createCreature('loose', null, h(8), { ...(overrides.family ? {} : summonProfile('Summon Cat', 2)!), ...overrides }),
+  );
+  return s;
+}
+function loose(s: GameState) {
+  return s.creatures.find(c => c.id === 'loose')!;
+}
+function finish(s: GameState, reload = false) {
+  for (let i = 0; !['planning', 'ended'].includes(s.phase); i++) {
+    if (i > 2000) throw Error('STEP_LIMIT');
+    s = advanceAtomicStep(reload ? restoreSnapshot(encodeSnapshot(s)) : s).state;
+  }
+  return s;
+}
+function freeze<T>(value: T): T {
+  if (value && typeof value === 'object') {
+    Object.freeze(value);
+    for (const child of Object.values(value)) freeze(child);
+  }
+  return value;
+}
 
-it('same permitted view and AI seed produce identical plans despite enemy secrets',()=>{const a=small();a.creatures.push(createCreature('enemy','b',h(12),summonProfile('Summon Cat',3)!));const b=structuredClone(a);b.creatures[1]!.hp=9;b.creatures[1]!.mana=1;b.creatures[1]!.spellbook=['Disbelief'];b.creatures[2]!.hp=14;Object.assign(b.creatures[2]!,{kind:'illusion',creatorId:'wizard-1',knownIllusionBy:['b'],corpseEligible:false});b.random.setup=99;b.random.resolution=88;b.orders=[{creatureId:'wizard-1',path:[h(11)],early:'Dash',late:null}];expect(projectView(a,'a')).toEqual(projectView(b,'a'));expect(planWizardTurn(projectView(a,'a'),77)).toEqual(planWizardTurn(projectView(b,'a'),77));});
-it('hidden occupants do not change view-only decisions',()=>{const a=small(),b=structuredClone(a);b.creatures.push(createCreature('hidden','b',h(7),{invisible:true}));expect(projectView(a,'a')).toEqual(projectView(b,'a'));expect(planWizardTurn(projectView(a,'a'),12)).toEqual(planWizardTurn(projectView(b,'a'),12));});
-it('private illusion knowledge, condition provenance and AI state never enter the opponent view',()=>{const s=small();s.creatures.push(createCreature('enemy','b',h(12),{...summonProfile('Summon Cat',3)!,kind:'illusion',creatorId:'wizard-1',knownIllusionBy:['b'],corpseEligible:false}));const view=projectView(s,'a');expect(view.creatures.find(c=>c.id==='enemy')).not.toHaveProperty('planning');expect(JSON.stringify(view)).not.toMatch(/knownIllusionBy|illusionId|corpseEligible|random|autonomous/);});
-it('the pure policy accepts deeply frozen views and never mutates observations',()=>{const view=freeze(projectView(small(),'a')),before=JSON.stringify(view);const a=planWizardTurn(view,77);expect(a.orders.length).toBeGreaterThan(0);expect(JSON.stringify(view)).toBe(before);expect(planWizardTurn(view,77)).toEqual(a);});
-it.each(['easy','standard','hard'] as const)('%s difficulty uses the same permitted data and produces ordinary legal orders',difficulty=>{const s=small(),view=projectView(s,'a'),plan=planWizardTurn(view,42,{difficulty});for(const order of plan.orders)expect(()=>validateOrder(s,order,'a')).not.toThrow();expect(plan.work).toBeLessThanOrEqual(100000);expect(plan.expanded).toBeLessThanOrEqual(256*plan.orders.length);});
-it('work exhaustion is explicit and never performs an unbounded search',()=>{const view=projectView(small(),'a'),plan=planWizardTurn(view,42,{maxWork:1});expect(plan.truncated).toBe(true);expect(plan.work).toBe(1);expect(()=>planWizardTurn(view,0)).toThrow('INVALID_RNG_STATE');expect(()=>planWizardTurn(view,1,{maxWork:-1})).toThrow('INVALID_POLICY_OPTIONS');});
-it('policy and AI submission leave setup and combat RNG untouched',()=>{const s=small(),before={...s.random},r=submitAiTurn(s,['a','b']);expect(r.state.random.setup).toBe(before.setup);expect(r.state.random.resolution).toBe(before.resolution);expect(r.state.random.ai).not.toBe(before.ai);expect(r.state.phase).toBe('ready');expect(restoreSnapshot(encodeSnapshot(r.state))).toEqual(r.state);});
-it('AI stream transitions are system-only, checked and replayable',()=>{const s=small(),cmd={matchId:s.matchId,playerId:'$system',turn:1,commandId:'stream',expectedRevision:0,type:'AdvanceAiStream' as const,before:s.random.ai,after:99};expect(()=>applyCommand(s,cmd)).toThrow('INVALID_COMMAND_AUTHORITY');expect(()=>applySystemCommand(s,{...cmd,before:1})).toThrow('INVALID_AI_STREAM_TRANSITION');const a=applySystemCommand(s,cmd);expect(a.state.random.ai).toBe(99);expect(applySystemCommand(a.state,cmd).state).toEqual(a.state);expect(restoreSnapshot(encodeSnapshot(a.state))).toEqual(a.state);});
-it('all-player planning uses frozen observations rather than prior submitted orders or locks',()=>{const s=small(),a=submitAiTurn(s,['a','b']),b=submitAiTurn(s,['b','a']);expect(a).toEqual(b);const before=s.random.ai,first=planWizardTurn(projectView(s,'a'),before),second=planWizardTurn(projectView(s,'b'),first.seed);for(const [id,plan] of [['a',first],['b',second]] as const)expect(a.state.orders.filter(o=>s.creatures.find(c=>c.id===o.creatureId)!.controller===id)).toEqual(plan.orders.sort((a,b)=>a.creatureId<b.creatureId?-1:1));});
-it('uncertain rejected proposals use one fixed fallback without probing another target',()=>{const s=small();s.creatures[0]!.spellbook=['Bind'];s.creatures[0]!.mana=100;s.creatures.push(createCreature('foe','b',h(7),{...summonProfile('Summon Cat',1)!,bindingLevel:8}));const r=submitAiTurn(s,['a']);expect(r.state.players.find(p=>p.id==='a')!.locked).toBe(true);expect(r.fallbacks).toBe(1);expect(r.state.orders[0]).toMatchObject({path:[],early:null,late:null});expect(r.state.accepted.filter(a=>a.command.type==='SetOrder')).toHaveLength(r.state.orders.length);});
-it('all forty roster profiles receive legal bounded decisions from observed body capabilities',()=>{const s=fullRosterScenario();s.orders=[];s.accepted=[];s.revision=0;for(const p of s.players)p.participated=false;for(const id of ['a','b']){const plan=planWizardTurn(projectView(s,id),78,{maxWork:200000});expect(plan.truncated).toBe(false);for(const order of plan.orders)expect(()=>validateOrder(s,order,id)).not.toThrow();}const r=submitAiTurn(s,['a','b'],'standard',200000);expect(r.fallbacks).toBe(0);expect(restoreSnapshot(encodeSnapshot(r.state))).toEqual(r.state);},20000);
-it('owned Sleep and casting status suppress illegal Early actions while preserving known Late waking',()=>{const s=small();s.turn=2;addCondition(s,s.creatures[0]!,'Unconscious','wizard-1',2,null,'con');s.creatures[0]!.conditions[0]!.startsTurn=1;s.creatures[0]!.conditions[0]!.expiresAfterPhase={turn:2,phase:'early'};const plan=planWizardTurn(projectView(s,'a'),23);for(const o of plan.orders){expect(o.early).toBeNull();expect(()=>validateOrder(s,o,'a')).not.toThrow();}});
-it('a restrained body may plan Escape without a forbidden movement path',()=>{const s=small();s.creatures[0]!.restrained=true;s.creatures[0]!.spellbook=[];const plan=planWizardTurn(projectView(s,'a'),2);expect(plan.orders[0]!.path).toEqual([]);expect(plan.orders[0]!.early==='Escape'||plan.orders[0]!.late==='Escape').toBe(true);});
-it('a spent siege body chooses Reload through the normal action budget',()=>{const s=small();s.creatures.push(createCreature('siege','a',h(3),{...summonProfile('Summon Archer',6)!,reload:{loaded:false,lastFiredTurn:1,lastReloadTurn:null}}));s.turn=2;const p=planWizardTurn(projectView(s,'a'),3);expect(p.orders.find(o=>o.creatureId==='siege')!.early).toEqual({type:'Reload'});});
-it('unbound creatures choose the nearest perceived different species including their former summoner',()=>{const s=unbound();s.creatures.push(createCreature('same',null,h(9),{species:loose(s).species}));const ready=startScenarioTurn(s);expect(ready.autonomous).toContain('loose');expect(ready.orders.find(o=>o.creatureId==='loose')!.late).toMatchObject({type:'Attack',targetIds:['wizard-0']});const a=finish(ready),b=finish(ready,true);expect(b).toEqual(a);let x=ready;const attacks:string[]=[];while(!['planning','ended'].includes(x.phase)){const r=advanceAtomicStep(x);x=r.state;for(const e of r.events)if(e.creatureId==='loose'&&['AttackHit','AttackMissed'].includes(e.type))attacks.push(e.targetId!);}expect(attacks).toEqual(['wizard-0']);});
-it('nearest-target ties consume only the explicit AI stream and persist the chosen identity',()=>{const s=unbound();s.creatures[0]!.centre=h(3);s.creatures[1]!.centre=h(13);const before={...s.random},a=startScenarioTurn(s),b=startScenarioTurn(restoreSnapshot(encodeSnapshot(s)));expect(a).toEqual(b);expect(a.random.ai).not.toBe(before.ai);expect(a.random.setup).toBe(before.setup);expect(a.random.resolution).toBe(before.resolution);expect(restoreSnapshot(encodeSnapshot(a))).toEqual(a);});
-it('unbound perception cannot use another unit or the summoner to see an invisible target',()=>{const s=unbound();s.creatures[0]!.centre=h(7);s.creatures[0]!.invisible=true;s.creatures.push(createCreature('detector','b',h(6),summonProfile('Summon Cat',8)!));const r=startScenarioTurn(s);expect(r.orders.find(o=>o.creatureId==='loose')!.late).not.toMatchObject({targetIds:['wizard-0']});});
-it('Bobby unbound perception can detect invisible presence within his own listed range',()=>{const s=unbound(summonProfile('Summon Cat',8)!);s.creatures[0]!.centre=h(7);s.creatures[0]!.invisible=true;const r=startScenarioTurn(s);expect(r.orders.find(o=>o.creatureId==='loose')!.early).toMatchObject({targetIds:['wizard-0']});});
-it('a completely blocked unbound creature falls back to Total Defence',()=>{const s=unbound();for(const [i,d] of DIRECTIONS.entries())s.walls.push({id:`wall-${i}`,edge:{a:h(8),b:add(h(8),d)},material:'stone',hp:10,maxHp:10,burning:null});const r=startScenarioTurn(s);expect(r.orders.find(o=>o.creatureId==='loose')).toMatchObject({path:[],early:'TotalDefence',late:null});});
-it('new summons cannot act before their readiness turn',()=>{const s=unbound({readyTurn:2});const r=startScenarioTurn(s);expect(r.autonomous).not.toContain('loose');expect(finish(r).creatures[0]!.hp).toBe(10);});
-it('unbound ranged attacks still intercept bodies and use ordinary damage',()=>{const s=unbound({...summonProfile('Summon Archer',2)!,species:'Bowman'});s.creatures[0]!.centre=h(4);s.creatures[1]!.centre=h(20);s.creatures.push(createCreature('blocker',null,h(6),{species:'Bowman',incapacitated:true}));const r=finish(startScenarioTurn(s),true);expect(r.creatures.find(c=>c.id==='blocker')!.hp).toBeLessThan(10);expect(r.creatures[0]!.hp).toBe(10);});
-it('bounded navigation can begin a necessary detour before approaching the target',()=>{const s=small(),c=s.creatures[0]!;c.centre=h(5);for(const [i,e] of [{a:h(5),b:h(6)},{a:h(5),b:h(5,11)},{a:h(5),b:h(6,9)}].entries())s.walls.push({id:`wall-${i}`,edge:e,material:'stone',hp:10,maxHp:10,burning:null});const r=routeTowards(s,c,2,b=>Math.max(0,distance(b.centre,h(8))-1),b=>distance(b.centre,h(8))===1,256);expect(r.path.length).toBeGreaterThan(0);expect(r.reached).toBe(true);expect(r.expanded).toBeLessThanOrEqual(256);expect(placement(arenaOf(s),c,r.centre).legal).toBe(true);});
-it('harness turn, work and atomic limits are timeouts, never invented wins or draws',()=>{for(const options of [{maxTurns:1},{maxAtomicSteps:1},{maxPlanningWork:1}]){const r=runMatch(createMatchSession(small(),options));expect(r.outcome?.type).toBe('timeout');expect(r.state.result).toBeNull();expect(restoreMatchSession(encodeMatchSession(r))).toEqual(r);}});
-it('a complete seeded close match reaches engine victory and reproduces exactly',()=>{const initial=createMatchSession(noBooks(small()),{maxTurns:30}),a=runMatch(initial),b=runMatch(restoreMatchSession(encodeMatchSession(initial)));expect(a.outcome?.type).toBe('winner');expect(b).toEqual(a);expect(a.state.phase).toBe('ended');expect(matchReport(a).outcome).toEqual(a.state.result);},20000);
-it('fresh session restoration at every planning and engine boundary preserves continuation',()=>{let a=createMatchSession(noBooks(small()),{maxTurns:20}),b=restoreMatchSession(encodeMatchSession(a));for(let n=0;!a.outcome;n++){if(n>2000)throw Error('STEP_LIMIT');a=advanceMatchSession(a);b=advanceMatchSession(restoreMatchSession(encodeMatchSession(b)));expect(b).toEqual(a);}expect(a.outcome?.type).toBe('winner');},20000);
-it('a real simultaneous wizard death is reported as a draw',()=>{let s=small();s.creatures[0]!.hp=-10;s.creatures[1]!.hp=-10;s=startScenarioTurn(s);const r=runMatch(createMatchSession(s));expect(r.outcome).toEqual({type:'draw'});expect(r.state.result).toEqual({type:'draw'});});
-it('malformed policy sessions and corrupted outcomes are rejected transactionally',()=>{const s=createMatchSession(small()),before=encodeMatchSession(s);for(const change of [(x:any)=>x.policyVersion='future',(x:any)=>x.atomicSteps=-1,(x:any)=>x.outcome={type:'winner',playerId:'a'},(x:any)=>x.options.maxTurns=0]){const value=JSON.parse(before);change(value);expect(()=>restoreMatchSession(JSON.stringify(value))).toThrow('INVALID_OR_UNSUPPORTED_MATCH_SESSION');}expect(encodeMatchSession(s)).toBe(before);});
-it('locked or eliminated players receive no new decisions and consume no AI randomness',()=>{const s=small();s.players[0]!.locked=true;const plan=planWizardTurn(projectView(s,'a'),1);expect(plan.orders).toEqual([]);expect(plan.seed).toBe(1);expect(plan.work).toBe(0);});
-it('a hidden Fear source never becomes a hidden pathfinding oracle',()=>{const a=small();a.creatures[1]!.invisible=true;addCondition(a,a.creatures[0]!,'Fear','wizard-1',3,2,'int',false);const b=structuredClone(a);b.creatures[1]!.centre=h(3);expect(projectView(a,'a')).toEqual(projectView(b,'a'));expect(planWizardTurn(projectView(a,'a'),9)).toEqual(planWizardTurn(projectView(b,'a'),9));expect(planWizardTurn(projectView(a,'a'),9).orders[0]!.path).toEqual([]);});
-it.each([2,3,4,5,6,7,8])('the %i-player unattended harness runs without changing wizard stats or inventing victory',players=>{const s=noBooks(createMatch(`ai-${players}`,Array.from({length:players},(_,i)=>`p${i}`),123)),r=runMatch(createMatchSession(s,{maxTurns:1}));expect(r.outcome).toEqual({type:'timeout',reason:'turn-limit'});expect(r.state.result).toBeNull();expect(r.state.players).toHaveLength(players);for(const c of r.state.creatures.filter(c=>c.kind==='wizard'))expect({size:c.size,con:c.con,dex:c.dex,intelligence:c.intelligence}).toEqual({size:2,con:5,dex:5,intelligence:7});},15000);
-it('recorded ordinary commands and AI-stream transitions reproduce a complete match without rerunning policy',()=>{const initial=noBooks(small()),ended=runMatch(createMatchSession(initial,{maxTurns:30}));let replay=initial;for(const record of ended.state.accepted){while(['early','movement','late','end'].includes(replay.phase))replay=advanceAtomicStep(replay).state;replay=(record.command.playerId==='$system'?applySystemCommand(replay,record.command):applyCommand(replay,record.command)).state;}while(['early','movement','late','end'].includes(replay.phase))replay=advanceAtomicStep(replay).state;expect(replay).toEqual(ended.state);},15000);
-it('unexpected engine errors are captured as failures with the last valid private snapshot',()=>{const initial=createMatchSession(startScenarioTurn(noBooks(small()))),before=encodeMatchSession(initial),spy=vi.spyOn(nativeResolver,'advanceAtomicStep').mockImplementationOnce(()=>{throw new Error('injected-engine-failure');});try{const result=advanceMatchSession(initial);expect(result.outcome).toMatchObject({type:'failure',message:'injected-engine-failure'});const report=matchReport(result);expect(restoreSnapshot(report.privateFailure!.snapshot)).toEqual(initial.state);expect(report.privateFailure!.commands).toEqual(initial.state.accepted);expect(encodeMatchSession(initial)).toBe(before);}finally{spy.mockRestore();}});
-it('unbound flight can land to reach a ground target and retains its explicit transition through restore',()=>{const s=unbound(summonProfile('Summon Cat',6)!);s.creatures[0]!.centre=h(5);s.creatures[1]!.centre=h(20);const r=startScenarioTurn(s),order=r.orders.find(o=>o.creatureId==='loose')!;expect(order.flightSteps?.some(x=>x.height==='ground')).toBe(true);expect(finish(r,true)).toEqual(finish(r));});
-it('unbound restraints use Escape and Subdued does not grant movement plus an attack',()=>{const s=unbound();loose(s).restrained=true;expect(startScenarioTurn(s).orders.find(o=>o.creatureId==='loose')!.early).toBe('Escape');const b=unbound({subdued:true});const o=startScenarioTurn(b).orders.find(o=>o.creatureId==='loose')!;if(o.path.length)expect(o.early===null&&o.late===null).toBe(true);});
-it('known Early wake-up gives unbound units movement and Late attacks without an Early action',()=>{const s=unbound();s.turn=2;addCondition(s,loose(s),'Unconscious','wizard-1',2,null,'con');loose(s).conditions[0]!.startsTurn=1;loose(s).conditions[0]!.expiresAfterPhase={turn:2,phase:'early'};const r=startScenarioTurn(s),o=r.orders.find(o=>o.creatureId==='loose')!;expect(r.autonomous).toContain('loose');expect(o.early).toBeNull();expect(o.path.length).toBeGreaterThan(0);expect(o.late).toMatchObject({type:'Attack'});expect(finish(r,true)).toEqual(finish(r));});
-it('retrying StartResolution cannot draw another unbound target or advance its stream twice',()=>{let s=unbound();s.creatures[0]!.centre=h(3);s.creatures[1]!.centre=h(13);for(const player of ['a','b'])s=applyCommand(s,{matchId:s.matchId,playerId:player,turn:1,commandId:`lock-${player}`,expectedRevision:s.revision,type:'LockTurn'}).state;const command=systemCommand(s,'StartResolution','start'),a=applySystemCommand(s,command).state;expect(applySystemCommand(a,command).state).toEqual(a);});
-it('a known lethal friendly Magic Attack is scored below a safe alternative',()=>{const s=small();s.creatures[0]!.hp=1;s.creatures[0]!.spellbook=['Magic Attack'];const p=planWizardTurn(projectView(s,'a'),77);for(const o of p.orders)for(const [phase,a] of [['early',o.early],['late',o.late]] as const)if(a&&typeof a==='object'&&a.type==='Cast'&&a.spell==='Magic Attack'){const from=phase==='early'?s.creatures[0]!.centre:o.path.at(-1)??s.creatures[0]!.centre;expect(distance(from,s.creatures.find(t=>t.id===a.targetId)!.centre)).toBeGreaterThan(a.level+3);}});
-it('known friendly projectile interception lowers spell score without consulting hidden bodies',()=>{const s=small();s.creatures[0]!.move=0;s.creatures[0]!.spellbook=['Magic Bolt'];s.creatures.push(createCreature('ally','a',h(7),{move:0,con:1,size:1}));const p=planWizardTurn(projectView(s,'a'),123);const wizard=p.orders.find(o=>o.creatureId==='wizard-0')!;for(const a of [wizard.early,wizard.late])expect(Boolean(a&&typeof a==='object'&&a.type==='Cast'&&a.spell==='Magic Bolt')).toBe(false);});
-it.each(['planning','ready','unbound-movement','unbound-attack','limited','complete-match'])('permanent %s session resumes deterministically in a fresh coordinator',name=>{const text=readFileSync(`tests/fixtures/ai-${name}.json`,'utf8').trim(),initial=restoreMatchSession(text);expect(encodeMatchSession(initial)).toBe(text);const a=runMatch(initial);let b=restoreMatchSession(text);for(let n=0;!b.outcome;n++){if(n>10000)throw Error('STEP_LIMIT');b=advanceMatchSession(restoreMatchSession(encodeMatchSession(b)));}expect(b).toEqual(a);expect(b.outcome?.type).not.toBe('failure');if(name==='complete-match')expect(b.outcome?.type).toBe('winner');if(name==='limited')expect(b.state.result).toBeNull();},60000);
-it('a critically injured wizard can choose a Teleport destination away from observed threats',()=>{const s=small();s.creatures[0]!.hp=1;s.creatures[0]!.spellbook=['Teleport'];const p=planWizardTurn(projectView(s,'a'),77),a=p.orders[0]!.early??p.orders[0]!.late;expect(a).toMatchObject({type:'Cast',spell:'Teleport'});if(a&&typeof a==='object'&&a.type==='Cast')expect(distance(a.ground!,s.creatures[1]!.centre)).toBeGreaterThan(distance(s.creatures[0]!.centre,s.creatures[1]!.centre));});
-it('unbound species comparison uses the same apparent profile across living and reanimated bodies',()=>{const s=unbound();s.creatures.push(createCreature('same-zombie',null,h(9),{...summonProfile('Summon Cat',2)!,species:'Cougar zombie',kind:'reanimated',undead:true,undeadClass:'zombie'}));const r=startScenarioTurn(s),o=r.orders.find(o=>o.creatureId==='loose')!;expect(o.late).toMatchObject({type:'Attack',targetIds:['wizard-0']});});
-it('navigation reports only movement cost retained before an illegal resting transit endpoint',()=>{const s=small();s.creatures[0]!.passCreatures=true;s.creatures[1]!.centre=h(6);const r=routeTowards(s,s.creatures[0]!,1,c=>distance(c.centre,h(7)),c=>distance(c.centre,h(7))===0,64);expect(r.path).toEqual([]);expect(r.cost).toBe(0);});
+it('same permitted view and AI seed produce identical plans despite enemy secrets', () => {
+  const a = small();
+  a.creatures.push(createCreature('enemy', 'b', h(12), summonProfile('Summon Cat', 3)!));
+  const b = structuredClone(a);
+  b.creatures[1]!.hp = 9;
+  b.creatures[1]!.mana = 1;
+  b.creatures[1]!.spellbook = ['Disbelief'];
+  b.creatures[2]!.hp = 14;
+  Object.assign(b.creatures[2]!, {
+    kind: 'illusion',
+    creatorId: 'wizard-1',
+    knownIllusionBy: ['b'],
+    corpseEligible: false,
+  });
+  b.random.setup = 99;
+  b.random.resolution = 88;
+  b.orders = [{ creatureId: 'wizard-1', path: [h(11)], early: 'Dash', late: null }];
+  expect(projectView(a, 'a')).toEqual(projectView(b, 'a'));
+  expect(planWizardTurn(projectView(a, 'a'), 77)).toEqual(planWizardTurn(projectView(b, 'a'), 77));
+});
+it('hidden occupants do not change view-only decisions', () => {
+  const a = small(),
+    b = structuredClone(a);
+  b.creatures.push(createCreature('hidden', 'b', h(7), { invisible: true }));
+  expect(projectView(a, 'a')).toEqual(projectView(b, 'a'));
+  expect(planWizardTurn(projectView(a, 'a'), 12)).toEqual(planWizardTurn(projectView(b, 'a'), 12));
+});
+it('private illusion knowledge, condition provenance and AI state never enter the opponent view', () => {
+  const s = small();
+  s.creatures.push(
+    createCreature('enemy', 'b', h(12), {
+      ...summonProfile('Summon Cat', 3)!,
+      kind: 'illusion',
+      creatorId: 'wizard-1',
+      knownIllusionBy: ['b'],
+      corpseEligible: false,
+    }),
+  );
+  const view = projectView(s, 'a');
+  expect(view.creatures.find(c => c.id === 'enemy')).not.toHaveProperty('planning');
+  expect(JSON.stringify(view)).not.toMatch(/knownIllusionBy|illusionId|corpseEligible|random|autonomous/);
+});
+it('the pure policy accepts deeply frozen views and never mutates observations', () => {
+  const view = freeze(projectView(small(), 'a')),
+    before = JSON.stringify(view);
+  const a = planWizardTurn(view, 77);
+  expect(a.orders.length).toBeGreaterThan(0);
+  expect(JSON.stringify(view)).toBe(before);
+  expect(planWizardTurn(view, 77)).toEqual(a);
+});
+it.each(['easy', 'standard', 'hard'] as const)(
+  '%s difficulty uses the same permitted data and produces ordinary legal orders',
+  difficulty => {
+    const s = small(),
+      view = projectView(s, 'a'),
+      plan = planWizardTurn(view, 42, { difficulty });
+    for (const order of plan.orders) expect(() => validateOrder(s, order, 'a')).not.toThrow();
+    expect(plan.work).toBeLessThanOrEqual(100000);
+    expect(plan.expanded).toBeLessThanOrEqual(256 * plan.orders.length);
+  },
+);
+it('work exhaustion is explicit and never performs an unbounded search', () => {
+  const view = projectView(small(), 'a'),
+    plan = planWizardTurn(view, 42, { maxWork: 1 });
+  expect(plan.truncated).toBe(true);
+  expect(plan.work).toBe(1);
+  expect(() => planWizardTurn(view, 0)).toThrow('INVALID_RNG_STATE');
+  expect(() => planWizardTurn(view, 1, { maxWork: -1 })).toThrow('INVALID_POLICY_OPTIONS');
+});
+it('policy and AI submission leave setup and combat RNG untouched', () => {
+  const s = small(),
+    before = { ...s.random },
+    r = submitAiTurn(s, ['a', 'b']);
+  expect(r.state.random.setup).toBe(before.setup);
+  expect(r.state.random.resolution).toBe(before.resolution);
+  expect(r.state.random.ai).not.toBe(before.ai);
+  expect(r.state.phase).toBe('ready');
+  expect(restoreSnapshot(encodeSnapshot(r.state))).toEqual(r.state);
+});
+it('AI stream transitions are system-only, checked and replayable', () => {
+  const s = small(),
+    cmd = {
+      matchId: s.matchId,
+      playerId: '$system',
+      turn: 1,
+      commandId: 'stream',
+      expectedRevision: 0,
+      type: 'AdvanceAiStream' as const,
+      before: s.random.ai,
+      after: 99,
+    };
+  expect(() => applyCommand(s, cmd)).toThrow('INVALID_COMMAND_AUTHORITY');
+  expect(() => applySystemCommand(s, { ...cmd, before: 1 })).toThrow('INVALID_AI_STREAM_TRANSITION');
+  const a = applySystemCommand(s, cmd);
+  expect(a.state.random.ai).toBe(99);
+  expect(applySystemCommand(a.state, cmd).state).toEqual(a.state);
+  expect(restoreSnapshot(encodeSnapshot(a.state))).toEqual(a.state);
+});
+it('all-player planning uses frozen observations rather than prior submitted orders or locks', () => {
+  const s = small(),
+    a = submitAiTurn(s, ['a', 'b']),
+    b = submitAiTurn(s, ['b', 'a']);
+  expect(a).toEqual(b);
+  const before = s.random.ai,
+    first = planWizardTurn(projectView(s, 'a'), before),
+    second = planWizardTurn(projectView(s, 'b'), first.seed);
+  for (const [id, plan] of [
+    ['a', first],
+    ['b', second],
+  ] as const)
+    expect(a.state.orders.filter(o => s.creatures.find(c => c.id === o.creatureId)!.controller === id)).toEqual(
+      plan.orders.sort((a, b) => (a.creatureId < b.creatureId ? -1 : 1)),
+    );
+});
+it('uncertain rejected proposals use one fixed fallback without probing another target', () => {
+  const s = small();
+  s.creatures[0]!.spellbook = ['Bind'];
+  s.creatures[0]!.mana = 100;
+  s.creatures.push(createCreature('foe', 'b', h(7), { ...summonProfile('Summon Cat', 1)!, bindingLevel: 8 }));
+  const r = submitAiTurn(s, ['a']);
+  expect(r.state.players.find(p => p.id === 'a')!.locked).toBe(true);
+  expect(r.fallbacks).toBe(1);
+  expect(r.state.orders[0]).toMatchObject({ path: [], early: null, late: null });
+  expect(r.state.accepted.filter(a => a.command.type === 'SetOrder')).toHaveLength(r.state.orders.length);
+});
+it('all forty roster profiles receive legal bounded decisions from observed body capabilities', () => {
+  const s = fullRosterScenario();
+  s.orders = [];
+  s.accepted = [];
+  s.revision = 0;
+  for (const p of s.players) p.participated = false;
+  for (const id of ['a', 'b']) {
+    const plan = planWizardTurn(projectView(s, id), 78, { maxWork: 200000 });
+    expect(plan.truncated).toBe(false);
+    for (const order of plan.orders) expect(() => validateOrder(s, order, id)).not.toThrow();
+  }
+  const r = submitAiTurn(s, ['a', 'b'], 'standard', 200000);
+  expect(r.fallbacks).toBe(0);
+  expect(restoreSnapshot(encodeSnapshot(r.state))).toEqual(r.state);
+}, 20000);
+it('owned Sleep and casting status suppress illegal Early actions while preserving known Late waking', () => {
+  const s = small();
+  s.turn = 2;
+  addCondition(s, s.creatures[0]!, 'Unconscious', 'wizard-1', 2, null, 'con');
+  s.creatures[0]!.conditions[0]!.startsTurn = 1;
+  s.creatures[0]!.conditions[0]!.expiresAfterPhase = { turn: 2, phase: 'early' };
+  const plan = planWizardTurn(projectView(s, 'a'), 23);
+  for (const o of plan.orders) {
+    expect(o.early).toBeNull();
+    expect(() => validateOrder(s, o, 'a')).not.toThrow();
+  }
+});
+it('a restrained body may plan Escape without a forbidden movement path', () => {
+  const s = small();
+  s.creatures[0]!.restrained = true;
+  s.creatures[0]!.spellbook = [];
+  const plan = planWizardTurn(projectView(s, 'a'), 2);
+  expect(plan.orders[0]!.path).toEqual([]);
+  expect(plan.orders[0]!.early === 'Escape' || plan.orders[0]!.late === 'Escape').toBe(true);
+});
+it('a spent siege body chooses Reload through the normal action budget', () => {
+  const s = small();
+  s.creatures.push(
+    createCreature('siege', 'a', h(3), {
+      ...summonProfile('Summon Archer', 6)!,
+      reload: { loaded: false, lastFiredTurn: 1, lastReloadTurn: null },
+    }),
+  );
+  s.turn = 2;
+  const p = planWizardTurn(projectView(s, 'a'), 3);
+  expect(p.orders.find(o => o.creatureId === 'siege')!.early).toEqual({ type: 'Reload' });
+});
+it('unbound creatures choose the nearest perceived different species including their former summoner', () => {
+  const s = unbound();
+  s.creatures.push(createCreature('same', null, h(9), { species: loose(s).species }));
+  const ready = startScenarioTurn(s);
+  expect(ready.autonomous).toContain('loose');
+  expect(ready.orders.find(o => o.creatureId === 'loose')!.late).toMatchObject({
+    type: 'Attack',
+    targetIds: ['wizard-0'],
+  });
+  const a = finish(ready),
+    b = finish(ready, true);
+  expect(b).toEqual(a);
+  let x = ready;
+  const attacks: string[] = [];
+  while (!['planning', 'ended'].includes(x.phase)) {
+    const r = advanceAtomicStep(x);
+    x = r.state;
+    for (const e of r.events)
+      if (e.creatureId === 'loose' && ['AttackHit', 'AttackMissed'].includes(e.type)) attacks.push(e.targetId!);
+  }
+  expect(attacks).toEqual(['wizard-0']);
+});
+it('nearest-target ties consume only the explicit AI stream and persist the chosen identity', () => {
+  const s = unbound();
+  s.creatures[0]!.centre = h(3);
+  s.creatures[1]!.centre = h(13);
+  const before = { ...s.random },
+    a = startScenarioTurn(s),
+    b = startScenarioTurn(restoreSnapshot(encodeSnapshot(s)));
+  expect(a).toEqual(b);
+  expect(a.random.ai).not.toBe(before.ai);
+  expect(a.random.setup).toBe(before.setup);
+  expect(a.random.resolution).toBe(before.resolution);
+  expect(restoreSnapshot(encodeSnapshot(a))).toEqual(a);
+});
+it('unbound perception cannot use another unit or the summoner to see an invisible target', () => {
+  const s = unbound();
+  s.creatures[0]!.centre = h(7);
+  s.creatures[0]!.invisible = true;
+  s.creatures.push(createCreature('detector', 'b', h(6), summonProfile('Summon Cat', 8)!));
+  const r = startScenarioTurn(s);
+  expect(r.orders.find(o => o.creatureId === 'loose')!.late).not.toMatchObject({ targetIds: ['wizard-0'] });
+});
+it('Bobby unbound perception can detect invisible presence within his own listed range', () => {
+  const s = unbound(summonProfile('Summon Cat', 8)!);
+  s.creatures[0]!.centre = h(7);
+  s.creatures[0]!.invisible = true;
+  const r = startScenarioTurn(s);
+  expect(r.orders.find(o => o.creatureId === 'loose')!.early).toMatchObject({ targetIds: ['wizard-0'] });
+});
+it('a completely blocked unbound creature falls back to Total Defence', () => {
+  const s = unbound();
+  for (const [i, d] of DIRECTIONS.entries())
+    s.walls.push({
+      id: `wall-${i}`,
+      edge: { a: h(8), b: add(h(8), d) },
+      material: 'stone',
+      hp: 10,
+      maxHp: 10,
+      burning: null,
+    });
+  const r = startScenarioTurn(s);
+  expect(r.orders.find(o => o.creatureId === 'loose')).toMatchObject({ path: [], early: 'TotalDefence', late: null });
+});
+it('new summons cannot act before their readiness turn', () => {
+  const s = unbound({ readyTurn: 2 });
+  const r = startScenarioTurn(s);
+  expect(r.autonomous).not.toContain('loose');
+  expect(finish(r).creatures[0]!.hp).toBe(10);
+});
+it('unbound ranged attacks still intercept bodies and use ordinary damage', () => {
+  const s = unbound({ ...summonProfile('Summon Archer', 2)!, species: 'Bowman' });
+  s.creatures[0]!.centre = h(4);
+  s.creatures[1]!.centre = h(20);
+  s.creatures.push(createCreature('blocker', null, h(6), { species: 'Bowman', incapacitated: true }));
+  const r = finish(startScenarioTurn(s), true);
+  expect(r.creatures.find(c => c.id === 'blocker')!.hp).toBeLessThan(10);
+  expect(r.creatures[0]!.hp).toBe(10);
+});
+it('bounded navigation can begin a necessary detour before approaching the target', () => {
+  const s = small(),
+    c = s.creatures[0]!;
+  c.centre = h(5);
+  for (const [i, e] of [
+    { a: h(5), b: h(6) },
+    { a: h(5), b: h(5, 11) },
+    { a: h(5), b: h(6, 9) },
+  ].entries())
+    s.walls.push({ id: `wall-${i}`, edge: e, material: 'stone', hp: 10, maxHp: 10, burning: null });
+  const r = routeTowards(
+    s,
+    c,
+    2,
+    b => Math.max(0, distance(b.centre, h(8)) - 1),
+    b => distance(b.centre, h(8)) === 1,
+    256,
+  );
+  expect(r.path.length).toBeGreaterThan(0);
+  expect(r.reached).toBe(true);
+  expect(r.expanded).toBeLessThanOrEqual(256);
+  expect(placement(arenaOf(s), c, r.centre).legal).toBe(true);
+});
+it('harness turn, work and atomic limits are timeouts, never invented wins or draws', () => {
+  for (const options of [{ maxTurns: 1 }, { maxAtomicSteps: 1 }, { maxPlanningWork: 1 }]) {
+    const r = runMatch(createMatchSession(small(), options));
+    expect(r.outcome?.type).toBe('timeout');
+    expect(r.state.result).toBeNull();
+    expect(restoreMatchSession(encodeMatchSession(r))).toEqual(r);
+  }
+});
+it('a complete seeded close match reaches engine victory and reproduces exactly', () => {
+  const initial = createMatchSession(noBooks(small()), { maxTurns: 30 }),
+    a = runMatch(initial),
+    b = runMatch(restoreMatchSession(encodeMatchSession(initial)));
+  expect(a.outcome?.type).toBe('winner');
+  expect(b).toEqual(a);
+  expect(a.state.phase).toBe('ended');
+  expect(matchReport(a).outcome).toEqual(a.state.result);
+}, 20000);
+it('fresh session restoration at every planning and engine boundary preserves continuation', () => {
+  let a = createMatchSession(noBooks(small()), { maxTurns: 20 }),
+    b = restoreMatchSession(encodeMatchSession(a));
+  for (let n = 0; !a.outcome; n++) {
+    if (n > 2000) throw Error('STEP_LIMIT');
+    a = advanceMatchSession(a);
+    b = advanceMatchSession(restoreMatchSession(encodeMatchSession(b)));
+    expect(b).toEqual(a);
+  }
+  expect(a.outcome?.type).toBe('winner');
+}, 20000);
+it('a real simultaneous wizard death is reported as a draw', () => {
+  let s = small();
+  s.creatures[0]!.hp = -10;
+  s.creatures[1]!.hp = -10;
+  s = startScenarioTurn(s);
+  const r = runMatch(createMatchSession(s));
+  expect(r.outcome).toEqual({ type: 'draw' });
+  expect(r.state.result).toEqual({ type: 'draw' });
+});
+it('malformed policy sessions and corrupted outcomes are rejected transactionally', () => {
+  const s = createMatchSession(small()),
+    before = encodeMatchSession(s);
+  for (const change of [
+    (x: any) => (x.policyVersion = 'future'),
+    (x: any) => (x.atomicSteps = -1),
+    (x: any) => (x.outcome = { type: 'winner', playerId: 'a' }),
+    (x: any) => (x.options.maxTurns = 0),
+  ]) {
+    const value = JSON.parse(before);
+    change(value);
+    expect(() => restoreMatchSession(JSON.stringify(value))).toThrow('INVALID_OR_UNSUPPORTED_MATCH_SESSION');
+  }
+  expect(encodeMatchSession(s)).toBe(before);
+});
+it('locked or eliminated players receive no new decisions and consume no AI randomness', () => {
+  const s = small();
+  s.players[0]!.locked = true;
+  const plan = planWizardTurn(projectView(s, 'a'), 1);
+  expect(plan.orders).toEqual([]);
+  expect(plan.seed).toBe(1);
+  expect(plan.work).toBe(0);
+});
+it('a hidden Fear source never becomes a hidden pathfinding oracle', () => {
+  const a = small();
+  a.creatures[1]!.invisible = true;
+  addCondition(a, a.creatures[0]!, 'Fear', 'wizard-1', 3, 2, 'int', false);
+  const b = structuredClone(a);
+  b.creatures[1]!.centre = h(3);
+  expect(projectView(a, 'a')).toEqual(projectView(b, 'a'));
+  expect(planWizardTurn(projectView(a, 'a'), 9)).toEqual(planWizardTurn(projectView(b, 'a'), 9));
+  expect(planWizardTurn(projectView(a, 'a'), 9).orders[0]!.path).toEqual([]);
+});
+it.each([2, 3, 4, 5, 6, 7, 8])(
+  'the %i-player unattended harness runs without changing wizard stats or inventing victory',
+  players => {
+    const s = noBooks(
+        createMatch(
+          `ai-${players}`,
+          Array.from({ length: players }, (_, i) => `p${i}`),
+          123,
+        ),
+      ),
+      r = runMatch(createMatchSession(s, { maxTurns: 1 }));
+    expect(r.outcome).toEqual({ type: 'timeout', reason: 'turn-limit' });
+    expect(r.state.result).toBeNull();
+    expect(r.state.players).toHaveLength(players);
+    for (const c of r.state.creatures.filter(c => c.kind === 'wizard'))
+      expect({ size: c.size, con: c.con, dex: c.dex, intelligence: c.intelligence }).toEqual({
+        size: 2,
+        con: 5,
+        dex: 5,
+        intelligence: 7,
+      });
+  },
+  15000,
+);
+it('recorded ordinary commands and AI-stream transitions reproduce a complete match without rerunning policy', () => {
+  const initial = noBooks(small()),
+    ended = runMatch(createMatchSession(initial, { maxTurns: 30 }));
+  let replay = initial;
+  for (const record of ended.state.accepted) {
+    while (['early', 'movement', 'late', 'end'].includes(replay.phase)) replay = advanceAtomicStep(replay).state;
+    replay = (
+      record.command.playerId === '$system'
+        ? applySystemCommand(replay, record.command)
+        : applyCommand(replay, record.command)
+    ).state;
+  }
+  while (['early', 'movement', 'late', 'end'].includes(replay.phase)) replay = advanceAtomicStep(replay).state;
+  expect(replay).toEqual(ended.state);
+}, 15000);
+it('unexpected engine errors are captured as failures with the last valid private snapshot', () => {
+  const initial = createMatchSession(startScenarioTurn(noBooks(small()))),
+    before = encodeMatchSession(initial),
+    spy = vi.spyOn(nativeResolver, 'advanceAtomicStep').mockImplementationOnce(() => {
+      throw new Error('injected-engine-failure');
+    });
+  try {
+    const result = advanceMatchSession(initial);
+    expect(result.outcome).toMatchObject({ type: 'failure', message: 'injected-engine-failure' });
+    const report = matchReport(result);
+    expect(restoreSnapshot(report.privateFailure!.snapshot)).toEqual(initial.state);
+    expect(report.privateFailure!.commands).toEqual(initial.state.accepted);
+    expect(encodeMatchSession(initial)).toBe(before);
+  } finally {
+    spy.mockRestore();
+  }
+});
+it('unbound flight can land to reach a ground target and retains its explicit transition through restore', () => {
+  const s = unbound(summonProfile('Summon Cat', 6)!);
+  s.creatures[0]!.centre = h(5);
+  s.creatures[1]!.centre = h(20);
+  const r = startScenarioTurn(s),
+    order = r.orders.find(o => o.creatureId === 'loose')!;
+  expect(order.flightSteps?.some(x => x.height === 'ground')).toBe(true);
+  expect(finish(r, true)).toEqual(finish(r));
+});
+it('unbound restraints use Escape and Subdued does not grant movement plus an attack', () => {
+  const s = unbound();
+  loose(s).restrained = true;
+  expect(startScenarioTurn(s).orders.find(o => o.creatureId === 'loose')!.early).toBe('Escape');
+  const b = unbound({ subdued: true });
+  const o = startScenarioTurn(b).orders.find(o => o.creatureId === 'loose')!;
+  if (o.path.length) expect(o.early === null && o.late === null).toBe(true);
+});
+it('known Early wake-up gives unbound units movement and Late attacks without an Early action', () => {
+  const s = unbound();
+  s.turn = 2;
+  addCondition(s, loose(s), 'Unconscious', 'wizard-1', 2, null, 'con');
+  loose(s).conditions[0]!.startsTurn = 1;
+  loose(s).conditions[0]!.expiresAfterPhase = { turn: 2, phase: 'early' };
+  const r = startScenarioTurn(s),
+    o = r.orders.find(o => o.creatureId === 'loose')!;
+  expect(r.autonomous).toContain('loose');
+  expect(o.early).toBeNull();
+  expect(o.path.length).toBeGreaterThan(0);
+  expect(o.late).toMatchObject({ type: 'Attack' });
+  expect(finish(r, true)).toEqual(finish(r));
+});
+it('retrying StartResolution cannot draw another unbound target or advance its stream twice', () => {
+  let s = unbound();
+  s.creatures[0]!.centre = h(3);
+  s.creatures[1]!.centre = h(13);
+  for (const player of ['a', 'b'])
+    s = applyCommand(s, {
+      matchId: s.matchId,
+      playerId: player,
+      turn: 1,
+      commandId: `lock-${player}`,
+      expectedRevision: s.revision,
+      type: 'LockTurn',
+    }).state;
+  const command = systemCommand(s, 'StartResolution', 'start'),
+    a = applySystemCommand(s, command).state;
+  expect(applySystemCommand(a, command).state).toEqual(a);
+});
+it('a known lethal friendly Magic Attack is scored below a safe alternative', () => {
+  const s = small();
+  s.creatures[0]!.hp = 1;
+  s.creatures[0]!.spellbook = ['Magic Attack'];
+  const p = planWizardTurn(projectView(s, 'a'), 77);
+  for (const o of p.orders)
+    for (const [phase, a] of [
+      ['early', o.early],
+      ['late', o.late],
+    ] as const)
+      if (a && typeof a === 'object' && a.type === 'Cast' && a.spell === 'Magic Attack') {
+        const from = phase === 'early' ? s.creatures[0]!.centre : (o.path.at(-1) ?? s.creatures[0]!.centre);
+        expect(distance(from, s.creatures.find(t => t.id === a.targetId)!.centre)).toBeGreaterThan(a.level + 3);
+      }
+});
+it('known friendly projectile interception lowers spell score without consulting hidden bodies', () => {
+  const s = small();
+  s.creatures[0]!.move = 0;
+  s.creatures[0]!.spellbook = ['Magic Bolt'];
+  s.creatures.push(createCreature('ally', 'a', h(7), { move: 0, con: 1, size: 1 }));
+  const p = planWizardTurn(projectView(s, 'a'), 123);
+  const wizard = p.orders.find(o => o.creatureId === 'wizard-0')!;
+  for (const a of [wizard.early, wizard.late])
+    expect(Boolean(a && typeof a === 'object' && a.type === 'Cast' && a.spell === 'Magic Bolt')).toBe(false);
+});
+it.each(['planning', 'ready', 'unbound-movement', 'unbound-attack', 'limited', 'complete-match'])(
+  'permanent %s session resumes deterministically in a fresh coordinator',
+  name => {
+    const text = readFileSync(`tests/fixtures/ai-${name}.json`, 'utf8').trim(),
+      initial = restoreMatchSession(text);
+    expect(encodeMatchSession(initial)).toBe(text);
+    const a = runMatch(initial);
+    let b = restoreMatchSession(text);
+    for (let n = 0; !b.outcome; n++) {
+      if (n > 10000) throw Error('STEP_LIMIT');
+      b = advanceMatchSession(restoreMatchSession(encodeMatchSession(b)));
+    }
+    expect(b).toEqual(a);
+    expect(b.outcome?.type).not.toBe('failure');
+    if (name === 'complete-match') expect(b.outcome?.type).toBe('winner');
+    if (name === 'limited') expect(b.state.result).toBeNull();
+  },
+  60000,
+);
+it('a critically injured wizard can choose a Teleport destination away from observed threats', () => {
+  const s = small();
+  s.creatures[0]!.hp = 1;
+  s.creatures[0]!.spellbook = ['Teleport'];
+  const p = planWizardTurn(projectView(s, 'a'), 77),
+    a = p.orders[0]!.early ?? p.orders[0]!.late;
+  expect(a).toMatchObject({ type: 'Cast', spell: 'Teleport' });
+  if (a && typeof a === 'object' && a.type === 'Cast')
+    expect(distance(a.ground!, s.creatures[1]!.centre)).toBeGreaterThan(
+      distance(s.creatures[0]!.centre, s.creatures[1]!.centre),
+    );
+});
+it('unbound species comparison uses the same apparent profile across living and reanimated bodies', () => {
+  const s = unbound();
+  s.creatures.push(
+    createCreature('same-zombie', null, h(9), {
+      ...summonProfile('Summon Cat', 2)!,
+      species: 'Cougar zombie',
+      kind: 'reanimated',
+      undead: true,
+      undeadClass: 'zombie',
+    }),
+  );
+  const r = startScenarioTurn(s),
+    o = r.orders.find(o => o.creatureId === 'loose')!;
+  expect(o.late).toMatchObject({ type: 'Attack', targetIds: ['wizard-0'] });
+});
+it('navigation reports only movement cost retained before an illegal resting transit endpoint', () => {
+  const s = small();
+  s.creatures[0]!.passCreatures = true;
+  s.creatures[1]!.centre = h(6);
+  const r = routeTowards(
+    s,
+    s.creatures[0]!,
+    1,
+    c => distance(c.centre, h(7)),
+    c => distance(c.centre, h(7)) === 0,
+    64,
+  );
+  expect(r.path).toEqual([]);
+  expect(r.cost).toBe(0);
+});
 
-it.each([10000001,100000000])('cumulative session allowance %i preserves policy call bounds through restore',maxPlanningWork=>{const state=small(),baseline=advanceMatchSession(createMatchSession(state)),initial=createMatchSession(state,{maxPlanningWork}),result=advanceMatchSession(restoreMatchSession(encodeMatchSession(initial)));expect(result.outcome).toBeNull();expect(result.state.phase).toBe('ready');expect(result.state).toEqual(baseline.state);expect(result.planningWork).toBe(baseline.planningWork);expect(result.planningWork).toBeGreaterThan(0);expect(result.options.maxPlanningWork).toBe(maxPlanningWork);expect(restoreMatchSession(encodeMatchSession(result))).toEqual(result);});
+it.each([10000001, 100000000])(
+  'cumulative session allowance %i preserves policy call bounds through restore',
+  maxPlanningWork => {
+    const state = small(),
+      baseline = advanceMatchSession(createMatchSession(state)),
+      initial = createMatchSession(state, { maxPlanningWork }),
+      result = advanceMatchSession(restoreMatchSession(encodeMatchSession(initial)));
+    expect(result.outcome).toBeNull();
+    expect(result.state.phase).toBe('ready');
+    expect(result.state).toEqual(baseline.state);
+    expect(result.planningWork).toBe(baseline.planningWork);
+    expect(result.planningWork).toBeGreaterThan(0);
+    expect(result.options.maxPlanningWork).toBe(maxPlanningWork);
+    expect(restoreMatchSession(encodeMatchSession(result))).toEqual(result);
+  },
+);

@@ -1,62 +1,434 @@
-import {it,expect} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {beginAttack,stepAttack} from '../packages/engine/src/combat.js';
-import {startCast,completeCast} from '../packages/engine/src/casting.js';
-import {applyDamage,addCondition} from '../packages/engine/src/damage.js';
-import {cleanupDeaths} from '../packages/engine/src/lifecycle.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {reanimatedProfile} from '../packages/engine/src/reanimation.js';
-import {projectView} from '../packages/views/src/index.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import type {GameState,Order} from '../packages/domain/src/state.js';
-import type {Event} from '../packages/engine/src/events.js';
-import type {AttackAction} from '../packages/domain/src/combat.js';
-const h=(q:number,r=5)=>({q,r});
-const branch:AttackAction={type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'};
-const tree=(s:GameState)=>s.creatures.find(c=>c.id==='tree')!;
-const target=(s:GameState)=>s.creatures.find(c=>c.id==='target')!;
-function setup(){const s=createMatch('walking-tree',['a','b'],456);s.creatures[0]!.centre=h(2,2);s.creatures[1]!.centre=h(20,15);s.creatures.push(createCreature('tree','a',h(6),summonProfile('Summon Plant',4)!),createCreature('target','b',h(9),{incapacitated:true}));tree(s).attacks[0]!.shots[0]!.crit=0;return s;}
-function order(s:GameState,early:Order['early']=branch,late:Order['late']=null){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'a',turn:s.turn,commandId:`tree-order-${s.revision}`,expectedRevision:s.revision,order:{creatureId:'tree',path:[],early,late}}).state;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-function until(s:GameState,predicate:(s:GameState)=>boolean){for(let n=0;!predicate(s);n++){if(n>1000)throw new Error('STEP_LIMIT');s=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;}return s;}
-function hit(s:GameState){s.phase='early';const events:Event[]=[];beginAttack(s,tree(s),branch,'action');while(s.pendingAttack)stepAttack(s,events);return events;}
-it('Walking Tree hits at reach two and pushes a smaller survivor with exact continuation',()=>{const s=startScenarioTurn(order(setup())),a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(6);expect(target(a.state).centre).toEqual(h(10));expect(a.events.filter(e=>e.type==='CreatureForcedMoved')).toHaveLength(1);});
-it.each([1,2])('pushes a strictly smaller Size %i target',size=>{const s=setup();target(s).size=size;hit(s);expect(target(s).centre).toEqual(h(10));});
-it.each([3,4])('does not push equal or larger Size %i targets',size=>{const s=setup();target(s).size=size;hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(9));});
-it('does not grant Shove to an ordinary Branch attack',()=>{const s=setup();delete tree(s).shove;hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(9));});
-it('a resisted zero-damage hit cannot push',()=>{const s=setup();target(s).defences=[{type:'physical',multiplier:0}];hit(s);expect(target(s).hp).toBe(10);expect(target(s).centre).toEqual(h(9));});
-it('a miss cannot push',()=>{const s=setup();target(s).incapacitated=false;target(s).dex=100;s.random.resolution=123456;const events=hit(s);expect(events.some(e=>e.type==='AttackMissed')).toBe(true);expect(target(s).centre).toEqual(h(9));});
-it('an out-of-reach or other-height target cannot be hit or pushed',()=>{for(const mutate of [(s:GameState)=>{target(s).centre=h(10);},(s:GameState)=>{target(s).height='air';}]){const s=setup();mutate(s);const before=structuredClone(target(s).centre);hit(s);expect(target(s).hp).toBe(10);expect(target(s).centre).toEqual(before);}});
-it('revalidates the target at execution instead of substituting another creature',()=>{let s=until(startScenarioTurn(order(setup())),s=>s.pendingAttack!==null);target(s).centre=h(13);s.creatures.push(createCreature('substitute','b',h(9)));const r=run(s,true);expect(target(r.state).hp).toBe(10);expect(r.state.creatures.find(c=>c.id==='substitute')!.hp).toBe(10);});
-it('blocked destinations waste the push without rerouting',()=>{const s=setup();s.creatures.push(createCreature('blocker','a',h(10)));const events=hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(9));expect(events.some(e=>e.type==='ShoveBlocked')).toBe(true);});
-it.each(['stone','energy'] as const)('%s edges block Shove while preserving hit damage',material=>{const s=setup();s.walls.push({id:'wall',edge:{a:h(9),b:h(10)},material,hp:20,maxHp:20,burning:null});hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(9));});
-it('does not push beyond the board edge',()=>{const s=setup();tree(s).centre=h(24);target(s).centre=h(27);hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(27));});
-it('sector boundary ties choose the canonical push direction',()=>{const s=setup();target(s).centre=h(7,6);hit(s);expect(target(s).centre).toEqual(h(8,6));});
-it('lethal hits leave the corpse at the original position',()=>{const s=setup();target(s).hp=-7;const events=hit(s);expect(target(s).alive).toBe(false);expect(s.corpses.find(c=>c.creatureId==='target')!.centre).toEqual(h(9));expect(events.some(e=>e.type==='CreatureForcedMoved')).toBe(false);});
-it('damage incapacitation still permits a survivor to be pushed',()=>{const s=setup();target(s).hp=3;hit(s);expect(target(s).hp).toBe(-1);expect(target(s).alive).toBe(true);expect(target(s).centre).toEqual(h(10));});
-it('Guard can Shove a mover without provoking another Guard',()=>{let s=setup();target(s).centre=h(10);target(s).incapacitated=false;tree(s).attacks[0]!.shots[0]!.skill=100;s=order(s,{type:'Guard',attackId:'basic',targetId:'target',area:[]});s.creatures.push(createCreature('watcher','a',h(11,4)));s=applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'a',turn:1,commandId:'watcher-guard',expectedRevision:s.revision,order:{creatureId:'watcher',path:[],early:{type:'Guard',attackId:'staff',targetId:'target',area:[]},late:null}}).state;s=applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'b',turn:1,commandId:'target-move',expectedRevision:s.revision,order:{creatureId:'target',path:[h(9)],early:null,late:null}}).state;const a=run(startScenarioTurn(s)),b=run(startScenarioTurn(s),true);expect(b).toEqual(a);expect(target(a.state).centre).toEqual(h(10));expect(a.events.some(e=>e.type==='AttackHit'&&e.creatureId==='tree')).toBe(true);expect(a.events.some(e=>['AttackHit','AttackMissed'].includes(e.type)&&e.creatureId==='watcher')).toBe(false);});
-it('Shove interrupts an immobile cast exactly once without refunding spent mana',()=>{const s=setup();target(s).incapacitated=false;Object.assign(target(s),{mana:50,maxMana:50,spellbook:['Bind'],spellLevelCap:4});tree(s).attacks[0]!.shots[0]!.skill=100;s.phase='early';startCast(s,target(s),{type:'Cast',spell:'Bind',level:4,variant:'bound',targetId:'tree',ground:null,side:'left'},[]);expect(s.casts).toHaveLength(1);const events=hit(s);expect(s.casts).toEqual([]);expect(target(s).mana).toBe(30);expect(events.filter(e=>e.type==='CastInterrupted')).toHaveLength(1);});
-it('Shove clears a Cougar approach and marks actual movement',()=>{const s=setup();Object.assign(target(s),summonProfile('Summon Cat',2),{incapacitated:true,centre:h(9),pounceTrail:[h(6),h(7),h(8),h(9)]});s.moved=['target'];hit(s);expect(target(s).centre).toEqual(h(10));expect(target(s).pounceTrail).toBeUndefined();expect(s.moved).toEqual(['target']);});
-it('crossed fire walls apply hazards exactly once in addition to Branch damage',()=>{const s=setup();s.walls.push({id:'fire',edge:{a:h(9),b:h(10)},material:'fire',hp:20,maxHp:20,burning:null});const events=hit(s);expect(target(s).centre).toEqual(h(10));expect(target(s).hp).toBe(0);expect(events.filter(e=>e.type==='DamageApplied')).toHaveLength(2);});
-it('forced weed contact is preserved without spending movement points',()=>{const s=setup();s.tangleweed.push({id:'patch',casterId:'tree',level:8,createdTurn:1,endsTurn:9,cells:[{hex:h(10),hp:24}]});s.random.resolution=4;hit(s);expect(s.weedAttempts).toContain('target');expect(s.movementSpent).toEqual([]);});
-it('illusory Shove restores damage without rewinding resolved relocation',()=>{const s=setup();Object.assign(tree(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(10));reverseIllusion(s,'tree',[]);expect(target(s).hp).toBe(10);expect(target(s).centre).toEqual(h(10));});
-it('an illusory Tree cannot damage or push an Int0 target',()=>{const s=setup();Object.assign(tree(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});target(s).intelligence=0;hit(s);expect(target(s).hp).toBe(10);expect(target(s).centre).toEqual(h(9));});
-it.each([['physical',2],['cold',2],['fire',6]] as const)('Walking Tree has its approved %s defence', (type,amount)=>{const s=setup();expect(applyDamage(s,tree(s),[{type,amount:4}],[])).toBe(amount);});
-it('Walking Tree is a flammable Int0 plant with no reanimatable corpse',()=>{const s=setup();expect(tree(s).flammable).toBe(true);expect(tree(s).intelligence).toBe(0);for(const kind of ['Poisoned','Disease','Fear','Unconscious'] as const)addCondition(s,tree(s),kind,'wizard-1',8,3,'int');expect(tree(s).conditions).toEqual([]);tree(s).hp=-18;cleanupDeaths(s,[]);expect(s.corpses.some(c=>c.creatureId==='tree')).toBe(false);});
-it('reanimated profiles cannot inherit the Shove power',()=>{const s=setup();const reborn=createCreature('reborn','a',h(6),reanimatedProfile(tree(s),false));expect(reborn.shove).toBeUndefined();});
-it('public Shove metadata is isolated and contains no private continuation',()=>{const s=setup(),shown=projectView(s,'b').creatures.find(c=>c.id==='tree')!;expect(shown.shove).toEqual({attackId:'basic'});shown.shove!.attackId='other';expect(tree(s).shove!.attackId).toBe('basic');});
-it.each(['before','after'])('permanent %s Shove fixture restores every boundary without a second push',name=>{const text=readFileSync(`tests/fixtures/walking-tree-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(6);expect(target(a.state).centre).toEqual(h(10));expect(a.events.filter(e=>e.type==='CreatureForcedMoved')).toHaveLength(name==='before'?1:0);});
-it('malformed Shove identifiers are rejected transactionally',()=>{const s=setup(),before=encodeSnapshot(s),raw=JSON.parse(before);raw.creatures.find((c:{id:string})=>c.id==='tree').shove.attackId='missing';expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();expect(encodeSnapshot(s)).toBe(before);});
-it.each(['bound','unbound','illusion'] as const)('Quick %s Walking Tree summons retain Shove and their readiness gate',variant=>{const s=createMatch('summon-tree',['a','b'],456),wizard=s.creatures[0]!;wizard.centre=h(5);wizard.spellbook=['Summon Plant'];s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell:'Summon Plant',level:4,variant,targetId:null,ground:h(8),side:'left'},[]);completeCast(s,s.casts[0]!.id,[]);const summoned=s.creatures.find(c=>c.species==='Walking tree')!;expect(summoned.shove).toEqual({attackId:'basic'});expect(summoned.readyTurn).toBe(2);expect(summoned.kind).toBe(variant==='illusion'?'illusion':'summon');});
-it('overlapping smaller swarms cannot make Shove choose an undefined direction',()=>{const s=setup();Object.assign(target(s),{swarm:true,originalSize:4,size:2,maxHp:16,hp:10,centre:h(6)});const events=hit(s);expect(target(s).hp).toBe(8);expect(target(s).centre).toEqual(h(7));expect(events.filter(e=>e.type==='CreatureForcedMoved')).toHaveLength(1);});
-it('a dispersed swarm is not shoved',()=>{const s=setup();Object.assign(target(s),{swarm:true,originalSize:2,size:2,maxHp:8,hp:2});const events=hit(s);expect(target(s).alive).toBe(false);expect(events.some(e=>e.type==='CreatureForcedMoved')).toBe(false);});
-it('Shove releases a hold separated beyond the grappler reach',()=>{const s=setup();s.creatures.push(createCreature('holder','b',h(8),{grappleLimbs:1,grappleEqualSize:true}));s.holds.push({grapplerId:'holder',targetId:'target',limb:0});const ready=startScenarioTurn(order(s)),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(target(a.state).centre).toEqual(h(10));expect(a.state.holds).toEqual([]);});
-it('a large pushed footprint must fit without clipping into another creature',()=>{const s=setup();Object.assign(tree(s),{size:5,originalSize:5,maxHp:30,hp:30});Object.assign(target(s),{size:3,originalSize:3,maxHp:15,hp:15,centre:h(10)});s.creatures.push(createCreature('blocker','b',h(12)));hit(s);expect(target(s).hp).toBe(11);expect(target(s).centre).toEqual(h(10));});
-it('Shove consumes no extra random roll beyond the Branch hit',()=>{const a=setup(),b=setup();delete tree(b).shove;hit(a);hit(b);expect(a.random).toEqual(b.random);});
-it('Shove only applies to its configured attack',()=>{const s=setup();tree(s).attacks.push({...structuredClone(tree(s).attacks[0]!),id:'other'});tree(s).shove!.attackId='other';hit(s);expect(target(s).hp).toBe(6);expect(target(s).centre).toEqual(h(9));});
-it('a critical Branch still pushes exactly one hex',()=>{const s=setup();tree(s).attacks[0]!.shots[0]!.crit=100;hit(s);expect(target(s).hp).toBe(2);expect(target(s).centre).toEqual(h(10));});
-it('displacement preserves a hold still within the grappler reach',()=>{const s=setup(),holder=createCreature('holder','b',h(8),{grappleLimbs:1,grappleEqualSize:true});holder.attacks[0]!.range=2;s.creatures.push(holder);s.holds.push({grapplerId:'holder',targetId:'target',limb:0});const ready=startScenarioTurn(order(s)),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(target(a.state).centre).toEqual(h(10));expect(a.state.holds).toEqual([{grapplerId:'holder',targetId:'target',limb:0}]);});
+import { it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createMatch, createCreature, applyCommand } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { beginAttack, stepAttack } from '../packages/engine/src/combat.js';
+import { startCast, completeCast } from '../packages/engine/src/casting.js';
+import { applyDamage, addCondition } from '../packages/engine/src/damage.js';
+import { cleanupDeaths } from '../packages/engine/src/lifecycle.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { reanimatedProfile } from '../packages/engine/src/reanimation.js';
+import { projectView } from '../packages/views/src/index.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import type { GameState, Order } from '../packages/domain/src/state.js';
+import type { Event } from '../packages/engine/src/events.js';
+import type { AttackAction } from '../packages/domain/src/combat.js';
+const h = (q: number, r = 5) => ({ q, r });
+const branch: AttackAction = { type: 'Attack', attackId: 'basic', targetIds: ['target'], ground: null, side: 'left' };
+const tree = (s: GameState) => s.creatures.find(c => c.id === 'tree')!;
+const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
+function setup() {
+  const s = createMatch('walking-tree', ['a', 'b'], 456);
+  s.creatures[0]!.centre = h(2, 2);
+  s.creatures[1]!.centre = h(20, 15);
+  s.creatures.push(
+    createCreature('tree', 'a', h(6), summonProfile('Summon Plant', 4)!),
+    createCreature('target', 'b', h(9), { incapacitated: true }),
+  );
+  tree(s).attacks[0]!.shots[0]!.crit = 0;
+  return s;
+}
+function order(s: GameState, early: Order['early'] = branch, late: Order['late'] = null) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'a',
+    turn: s.turn,
+    commandId: `tree-order-${s.revision}`,
+    expectedRevision: s.revision,
+    order: { creatureId: 'tree', path: [], early, late },
+  }).state;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+function until(s: GameState, predicate: (s: GameState) => boolean) {
+  for (let n = 0; !predicate(s); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    s = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;
+  }
+  return s;
+}
+function hit(s: GameState) {
+  s.phase = 'early';
+  const events: Event[] = [];
+  beginAttack(s, tree(s), branch, 'action');
+  while (s.pendingAttack) stepAttack(s, events);
+  return events;
+}
+it('Walking Tree hits at reach two and pushes a smaller survivor with exact continuation', () => {
+  const s = startScenarioTurn(order(setup())),
+    a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(6);
+  expect(target(a.state).centre).toEqual(h(10));
+  expect(a.events.filter(e => e.type === 'CreatureForcedMoved')).toHaveLength(1);
+});
+it.each([1, 2])('pushes a strictly smaller Size %i target', size => {
+  const s = setup();
+  target(s).size = size;
+  hit(s);
+  expect(target(s).centre).toEqual(h(10));
+});
+it.each([3, 4])('does not push equal or larger Size %i targets', size => {
+  const s = setup();
+  target(s).size = size;
+  hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(9));
+});
+it('does not grant Shove to an ordinary Branch attack', () => {
+  const s = setup();
+  delete tree(s).shove;
+  hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(9));
+});
+it('a resisted zero-damage hit cannot push', () => {
+  const s = setup();
+  target(s).defences = [{ type: 'physical', multiplier: 0 }];
+  hit(s);
+  expect(target(s).hp).toBe(10);
+  expect(target(s).centre).toEqual(h(9));
+});
+it('a miss cannot push', () => {
+  const s = setup();
+  target(s).incapacitated = false;
+  target(s).dex = 100;
+  s.random.resolution = 123456;
+  const events = hit(s);
+  expect(events.some(e => e.type === 'AttackMissed')).toBe(true);
+  expect(target(s).centre).toEqual(h(9));
+});
+it('an out-of-reach or other-height target cannot be hit or pushed', () => {
+  for (const mutate of [
+    (s: GameState) => {
+      target(s).centre = h(10);
+    },
+    (s: GameState) => {
+      target(s).height = 'air';
+    },
+  ]) {
+    const s = setup();
+    mutate(s);
+    const before = structuredClone(target(s).centre);
+    hit(s);
+    expect(target(s).hp).toBe(10);
+    expect(target(s).centre).toEqual(before);
+  }
+});
+it('revalidates the target at execution instead of substituting another creature', () => {
+  let s = until(startScenarioTurn(order(setup())), s => s.pendingAttack !== null);
+  target(s).centre = h(13);
+  s.creatures.push(createCreature('substitute', 'b', h(9)));
+  const r = run(s, true);
+  expect(target(r.state).hp).toBe(10);
+  expect(r.state.creatures.find(c => c.id === 'substitute')!.hp).toBe(10);
+});
+it('blocked destinations waste the push without rerouting', () => {
+  const s = setup();
+  s.creatures.push(createCreature('blocker', 'a', h(10)));
+  const events = hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(9));
+  expect(events.some(e => e.type === 'ShoveBlocked')).toBe(true);
+});
+it.each(['stone', 'energy'] as const)('%s edges block Shove while preserving hit damage', material => {
+  const s = setup();
+  s.walls.push({ id: 'wall', edge: { a: h(9), b: h(10) }, material, hp: 20, maxHp: 20, burning: null });
+  hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(9));
+});
+it('does not push beyond the board edge', () => {
+  const s = setup();
+  tree(s).centre = h(24);
+  target(s).centre = h(27);
+  hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(27));
+});
+it('sector boundary ties choose the canonical push direction', () => {
+  const s = setup();
+  target(s).centre = h(7, 6);
+  hit(s);
+  expect(target(s).centre).toEqual(h(8, 6));
+});
+it('lethal hits leave the corpse at the original position', () => {
+  const s = setup();
+  target(s).hp = -7;
+  const events = hit(s);
+  expect(target(s).alive).toBe(false);
+  expect(s.corpses.find(c => c.creatureId === 'target')!.centre).toEqual(h(9));
+  expect(events.some(e => e.type === 'CreatureForcedMoved')).toBe(false);
+});
+it('damage incapacitation still permits a survivor to be pushed', () => {
+  const s = setup();
+  target(s).hp = 3;
+  hit(s);
+  expect(target(s).hp).toBe(-1);
+  expect(target(s).alive).toBe(true);
+  expect(target(s).centre).toEqual(h(10));
+});
+it('Guard can Shove a mover without provoking another Guard', () => {
+  let s = setup();
+  target(s).centre = h(10);
+  target(s).incapacitated = false;
+  tree(s).attacks[0]!.shots[0]!.skill = 100;
+  s = order(s, { type: 'Guard', attackId: 'basic', targetId: 'target', area: [] });
+  s.creatures.push(createCreature('watcher', 'a', h(11, 4)));
+  s = applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'a',
+    turn: 1,
+    commandId: 'watcher-guard',
+    expectedRevision: s.revision,
+    order: {
+      creatureId: 'watcher',
+      path: [],
+      early: { type: 'Guard', attackId: 'staff', targetId: 'target', area: [] },
+      late: null,
+    },
+  }).state;
+  s = applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'b',
+    turn: 1,
+    commandId: 'target-move',
+    expectedRevision: s.revision,
+    order: { creatureId: 'target', path: [h(9)], early: null, late: null },
+  }).state;
+  const a = run(startScenarioTurn(s)),
+    b = run(startScenarioTurn(s), true);
+  expect(b).toEqual(a);
+  expect(target(a.state).centre).toEqual(h(10));
+  expect(a.events.some(e => e.type === 'AttackHit' && e.creatureId === 'tree')).toBe(true);
+  expect(a.events.some(e => ['AttackHit', 'AttackMissed'].includes(e.type) && e.creatureId === 'watcher')).toBe(false);
+});
+it('Shove interrupts an immobile cast exactly once without refunding spent mana', () => {
+  const s = setup();
+  target(s).incapacitated = false;
+  Object.assign(target(s), { mana: 50, maxMana: 50, spellbook: ['Bind'], spellLevelCap: 4 });
+  tree(s).attacks[0]!.shots[0]!.skill = 100;
+  s.phase = 'early';
+  startCast(
+    s,
+    target(s),
+    { type: 'Cast', spell: 'Bind', level: 4, variant: 'bound', targetId: 'tree', ground: null, side: 'left' },
+    [],
+  );
+  expect(s.casts).toHaveLength(1);
+  const events = hit(s);
+  expect(s.casts).toEqual([]);
+  expect(target(s).mana).toBe(30);
+  expect(events.filter(e => e.type === 'CastInterrupted')).toHaveLength(1);
+});
+it('Shove clears a Cougar approach and marks actual movement', () => {
+  const s = setup();
+  Object.assign(target(s), summonProfile('Summon Cat', 2), {
+    incapacitated: true,
+    centre: h(9),
+    pounceTrail: [h(6), h(7), h(8), h(9)],
+  });
+  s.moved = ['target'];
+  hit(s);
+  expect(target(s).centre).toEqual(h(10));
+  expect(target(s).pounceTrail).toBeUndefined();
+  expect(s.moved).toEqual(['target']);
+});
+it('crossed fire walls apply hazards exactly once in addition to Branch damage', () => {
+  const s = setup();
+  s.walls.push({ id: 'fire', edge: { a: h(9), b: h(10) }, material: 'fire', hp: 20, maxHp: 20, burning: null });
+  const events = hit(s);
+  expect(target(s).centre).toEqual(h(10));
+  expect(target(s).hp).toBe(0);
+  expect(events.filter(e => e.type === 'DamageApplied')).toHaveLength(2);
+});
+it('forced weed contact is preserved without spending movement points', () => {
+  const s = setup();
+  s.tangleweed.push({
+    id: 'patch',
+    casterId: 'tree',
+    level: 8,
+    createdTurn: 1,
+    endsTurn: 9,
+    cells: [{ hex: h(10), hp: 24 }],
+  });
+  s.random.resolution = 4;
+  hit(s);
+  expect(s.weedAttempts).toContain('target');
+  expect(s.movementSpent).toEqual([]);
+});
+it('illusory Shove restores damage without rewinding resolved relocation', () => {
+  const s = setup();
+  Object.assign(tree(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(10));
+  reverseIllusion(s, 'tree', []);
+  expect(target(s).hp).toBe(10);
+  expect(target(s).centre).toEqual(h(10));
+});
+it('an illusory Tree cannot damage or push an Int0 target', () => {
+  const s = setup();
+  Object.assign(tree(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  target(s).intelligence = 0;
+  hit(s);
+  expect(target(s).hp).toBe(10);
+  expect(target(s).centre).toEqual(h(9));
+});
+it.each([
+  ['physical', 2],
+  ['cold', 2],
+  ['fire', 6],
+] as const)('Walking Tree has its approved %s defence', (type, amount) => {
+  const s = setup();
+  expect(applyDamage(s, tree(s), [{ type, amount: 4 }], [])).toBe(amount);
+});
+it('Walking Tree is a flammable Int0 plant with no reanimatable corpse', () => {
+  const s = setup();
+  expect(tree(s).flammable).toBe(true);
+  expect(tree(s).intelligence).toBe(0);
+  for (const kind of ['Poisoned', 'Disease', 'Fear', 'Unconscious'] as const)
+    addCondition(s, tree(s), kind, 'wizard-1', 8, 3, 'int');
+  expect(tree(s).conditions).toEqual([]);
+  tree(s).hp = -18;
+  cleanupDeaths(s, []);
+  expect(s.corpses.some(c => c.creatureId === 'tree')).toBe(false);
+});
+it('reanimated profiles cannot inherit the Shove power', () => {
+  const s = setup();
+  const reborn = createCreature('reborn', 'a', h(6), reanimatedProfile(tree(s), false));
+  expect(reborn.shove).toBeUndefined();
+});
+it('public Shove metadata is isolated and contains no private continuation', () => {
+  const s = setup(),
+    shown = projectView(s, 'b').creatures.find(c => c.id === 'tree')!;
+  expect(shown.shove).toEqual({ attackId: 'basic' });
+  shown.shove!.attackId = 'other';
+  expect(tree(s).shove!.attackId).toBe('basic');
+});
+it.each(['before', 'after'])('permanent %s Shove fixture restores every boundary without a second push', name => {
+  const text = readFileSync(`tests/fixtures/walking-tree-${name}.json`, 'utf8').trim(),
+    s = restoreSnapshot(text);
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(6);
+  expect(target(a.state).centre).toEqual(h(10));
+  expect(a.events.filter(e => e.type === 'CreatureForcedMoved')).toHaveLength(name === 'before' ? 1 : 0);
+});
+it('malformed Shove identifiers are rejected transactionally', () => {
+  const s = setup(),
+    before = encodeSnapshot(s),
+    raw = JSON.parse(before);
+  raw.creatures.find((c: { id: string }) => c.id === 'tree').shove.attackId = 'missing';
+  expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it.each(['bound', 'unbound', 'illusion'] as const)(
+  'Quick %s Walking Tree summons retain Shove and their readiness gate',
+  variant => {
+    const s = createMatch('summon-tree', ['a', 'b'], 456),
+      wizard = s.creatures[0]!;
+    wizard.centre = h(5);
+    wizard.spellbook = ['Summon Plant'];
+    s.phase = 'early';
+    s.random.resolution = 1;
+    startCast(
+      s,
+      wizard,
+      { type: 'Cast', spell: 'Summon Plant', level: 4, variant, targetId: null, ground: h(8), side: 'left' },
+      [],
+    );
+    completeCast(s, s.casts[0]!.id, []);
+    const summoned = s.creatures.find(c => c.species === 'Walking tree')!;
+    expect(summoned.shove).toEqual({ attackId: 'basic' });
+    expect(summoned.readyTurn).toBe(2);
+    expect(summoned.kind).toBe(variant === 'illusion' ? 'illusion' : 'summon');
+  },
+);
+it('overlapping smaller swarms cannot make Shove choose an undefined direction', () => {
+  const s = setup();
+  Object.assign(target(s), { swarm: true, originalSize: 4, size: 2, maxHp: 16, hp: 10, centre: h(6) });
+  const events = hit(s);
+  expect(target(s).hp).toBe(8);
+  expect(target(s).centre).toEqual(h(7));
+  expect(events.filter(e => e.type === 'CreatureForcedMoved')).toHaveLength(1);
+});
+it('a dispersed swarm is not shoved', () => {
+  const s = setup();
+  Object.assign(target(s), { swarm: true, originalSize: 2, size: 2, maxHp: 8, hp: 2 });
+  const events = hit(s);
+  expect(target(s).alive).toBe(false);
+  expect(events.some(e => e.type === 'CreatureForcedMoved')).toBe(false);
+});
+it('Shove releases a hold separated beyond the grappler reach', () => {
+  const s = setup();
+  s.creatures.push(createCreature('holder', 'b', h(8), { grappleLimbs: 1, grappleEqualSize: true }));
+  s.holds.push({ grapplerId: 'holder', targetId: 'target', limb: 0 });
+  const ready = startScenarioTurn(order(s)),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).centre).toEqual(h(10));
+  expect(a.state.holds).toEqual([]);
+});
+it('a large pushed footprint must fit without clipping into another creature', () => {
+  const s = setup();
+  Object.assign(tree(s), { size: 5, originalSize: 5, maxHp: 30, hp: 30 });
+  Object.assign(target(s), { size: 3, originalSize: 3, maxHp: 15, hp: 15, centre: h(10) });
+  s.creatures.push(createCreature('blocker', 'b', h(12)));
+  hit(s);
+  expect(target(s).hp).toBe(11);
+  expect(target(s).centre).toEqual(h(10));
+});
+it('Shove consumes no extra random roll beyond the Branch hit', () => {
+  const a = setup(),
+    b = setup();
+  delete tree(b).shove;
+  hit(a);
+  hit(b);
+  expect(a.random).toEqual(b.random);
+});
+it('Shove only applies to its configured attack', () => {
+  const s = setup();
+  tree(s).attacks.push({ ...structuredClone(tree(s).attacks[0]!), id: 'other' });
+  tree(s).shove!.attackId = 'other';
+  hit(s);
+  expect(target(s).hp).toBe(6);
+  expect(target(s).centre).toEqual(h(9));
+});
+it('a critical Branch still pushes exactly one hex', () => {
+  const s = setup();
+  tree(s).attacks[0]!.shots[0]!.crit = 100;
+  hit(s);
+  expect(target(s).hp).toBe(2);
+  expect(target(s).centre).toEqual(h(10));
+});
+it('displacement preserves a hold still within the grappler reach', () => {
+  const s = setup(),
+    holder = createCreature('holder', 'b', h(8), { grappleLimbs: 1, grappleEqualSize: true });
+  holder.attacks[0]!.range = 2;
+  s.creatures.push(holder);
+  s.holds.push({ grapplerId: 'holder', targetId: 'target', limb: 0 });
+  const ready = startScenarioTurn(order(s)),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).centre).toEqual(h(10));
+  expect(a.state.holds).toEqual([{ grapplerId: 'holder', targetId: 'target', limb: 0 }]);
+});

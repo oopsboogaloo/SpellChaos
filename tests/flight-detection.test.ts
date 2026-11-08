@@ -1,82 +1,721 @@
-import {it,expect} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {beginAttack,stepAttack,resolveCombatAction,hitModifiers} from '../packages/engine/src/combat.js';
-import {executeHaunt,revealInvisible} from '../packages/engine/src/detection.js';
-import {visibleTo} from '../packages/engine/src/visibility.js';
-import {addCondition,applyDamage} from '../packages/engine/src/damage.js';
-import {forceMove,startCast,completeCast} from '../packages/engine/src/casting.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {reanimatedProfile} from '../packages/engine/src/reanimation.js';
-import {projectView,projectEvents} from '../packages/views/src/index.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import type {GameState,Order} from '../packages/domain/src/state.js';
-import type {AttackAction} from '../packages/domain/src/combat.js';
-import type {Event} from '../packages/engine/src/events.js';
-const h=(q:number,r=10)=>({q,r});
-const rows=[['amphiptere','Summon Serpent',6,'Amphiptere'],['wisp','Summon Spirit',1,'Wisp'],['bobby','Summon Cat',8,'Bobby the Master Hunter']] as const;
-type Profile=typeof rows[number][0];
-const actor=(s:GameState)=>s.creatures.find(c=>c.id==='actor')!;
-const target=(s:GameState)=>s.creatures.find(c=>c.id==='target')!;
-function setup(name:Profile='amphiptere'){
- const row=rows.find(r=>r[0]===name)!,s=createMatch('flight-detection',['a','b','c'],456);
- s.creatures[0]!.centre=h(1,2);s.creatures[1]!.centre=h(16,20);s.creatures[2]!.centre=h(0,20);
- s.creatures.push(createCreature('actor','a',h(8),summonProfile(row[1],row[2])!),createCreature('target','b',h(13),{con:10}));
- for(const attack of actor(s).attacks)for(const shot of attack.shots)shot.crit=0;
- return s;
+import { it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createMatch, createCreature, applyCommand } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { beginAttack, stepAttack, resolveCombatAction, hitModifiers } from '../packages/engine/src/combat.js';
+import { executeHaunt, revealInvisible } from '../packages/engine/src/detection.js';
+import { visibleTo } from '../packages/engine/src/visibility.js';
+import { addCondition, applyDamage } from '../packages/engine/src/damage.js';
+import { forceMove, startCast, completeCast } from '../packages/engine/src/casting.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { reanimatedProfile } from '../packages/engine/src/reanimation.js';
+import { projectView, projectEvents } from '../packages/views/src/index.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import type { GameState, Order } from '../packages/domain/src/state.js';
+import type { AttackAction } from '../packages/domain/src/combat.js';
+import type { Event } from '../packages/engine/src/events.js';
+const h = (q: number, r = 10) => ({ q, r });
+const rows = [
+  ['amphiptere', 'Summon Serpent', 6, 'Amphiptere'],
+  ['wisp', 'Summon Spirit', 1, 'Wisp'],
+  ['bobby', 'Summon Cat', 8, 'Bobby the Master Hunter'],
+] as const;
+type Profile = (typeof rows)[number][0];
+const actor = (s: GameState) => s.creatures.find(c => c.id === 'actor')!;
+const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
+function setup(name: Profile = 'amphiptere') {
+  const row = rows.find(r => r[0] === name)!,
+    s = createMatch('flight-detection', ['a', 'b', 'c'], 456);
+  s.creatures[0]!.centre = h(1, 2);
+  s.creatures[1]!.centre = h(16, 20);
+  s.creatures[2]!.centre = h(0, 20);
+  s.creatures.push(
+    createCreature('actor', 'a', h(8), summonProfile(row[1], row[2])!),
+    createCreature('target', 'b', h(13), { con: 10 }),
+  );
+  for (const attack of actor(s).attacks) for (const shot of attack.shots) shot.crit = 0;
+  return s;
 }
-function order(s:GameState,id='actor',early:Order['early']=null,late:Order['late']=null,path:Order['path']=[],extra:Partial<Order>={}){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:s.creatures.find(c=>c.id===id)!.controller!,turn:s.turn,commandId:`order-${s.revision}`,expectedRevision:s.revision,order:{creatureId:id,path,early,late,...extra}}).state;}
-function until(s:GameState,predicate:(s:GameState)=>boolean){for(let n=0;!predicate(s);n++){if(n>1000)throw new Error('STEP_LIMIT');s=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;}return s;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-const strike=(id='basic',victim='target'):AttackAction=>({type:'Attack',attackId:id,targetIds:[victim],ground:null,side:'left'});
-function attack(s:GameState,id='basic',seed=1){s.phase='early';beginAttack(s,actor(s),strike(id),'action');s.random.resolution=seed;const events:Event[]=[];for(let n=0;s.pendingAttack;n++){if(n>20)throw new Error('ATTACK_LIMIT');stepAttack(s,events);}return events;}
-const wall=(material:GameState['walls'][number]['material']='stone',q=9)=>({id:'wall',edge:{a:h(q),b:h(q+1)},material,hp:20,maxHp:20,burning:null});
+function order(
+  s: GameState,
+  id = 'actor',
+  early: Order['early'] = null,
+  late: Order['late'] = null,
+  path: Order['path'] = [],
+  extra: Partial<Order> = {},
+) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: s.creatures.find(c => c.id === id)!.controller!,
+    turn: s.turn,
+    commandId: `order-${s.revision}`,
+    expectedRevision: s.revision,
+    order: { creatureId: id, path, early, late, ...extra },
+  }).state;
+}
+function until(s: GameState, predicate: (s: GameState) => boolean) {
+  for (let n = 0; !predicate(s); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    s = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;
+  }
+  return s;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+const strike = (id = 'basic', victim = 'target'): AttackAction => ({
+  type: 'Attack',
+  attackId: id,
+  targetIds: [victim],
+  ground: null,
+  side: 'left',
+});
+function attack(s: GameState, id = 'basic', seed = 1) {
+  s.phase = 'early';
+  beginAttack(s, actor(s), strike(id), 'action');
+  s.random.resolution = seed;
+  const events: Event[] = [];
+  for (let n = 0; s.pendingAttack; n++) {
+    if (n > 20) throw new Error('ATTACK_LIMIT');
+    stepAttack(s, events);
+  }
+  return events;
+}
+const wall = (material: GameState['walls'][number]['material'] = 'stone', q = 9) => ({
+  id: 'wall',
+  edge: { a: h(q), b: h(q + 1) },
+  material,
+  hp: 20,
+  maxHp: 20,
+  burning: null,
+});
 
-it('Amphiptere lands, walks and takes off with exact continuation at every height boundary',()=>{let s=setup();s=order(s,'actor',null,null,[h(8),h(9),h(9),h(10)],{flightSteps:[{index:0,height:'ground'},{index:2,height:'air'}]});const initial=startScenarioTurn(s),a=run(initial),b=run(initial,true);expect(b).toEqual(a);expect(actor(a.state).centre).toEqual(h(10));expect(actor(a.state).height).toBe('air');expect(a.events.filter(e=>e.type==='FlightChanged')).toHaveLength(2);});
-it('take-off and landing each cost one movement point, including a stationary flight order',()=>{let s=setup('wisp');s=order(s,'actor',null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]});const midway=until(startScenarioTurn(s),s=>actor(s).height==='ground');expect(midway.movementSpent).toContainEqual({creatureId:'actor',amount:1});expect(run(midway,true)).toEqual(run(midway));expect(()=>order(setup('wisp'),'actor',null,null,[h(8),h(9),h(10),h(11),h(12)],{flightSteps:[{index:0,height:'ground'}]})).toThrow('MOVEMENT_BUDGET');});
-it.each(['same-height','diagonal-transition','duplicate','out-of-range','non-flyer'] as const)('invalid %s flight plans fail without mutating state',kind=>{const s=setup(kind==='non-flyer'?'bobby':'wisp'),before=encodeSnapshot(s);const path=[h(8)],steps:NonNullable<Order['flightSteps']>=[{index:0,height:'ground'}];if(kind==='same-height')steps[0]!.height='air';if(kind==='diagonal-transition')path[0]=h(9);if(kind==='duplicate')steps.push({...steps[0]!});if(kind==='out-of-range')steps[0]!.index=1;expect(()=>order(s,'actor',null,null,path,{flightSteps:steps})).toThrow();expect(encodeSnapshot(s)).toBe(before);});
-it.each(['restrained','grappled','subdued','unready','total-defence'] as const)('flight cannot bypass %s',kind=>{const s=setup('wisp');if(kind==='restrained')actor(s).restrained=true;if(kind==='grappled'){target(s).grappleLimbs=1;s.holds.push({grapplerId:'target',targetId:'actor',limb:0});}if(kind==='subdued')actor(s).subdued=true;if(kind==='unready')actor(s).readyTurn=2;expect(()=>order(s,'actor',kind==='total-defence'?'TotalDefence':kind==='subdued'?'Defend':null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]})).toThrow();});
-it('Slowed and Dash apply to the entire flight budget',()=>{const s=setup('wisp');actor(s).slowed=true;expect(()=>order(s,'actor',null,null,[h(8),h(9),h(10)],{flightSteps:[{index:0,height:'ground'}]})).toThrow('MOVEMENT_BUDGET');const ready=startScenarioTurn(order(s,'actor','Dash',null,[h(8),h(9),h(10)],{flightSteps:[{index:0,height:'ground'}]}));expect(actor(run(ready,true).state).centre).toEqual(h(10));});
-it('ordinary walls permit air transit, while Energy still stops it',()=>{for(const material of ['stone','energy'] as const){const s=setup();s.walls.push(wall(material));if(material==='energy')expect(()=>order(s,'actor',null,null,[h(9),h(10),h(11)])).toThrow('INVALID_PATH');else expect(actor(run(startScenarioTurn(order(s,'actor',null,null,[h(9),h(10),h(11)])),true).state).centre).toEqual(h(11));}});
-it('landing rejects a solid wall bisecting the whole footprint',()=>{const s=setup();s.walls.push(wall('stone',8));expect(()=>order(s,'actor',null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]})).toThrow('INVALID_PATH');});
-it('a ground blocker wastes landing without relocation or rerouting',()=>{const s=setup('wisp');target(s).centre=h(8);const ready=startScenarioTurn(order(s,'actor',null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]})),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(actor(a.state).height).toBe('air');expect(actor(a.state).centre).toEqual(h(8));});
-it('landing revalidates a newly occupied footprint after path preparation',()=>{let s=setup('wisp');s=until(startScenarioTurn(order(s,'actor',null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]})),s=>s.phase==='movement'&&s.cursor.activePath!==null);target(s).centre=h(8);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(actor(a.state).height).toBe('air');expect(a.events.some(e=>e.type==='MovementBlocked')).toBe(true);});
-it('landing enters ground melee Guard reach and take-off enters airborne Guard reach',()=>{for(const height of ['ground','air'] as const){let s=setup('wisp');actor(s).height=height==='air'?'ground':'air';target(s).height=height;target(s).centre=h(9);s=order(s,'target',{type:'Guard',attackId:'staff',targetId:'actor',area:[]});s=order(s,'actor',null,null,[h(8)],{flightSteps:[{index:0,height}]});const ready=startScenarioTurn(s),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(a.events.some(e=>e.creatureId==='target'&&['AttackHit','AttackMissed'].includes(e.type))).toBe(true);}});
-it('interrupted airborne transit returns to its last resting height after taking off',()=>{let s=setup('wisp');actor(s).height='ground';target(s).centre=h(9);target(s).height='air';s=until(startScenarioTurn(order(s,'actor',null,null,[h(8),h(9),h(10)],{flightSteps:[{index:0,height:'air'}]})),s=>actor(s).centre.q===9);actor(s).incapacitated=true;const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(actor(a.state).centre).toEqual(h(8));expect(actor(a.state).height).toBe('air');expect(a.events.some(e=>e.type==='MovementInterrupted')).toBe(true);});
-it('flying over Tangleweed pays normal movement, landing makes ground contact',()=>{let s=setup('wisp');s.tangleweed.push({id:'weed',casterId:'wizard-1',level:8,createdTurn:1,endsTurn:9,cells:[{hex:h(9),hp:24}]});s=until(startScenarioTurn(order(s,'actor',null,null,[h(9),h(9)],{flightSteps:[{index:1,height:'ground'}]})),s=>s.cursor.pathIndex===2);expect(s.movementSpent).toContainEqual({creatureId:'actor',amount:2});expect(s.weedAttempts).toContain('actor');});
-it('winged reanimation retains explicit flight and Bite, stripping spit and venom',()=>{for(const skeletal of [false,true]){const s=setup(),body=createCreature('body','a',h(8),reanimatedProfile(actor(s),skeletal));expect(body.flight).toEqual({takeoffCost:1,landingCost:1});expect(body.attacks.map(a=>a.id)).toEqual(['basic']);expect(body.attacks[0]!.shots[0]!.secondary).toEqual([]);expect(body.move).toBe(skeletal?7:3);}});
-it('Amphiptere Bite poisons only after applicable damage and cannot bite ground from air',()=>{const s=setup();target(s).centre=h(10);target(s).incapacitated=true;attack(s);expect(target(s).hp).toBe(20);target(s).height='air';attack(s,'basic',3);expect(target(s).hp).toBe(16);expect(target(s).conditions.some(e=>e.kind==='Poisoned'&&e.potency===6)).toBe(true);target(s).conditions=[];target(s).defences=[{type:'physical',multiplier:0}];attack(s);expect(target(s).conditions).toEqual([]);});
-it('D06 Spit intercepts an ally, using its poison defence and no bite venom',()=>{const s=setup();s.creatures.push(createCreature('interceptor','a',h(11),{con:10,incapacitated:true,defences:[{type:'poison',multiplier:.5}]}));attack(s,'spit');expect(s.creatures.find(c=>c.id==='interceptor')!.hp).toBe(18);expect(target(s).hp).toBe(20);expect(s.creatures.find(c=>c.id==='interceptor')!.conditions).toEqual([]);});
-it('air-to-air Spit ignores ground bodies on its ray',()=>{const s=setup();target(s).height='air';target(s).incapacitated=true;s.creatures.push(createCreature('ground','b',h(11)));attack(s,'spit');expect(target(s).hp).toBe(17);expect(s.creatures.find(c=>c.id==='ground')!.hp).toBe(10);});
-it('illusory Spit reverses damage and cannot affect Int0',()=>{const s=setup();target(s).incapacitated=true;Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});attack(s,'spit');expect(target(s).hp).toBe(17);reverseIllusion(s,'actor',[]);expect(target(s).hp).toBe(20);target(s).intelligence=0;attack(s,'spit');expect(target(s).hp).toBe(20);});
-it('invisible creatures are absent from opponent views, targeted orders and events',()=>{const s=setup('wisp');target(s).invisible=true;expect(visibleTo(s,target(s),'a')).toBe(false);expect(projectView(s,'a').creatures.some(c=>c.id==='target')).toBe(false);expect(projectView(s,'b').creatures.some(c=>c.id==='target')).toBe(true);expect(()=>order(s,'actor',strike())).toThrow('UNKNOWN_TARGET');target(s).incapacitated=true;actor(s).invisible=true;const events=attack(s);expect(projectEvents(s,'c',events)).toEqual([]);});
-it('Bobby detects invisible presence at six footprint steps without revealing illusion truth',()=>{const s=setup('bobby');target(s).centre=h(14);Object.assign(target(s),{invisible:true,kind:'illusion',creatorId:'wizard-1',knownIllusionBy:['b']});expect(visibleTo(s,target(s),'a')).toBe(true);expect(projectView(s,'a').creatures.find(c=>c.id==='target')).not.toHaveProperty('illusion');expect(visibleTo(s,target(s),'c')).toBe(false);target(s).centre=h(15);expect(visibleTo(s,target(s),'a')).toBe(false);});
-it.each(['incapacitated','wall','darkness'] as const)('%s prevents Bobby passive detection',kind=>{const s=setup('bobby');target(s).invisible=true;if(kind==='incapacitated')actor(s).incapacitated=true;if(kind==='wall')s.walls.push(wall());if(kind==='darkness')s.darkness.push({id:'dark',casterId:'wizard-1',centre:h(13),level:1,createdTurn:1,endsTurn:2});expect(visibleTo(s,target(s),'a')).toBe(false);});
-it('passive detection is immediate on summon creation turn and follows source control',()=>{const s=setup('bobby');target(s).invisible=true;actor(s).readyTurn=2;expect(visibleTo(s,target(s),'a')).toBe(true);actor(s).controller='c';expect(visibleTo(s,target(s),'a')).toBe(false);expect(visibleTo(s,target(s),'c')).toBe(true);});
-it('Bobby ignores Darkness hit disadvantage without gaining sight through the area',()=>{const s=setup('bobby');target(s).centre=h(9);s.darkness.push({id:'dark',casterId:'wizard-1',centre:h(8),level:1,createdTurn:1,endsTurn:2});expect(hitModifiers(s,actor(s),target(s),actor(s).attacks[0]!)[1]).toBe(false);target(s).centre=h(13);s.darkness[0]!.centre=h(13);expect(visibleTo(s,target(s),'a')).toBe(false);});
-it('Bobby uses both ordinary action slots and loses that privilege while Subdued',()=>{const s=setup('bobby');target(s).centre=h(9);target(s).incapacitated=true;const ready=startScenarioTurn(order(s,'actor',strike(),strike())),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(10);actor(s).subdued=true;expect(()=>order(s,'actor',strike(),strike())).toThrow('ACTION_BUDGET');});
-it('Haunt reveals exactly one canonical invisible occupant privately for its current phase',()=>{const s=setup('wisp');target(s).centre=h(10);target(s).invisible=true;s.creatures.push(createCreature('z-hidden','b',h(10),{invisible:true,swarm:true}));s.phase='early';const events:Event[]=[];executeHaunt(s,actor(s),h(10),events);expect(visibleTo(s,target(s),'a')).toBe(true);expect(visibleTo(s,s.creatures.find(c=>c.id==='z-hidden')!,'a')).toBe(false);expect(projectEvents(s,'a',events).some(e=>e.type==='InvisibleRevealed')).toBe(true);expect(projectEvents(s,'c',events).some(e=>e.type==='InvisibleRevealed')).toBe(false);expect(projectView(s,'a').creatures.find(c=>c.id==='target')).not.toHaveProperty('revealedTo');});
-it('Haunt empty-ground validation gives the same result with hidden occupancy',()=>{const s=setup('wisp');target(s).centre=h(10);const a=order(s,'actor',{type:'Haunt',ground:h(10)});target(s).invisible=true;const b=order(s,'actor',{type:'Haunt',ground:h(10)});expect(a.orders).toEqual(b.orders);expect(()=>order(s,'target',{type:'Haunt',ground:h(10)})).toThrow('NO_HAUNT');});
-it.each(['range','wall','darkness','empty'] as const)('Haunt %s failure wastes its action and reveals nothing',kind=>{const s=setup('wisp');target(s).invisible=true;target(s).centre=h(kind==='range'?13:10);if(kind==='wall')s.walls.push(wall());if(kind==='darkness')s.darkness.push({id:'dark',casterId:'wizard-1',centre:h(10),level:1,createdTurn:1,endsTurn:2});if(kind==='empty')target(s).centre=h(11);s.phase='early';executeHaunt(s,actor(s),h(kind==='range'?13:10),[]);expect(visibleTo(s,target(s),'a')).toBe(false);});
-it('Haunt expires at the Early/Late boundary and survives reload inside its phase',()=>{for(const phase of ['early','late'] as const){let s=setup('wisp');target(s).centre=h(10);target(s).invisible=true;s=until(startScenarioTurn(order(s,'actor',phase==='early'?{type:'Haunt',ground:h(10)}:null,phase==='late'?{type:'Haunt',ground:h(10)}:null)),s=>!!target(s).revealedTo?.length);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);expect(visibleTo(s,target(s),'a')).toBe(true);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(visibleTo(a.state,target(a.state),'a')).toBe(false);expect(target(a.state).revealedTo).toBeUndefined();}});
-it('Haunt neither dispels an illusion nor reveals its truth',()=>{const s=setup('wisp');target(s).centre=h(10);Object.assign(target(s),{invisible:true,kind:'illusion',creatorId:'wizard-1',knownIllusionBy:['b']});s.phase='early';executeHaunt(s,actor(s),h(10),[]);expect(target(s).alive).toBe(true);expect(target(s).knownIllusionBy).toEqual(['b']);expect(projectView(s,'a').creatures.find(c=>c.id==='target')).not.toHaveProperty('illusion');});
-it('D17 reveals actual blocked contact only to the mover and clears it at phase end',()=>{let s=setup('bobby');delete actor(s).seeInvisibleRange;target(s).centre=h(10);target(s).invisible=true;s=until(startScenarioTurn(order(s,'actor',null,null,[h(9),h(10)])),s=>s.phase==='movement'&&s.cursor.activePath!==null);expect(target(s).revealedTo).toBeUndefined();s=until(s,s=>!!target(s).revealedTo?.length);expect(actor(s).centre).toEqual(h(9));expect(visibleTo(s,target(s),'a')).toBe(true);expect(visibleTo(s,target(s),'c')).toBe(false);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(visibleTo(a.state,target(a.state),'a')).toBe(false);});
-it('unseen creatures cannot trigger Guard but intercepted empty-ground shots still hit them',()=>{let s=setup('wisp');actor(s).height='ground';target(s).invisible=true;target(s).centre=h(10);target(s).incapacitated=true;s=order(s,'actor',{type:'Guard',attackId:'basic',targetId:null,area:[]});target(s).incapacitated=false;s=order(s,'target',null,null,[h(9)]);const ready=startScenarioTurn(s),r=run(ready,true);expect(r.events.some(e=>e.creatureId==='actor'&&['AttackHit','AttackMissed'].includes(e.type))).toBe(false);const b=setup('wisp');target(b).invisible=true;target(b).incapacitated=true;target(b).centre=h(10);b.phase='early';beginAttack(b,actor(b),{...strike(),targetIds:[],ground:h(11)},'action');while(b.pendingAttack)stepAttack(b,[]);expect(target(b).hp).toBe(19);});
-it('Wisp Spark is a ranged magic attack with physical resistance, light vulnerability and no corpse',()=>{const s=setup('wisp');target(s).centre=h(11);target(s).incapacitated=true;attack(s);expect(target(s).hp).toBe(19);expect(applyDamage(s,actor(s),[{type:'physical',amount:1}],[])).toBe(1);expect(applyDamage(s,actor(s),[{type:'light',amount:1}],[])).toBe(2);expect(actor(s).corpseEligible).toBe(false);expect(actor(s).undead).toBe(true);});
-it.each(rows)('%s supports bound/unbound/illusion summons without sharing capability objects',(name,spell,level,species)=>{for(const variant of ['bound','unbound','illusion'] as const){const s=createMatch('summon-flight',['a','b'],456),wizard=s.creatures[0]!;wizard.centre=h(4);s.creatures[1]!.centre=h(16,20);wizard.spellbook=[spell];s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell,level,variant,targetId:null,ground:h(8),side:'left'},[]);completeCast(s,s.casts[0]!.id,[]);const summoned=s.creatures.find(c=>c.species===species)!;expect(summoned.readyTurn).toBe(2);expect(summoned.kind).toBe(variant==='illusion'?'illusion':'summon');expect(name==='bobby'?summoned.seeInvisibleRange:summoned.flight).toBeDefined();}});
-it('Bobby reanimation strips detection, Double Action and Darkness immunity',()=>{const s=setup('bobby'),body=createCreature('body','a',h(8),reanimatedProfile(actor(s),true));expect(body.seeInvisibleRange).toBeUndefined();expect(body.doubleAction).toBe(false);expect(body.ignoresDarknessDisadvantage).toBe(false);});
-it('public capability views clone data and hide opponents altitude orders and reveals',()=>{const s=order(setup('wisp'),'actor',null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]}),view=projectView(s,'b');expect(view.orders.some(o=>o.creatureId==='actor')).toBe(false);const shown=view.creatures.find(c=>c.id==='actor')!;shown.flight!.landingCost=99 as 1;expect(actor(s).flight!.landingCost).toBe(1);expect(shown.haunt).toEqual({range:2});});
-it('malformed reveals, flight labels and resting height reject transactionally',()=>{const s=setup('wisp'),before=encodeSnapshot(s);for(const mutate of [(raw:GameState)=>{target(raw).revealedTo=[{playerId:'a',turn:1,phase:'planning'}];},(raw:GameState)=>{target(raw).invisible=true;target(raw).revealedTo=[{playerId:'unknown',turn:1,phase:'planning'}];},(raw:GameState)=>{raw.cursor.lastRestingHeight='air';}]){const raw=JSON.parse(before) as GameState;mutate(raw);expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();}expect(encodeSnapshot(s)).toBe(before);});
-it.each(['airborne-transit','landing-guard','haunt-reveal','contact-reveal','spit-pending','bobby-attack'])('permanent %s fixture restores every atomic step with identical events and views',name=>{const text=readFileSync(`tests/fixtures/flight-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const a=run(s),b=run(s,true);expect(b).toEqual(a);for(const player of ['a','b','c']){expect(projectView(b.state,player)).toEqual(projectView(a.state,player));expect(projectEvents(b.state,player,b.events)).toEqual(projectEvents(a.state,player,a.events));}});
-it('Fear prevents approaching a source by flight and casting locks vertical movement',()=>{const s=setup('wisp');target(s).centre=h(11);addCondition(s,actor(s),'Fear','target',3,2,'int',false);expect(()=>order(s,'actor',null,null,[h(8),h(9)],{flightSteps:[{index:0,height:'ground'}]})).toThrow('FEAR_APPROACH');actor(s).conditions=[];actor(s).mana=50;actor(s).maxMana=50;actor(s).spellbook=['Bind'];actor(s).spellLevelCap=8;s.phase='early';startCast(s,actor(s),{type:'Cast',spell:'Bind',level:3,variant:'bound',targetId:'target',ground:null,side:'left'},[]);s.phase='planning';expect(()=>order(s,'actor',null,null,[h(8)],{flightSteps:[{index:0,height:'ground'}]})).toThrow('CASTING_IMMOBILE');});
-it('a named target lost from detection before execution is wasted without substitution',()=>{const s=setup('bobby');target(s).invisible=true;target(s).incapacitated=true;target(s).centre=h(9);s.phase='early';beginAttack(s,actor(s),strike(),'action');delete actor(s).seeInvisibleRange;const events:Event[]=[];while(s.pendingAttack)stepAttack(s,events);expect(target(s).hp).toBe(20);expect(events.some(e=>e.type==='AttackInvalid')).toBe(true);});
-it('D17 does not reveal a distant blocker before reaching actual contact',()=>{let s=setup('bobby');delete actor(s).seeInvisibleRange;target(s).centre=h(12);target(s).invisible=true;s=until(startScenarioTurn(order(s,'actor',null,null,[h(9),h(10),h(11),h(12)])),s=>actor(s).centre.q===10);expect(target(s).revealedTo).toBeUndefined();s=until(s,s=>!!target(s).revealedTo?.length);expect(actor(s).centre).toEqual(h(11));});
-it('a targeted Guard rechecks visibility after a queued reaction',()=>{let s=setup('bobby');target(s).centre=h(11);s=order(s,'actor',{type:'Guard',attackId:'basic',targetId:'target',area:[]});s=order(s,'target',null,null,[h(10),h(9)]);s=until(startScenarioTurn(s),s=>s.reactions.length>0);target(s).invisible=true;delete actor(s).seeInvisibleRange;const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(20);});
-it('a failed Dash cannot reveal an invisible blocker beyond the remaining movement budget',()=>{let s=setup('wisp');actor(s).height='ground';target(s).centre=h(13);target(s).invisible=true;s=order(s,'actor','Dash',null,[h(9),h(10),h(11),h(12),h(13)]);s=until(startScenarioTurn(s),s=>s.phase==='movement'&&!s.cursor.initialized);s.dashed=[];const r=run(s,true);expect(actor(r.state).centre).toEqual(h(12));expect(r.events.some(e=>e.type==='InvisibleRevealed')).toBe(false);});
-it('D17 cannot reveal an invisible blocker through a wall appearing after submission',()=>{let s=setup('bobby');delete actor(s).seeInvisibleRange;target(s).centre=h(9);target(s).invisible=true;s=order(s,'actor',null,null,[h(9)]);s.walls.push(wall('stone',8));const r=run(startScenarioTurn(s),true);expect(actor(r.state).centre).toEqual(h(8));expect(r.events.some(e=>e.type==='InvisibleRevealed')).toBe(false);expect(target(r.state).revealedTo).toBeUndefined();});
-it('a named penetrating shot cannot track an invisible target after detection is lost',()=>{const s=setup('bobby'),gun=createCreature('ballista','a',h(8,12),summonProfile('Summon Archer',5)!);s.creatures.push(gun);target(s).centre=h(12,12);target(s).invisible=true;target(s).incapacitated=true;gun.attacks[0]!.shots[0]!.crit=0;s.phase='late';beginAttack(s,gun,strike(),'action');actor(s).incapacitated=true;while(s.pendingAttack)stepAttack(s,[]);expect(target(s).hp).toBe(20);});
-it('empty-ground Ballista fire can still intercept an unseen creature',()=>{const s=setup('bobby'),gun=createCreature('ballista','a',h(8,12),summonProfile('Summon Archer',5)!);s.creatures.push(gun);actor(s).incapacitated=true;target(s).centre=h(12,12);target(s).invisible=true;target(s).incapacitated=true;gun.attacks[0]!.shots[0]!.crit=0;s.phase='late';beginAttack(s,gun,{...strike(),targetIds:[],ground:h(15,12)},'action');while(s.pendingAttack)stepAttack(s,[]);expect(target(s).hp).toBe(13);});
-it('committed penetration victims finish when detection is subsequently lost',()=>{const s=setup('bobby'),gun=createCreature('ballista','a',h(8,12),summonProfile('Summon Archer',5)!);s.creatures.push(gun,createCreature('second','b',h(14,12),{con:10,incapacitated:true}));target(s).centre=h(12,12);target(s).invisible=true;target(s).incapacitated=true;gun.attacks[0]!.shots[0]!.crit=0;s.phase='late';beginAttack(s,gun,strike(),'action');stepAttack(s,[]);expect(s.pendingAttack!.areaVictims).toEqual(['target','second']);actor(s).incapacitated=true;s.creatures.find(c=>c.id==='second')!.invisible=true;while(s.pendingAttack)stepAttack(s,[]);expect(s.creatures.find(c=>c.id==='second')!.hp).toBe(16);});
+it('Amphiptere lands, walks and takes off with exact continuation at every height boundary', () => {
+  let s = setup();
+  s = order(s, 'actor', null, null, [h(8), h(9), h(9), h(10)], {
+    flightSteps: [
+      { index: 0, height: 'ground' },
+      { index: 2, height: 'air' },
+    ],
+  });
+  const initial = startScenarioTurn(s),
+    a = run(initial),
+    b = run(initial, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).centre).toEqual(h(10));
+  expect(actor(a.state).height).toBe('air');
+  expect(a.events.filter(e => e.type === 'FlightChanged')).toHaveLength(2);
+});
+it('take-off and landing each cost one movement point, including a stationary flight order', () => {
+  let s = setup('wisp');
+  s = order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height: 'ground' }] });
+  const midway = until(startScenarioTurn(s), s => actor(s).height === 'ground');
+  expect(midway.movementSpent).toContainEqual({ creatureId: 'actor', amount: 1 });
+  expect(run(midway, true)).toEqual(run(midway));
+  expect(() =>
+    order(setup('wisp'), 'actor', null, null, [h(8), h(9), h(10), h(11), h(12)], {
+      flightSteps: [{ index: 0, height: 'ground' }],
+    }),
+  ).toThrow('MOVEMENT_BUDGET');
+});
+it.each(['same-height', 'diagonal-transition', 'duplicate', 'out-of-range', 'non-flyer'] as const)(
+  'invalid %s flight plans fail without mutating state',
+  kind => {
+    const s = setup(kind === 'non-flyer' ? 'bobby' : 'wisp'),
+      before = encodeSnapshot(s);
+    const path = [h(8)],
+      steps: NonNullable<Order['flightSteps']> = [{ index: 0, height: 'ground' }];
+    if (kind === 'same-height') steps[0]!.height = 'air';
+    if (kind === 'diagonal-transition') path[0] = h(9);
+    if (kind === 'duplicate') steps.push({ ...steps[0]! });
+    if (kind === 'out-of-range') steps[0]!.index = 1;
+    expect(() => order(s, 'actor', null, null, path, { flightSteps: steps })).toThrow();
+    expect(encodeSnapshot(s)).toBe(before);
+  },
+);
+it.each(['restrained', 'grappled', 'subdued', 'unready', 'total-defence'] as const)('flight cannot bypass %s', kind => {
+  const s = setup('wisp');
+  if (kind === 'restrained') actor(s).restrained = true;
+  if (kind === 'grappled') {
+    target(s).grappleLimbs = 1;
+    s.holds.push({ grapplerId: 'target', targetId: 'actor', limb: 0 });
+  }
+  if (kind === 'subdued') actor(s).subdued = true;
+  if (kind === 'unready') actor(s).readyTurn = 2;
+  expect(() =>
+    order(s, 'actor', kind === 'total-defence' ? 'TotalDefence' : kind === 'subdued' ? 'Defend' : null, null, [h(8)], {
+      flightSteps: [{ index: 0, height: 'ground' }],
+    }),
+  ).toThrow();
+});
+it('Slowed and Dash apply to the entire flight budget', () => {
+  const s = setup('wisp');
+  actor(s).slowed = true;
+  expect(() =>
+    order(s, 'actor', null, null, [h(8), h(9), h(10)], { flightSteps: [{ index: 0, height: 'ground' }] }),
+  ).toThrow('MOVEMENT_BUDGET');
+  const ready = startScenarioTurn(
+    order(s, 'actor', 'Dash', null, [h(8), h(9), h(10)], { flightSteps: [{ index: 0, height: 'ground' }] }),
+  );
+  expect(actor(run(ready, true).state).centre).toEqual(h(10));
+});
+it('ordinary walls permit air transit, while Energy still stops it', () => {
+  for (const material of ['stone', 'energy'] as const) {
+    const s = setup();
+    s.walls.push(wall(material));
+    if (material === 'energy')
+      expect(() => order(s, 'actor', null, null, [h(9), h(10), h(11)])).toThrow('INVALID_PATH');
+    else
+      expect(
+        actor(run(startScenarioTurn(order(s, 'actor', null, null, [h(9), h(10), h(11)])), true).state).centre,
+      ).toEqual(h(11));
+  }
+});
+it('landing rejects a solid wall bisecting the whole footprint', () => {
+  const s = setup();
+  s.walls.push(wall('stone', 8));
+  expect(() => order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height: 'ground' }] })).toThrow(
+    'INVALID_PATH',
+  );
+});
+it('a ground blocker wastes landing without relocation or rerouting', () => {
+  const s = setup('wisp');
+  target(s).centre = h(8);
+  const ready = startScenarioTurn(
+      order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height: 'ground' }] }),
+    ),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).height).toBe('air');
+  expect(actor(a.state).centre).toEqual(h(8));
+});
+it('landing revalidates a newly occupied footprint after path preparation', () => {
+  let s = setup('wisp');
+  s = until(
+    startScenarioTurn(order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height: 'ground' }] })),
+    s => s.phase === 'movement' && s.cursor.activePath !== null,
+  );
+  target(s).centre = h(8);
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).height).toBe('air');
+  expect(a.events.some(e => e.type === 'MovementBlocked')).toBe(true);
+});
+it('landing enters ground melee Guard reach and take-off enters airborne Guard reach', () => {
+  for (const height of ['ground', 'air'] as const) {
+    let s = setup('wisp');
+    actor(s).height = height === 'air' ? 'ground' : 'air';
+    target(s).height = height;
+    target(s).centre = h(9);
+    s = order(s, 'target', { type: 'Guard', attackId: 'staff', targetId: 'actor', area: [] });
+    s = order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height }] });
+    const ready = startScenarioTurn(s),
+      a = run(ready),
+      b = run(ready, true);
+    expect(b).toEqual(a);
+    expect(a.events.some(e => e.creatureId === 'target' && ['AttackHit', 'AttackMissed'].includes(e.type))).toBe(true);
+  }
+});
+it('interrupted airborne transit returns to its last resting height after taking off', () => {
+  let s = setup('wisp');
+  actor(s).height = 'ground';
+  target(s).centre = h(9);
+  target(s).height = 'air';
+  s = until(
+    startScenarioTurn(
+      order(s, 'actor', null, null, [h(8), h(9), h(10)], { flightSteps: [{ index: 0, height: 'air' }] }),
+    ),
+    s => actor(s).centre.q === 9,
+  );
+  actor(s).incapacitated = true;
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).centre).toEqual(h(8));
+  expect(actor(a.state).height).toBe('air');
+  expect(a.events.some(e => e.type === 'MovementInterrupted')).toBe(true);
+});
+it('flying over Tangleweed pays normal movement, landing makes ground contact', () => {
+  let s = setup('wisp');
+  s.tangleweed.push({
+    id: 'weed',
+    casterId: 'wizard-1',
+    level: 8,
+    createdTurn: 1,
+    endsTurn: 9,
+    cells: [{ hex: h(9), hp: 24 }],
+  });
+  s = until(
+    startScenarioTurn(order(s, 'actor', null, null, [h(9), h(9)], { flightSteps: [{ index: 1, height: 'ground' }] })),
+    s => s.cursor.pathIndex === 2,
+  );
+  expect(s.movementSpent).toContainEqual({ creatureId: 'actor', amount: 2 });
+  expect(s.weedAttempts).toContain('actor');
+});
+it('winged reanimation retains explicit flight and Bite, stripping spit and venom', () => {
+  for (const skeletal of [false, true]) {
+    const s = setup(),
+      body = createCreature('body', 'a', h(8), reanimatedProfile(actor(s), skeletal));
+    expect(body.flight).toEqual({ takeoffCost: 1, landingCost: 1 });
+    expect(body.attacks.map(a => a.id)).toEqual(['basic']);
+    expect(body.attacks[0]!.shots[0]!.secondary).toEqual([]);
+    expect(body.move).toBe(skeletal ? 7 : 3);
+  }
+});
+it('Amphiptere Bite poisons only after applicable damage and cannot bite ground from air', () => {
+  const s = setup();
+  target(s).centre = h(10);
+  target(s).incapacitated = true;
+  attack(s);
+  expect(target(s).hp).toBe(20);
+  target(s).height = 'air';
+  attack(s, 'basic', 3);
+  expect(target(s).hp).toBe(16);
+  expect(target(s).conditions.some(e => e.kind === 'Poisoned' && e.potency === 6)).toBe(true);
+  target(s).conditions = [];
+  target(s).defences = [{ type: 'physical', multiplier: 0 }];
+  attack(s);
+  expect(target(s).conditions).toEqual([]);
+});
+it('D06 Spit intercepts an ally, using its poison defence and no bite venom', () => {
+  const s = setup();
+  s.creatures.push(
+    createCreature('interceptor', 'a', h(11), {
+      con: 10,
+      incapacitated: true,
+      defences: [{ type: 'poison', multiplier: 0.5 }],
+    }),
+  );
+  attack(s, 'spit');
+  expect(s.creatures.find(c => c.id === 'interceptor')!.hp).toBe(18);
+  expect(target(s).hp).toBe(20);
+  expect(s.creatures.find(c => c.id === 'interceptor')!.conditions).toEqual([]);
+});
+it('air-to-air Spit ignores ground bodies on its ray', () => {
+  const s = setup();
+  target(s).height = 'air';
+  target(s).incapacitated = true;
+  s.creatures.push(createCreature('ground', 'b', h(11)));
+  attack(s, 'spit');
+  expect(target(s).hp).toBe(17);
+  expect(s.creatures.find(c => c.id === 'ground')!.hp).toBe(10);
+});
+it('illusory Spit reverses damage and cannot affect Int0', () => {
+  const s = setup();
+  target(s).incapacitated = true;
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  attack(s, 'spit');
+  expect(target(s).hp).toBe(17);
+  reverseIllusion(s, 'actor', []);
+  expect(target(s).hp).toBe(20);
+  target(s).intelligence = 0;
+  attack(s, 'spit');
+  expect(target(s).hp).toBe(20);
+});
+it('invisible creatures are absent from opponent views, targeted orders and events', () => {
+  const s = setup('wisp');
+  target(s).invisible = true;
+  expect(visibleTo(s, target(s), 'a')).toBe(false);
+  expect(projectView(s, 'a').creatures.some(c => c.id === 'target')).toBe(false);
+  expect(projectView(s, 'b').creatures.some(c => c.id === 'target')).toBe(true);
+  expect(() => order(s, 'actor', strike())).toThrow('UNKNOWN_TARGET');
+  target(s).incapacitated = true;
+  actor(s).invisible = true;
+  const events = attack(s);
+  expect(projectEvents(s, 'c', events)).toEqual([]);
+});
+it('Bobby detects invisible presence at six footprint steps without revealing illusion truth', () => {
+  const s = setup('bobby');
+  target(s).centre = h(14);
+  Object.assign(target(s), { invisible: true, kind: 'illusion', creatorId: 'wizard-1', knownIllusionBy: ['b'] });
+  expect(visibleTo(s, target(s), 'a')).toBe(true);
+  expect(projectView(s, 'a').creatures.find(c => c.id === 'target')).not.toHaveProperty('illusion');
+  expect(visibleTo(s, target(s), 'c')).toBe(false);
+  target(s).centre = h(15);
+  expect(visibleTo(s, target(s), 'a')).toBe(false);
+});
+it.each(['incapacitated', 'wall', 'darkness'] as const)('%s prevents Bobby passive detection', kind => {
+  const s = setup('bobby');
+  target(s).invisible = true;
+  if (kind === 'incapacitated') actor(s).incapacitated = true;
+  if (kind === 'wall') s.walls.push(wall());
+  if (kind === 'darkness')
+    s.darkness.push({ id: 'dark', casterId: 'wizard-1', centre: h(13), level: 1, createdTurn: 1, endsTurn: 2 });
+  expect(visibleTo(s, target(s), 'a')).toBe(false);
+});
+it('passive detection is immediate on summon creation turn and follows source control', () => {
+  const s = setup('bobby');
+  target(s).invisible = true;
+  actor(s).readyTurn = 2;
+  expect(visibleTo(s, target(s), 'a')).toBe(true);
+  actor(s).controller = 'c';
+  expect(visibleTo(s, target(s), 'a')).toBe(false);
+  expect(visibleTo(s, target(s), 'c')).toBe(true);
+});
+it('Bobby ignores Darkness hit disadvantage without gaining sight through the area', () => {
+  const s = setup('bobby');
+  target(s).centre = h(9);
+  s.darkness.push({ id: 'dark', casterId: 'wizard-1', centre: h(8), level: 1, createdTurn: 1, endsTurn: 2 });
+  expect(hitModifiers(s, actor(s), target(s), actor(s).attacks[0]!)[1]).toBe(false);
+  target(s).centre = h(13);
+  s.darkness[0]!.centre = h(13);
+  expect(visibleTo(s, target(s), 'a')).toBe(false);
+});
+it('Bobby uses both ordinary action slots and loses that privilege while Subdued', () => {
+  const s = setup('bobby');
+  target(s).centre = h(9);
+  target(s).incapacitated = true;
+  const ready = startScenarioTurn(order(s, 'actor', strike(), strike())),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(10);
+  actor(s).subdued = true;
+  expect(() => order(s, 'actor', strike(), strike())).toThrow('ACTION_BUDGET');
+});
+it('Haunt reveals exactly one canonical invisible occupant privately for its current phase', () => {
+  const s = setup('wisp');
+  target(s).centre = h(10);
+  target(s).invisible = true;
+  s.creatures.push(createCreature('z-hidden', 'b', h(10), { invisible: true, swarm: true }));
+  s.phase = 'early';
+  const events: Event[] = [];
+  executeHaunt(s, actor(s), h(10), events);
+  expect(visibleTo(s, target(s), 'a')).toBe(true);
+  expect(
+    visibleTo(
+      s,
+      s.creatures.find(c => c.id === 'z-hidden')!,
+      'a',
+    ),
+  ).toBe(false);
+  expect(projectEvents(s, 'a', events).some(e => e.type === 'InvisibleRevealed')).toBe(true);
+  expect(projectEvents(s, 'c', events).some(e => e.type === 'InvisibleRevealed')).toBe(false);
+  expect(projectView(s, 'a').creatures.find(c => c.id === 'target')).not.toHaveProperty('revealedTo');
+});
+it('Haunt empty-ground validation gives the same result with hidden occupancy', () => {
+  const s = setup('wisp');
+  target(s).centre = h(10);
+  const a = order(s, 'actor', { type: 'Haunt', ground: h(10) });
+  target(s).invisible = true;
+  const b = order(s, 'actor', { type: 'Haunt', ground: h(10) });
+  expect(a.orders).toEqual(b.orders);
+  expect(() => order(s, 'target', { type: 'Haunt', ground: h(10) })).toThrow('NO_HAUNT');
+});
+it.each(['range', 'wall', 'darkness', 'empty'] as const)(
+  'Haunt %s failure wastes its action and reveals nothing',
+  kind => {
+    const s = setup('wisp');
+    target(s).invisible = true;
+    target(s).centre = h(kind === 'range' ? 13 : 10);
+    if (kind === 'wall') s.walls.push(wall());
+    if (kind === 'darkness')
+      s.darkness.push({ id: 'dark', casterId: 'wizard-1', centre: h(10), level: 1, createdTurn: 1, endsTurn: 2 });
+    if (kind === 'empty') target(s).centre = h(11);
+    s.phase = 'early';
+    executeHaunt(s, actor(s), h(kind === 'range' ? 13 : 10), []);
+    expect(visibleTo(s, target(s), 'a')).toBe(false);
+  },
+);
+it('Haunt expires at the Early/Late boundary and survives reload inside its phase', () => {
+  for (const phase of ['early', 'late'] as const) {
+    let s = setup('wisp');
+    target(s).centre = h(10);
+    target(s).invisible = true;
+    s = until(
+      startScenarioTurn(
+        order(
+          s,
+          'actor',
+          phase === 'early' ? { type: 'Haunt', ground: h(10) } : null,
+          phase === 'late' ? { type: 'Haunt', ground: h(10) } : null,
+        ),
+      ),
+      s => !!target(s).revealedTo?.length,
+    );
+    expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+    expect(visibleTo(s, target(s), 'a')).toBe(true);
+    const a = run(s),
+      b = run(s, true);
+    expect(b).toEqual(a);
+    expect(visibleTo(a.state, target(a.state), 'a')).toBe(false);
+    expect(target(a.state).revealedTo).toBeUndefined();
+  }
+});
+it('Haunt neither dispels an illusion nor reveals its truth', () => {
+  const s = setup('wisp');
+  target(s).centre = h(10);
+  Object.assign(target(s), { invisible: true, kind: 'illusion', creatorId: 'wizard-1', knownIllusionBy: ['b'] });
+  s.phase = 'early';
+  executeHaunt(s, actor(s), h(10), []);
+  expect(target(s).alive).toBe(true);
+  expect(target(s).knownIllusionBy).toEqual(['b']);
+  expect(projectView(s, 'a').creatures.find(c => c.id === 'target')).not.toHaveProperty('illusion');
+});
+it('D17 reveals actual blocked contact only to the mover and clears it at phase end', () => {
+  let s = setup('bobby');
+  delete actor(s).seeInvisibleRange;
+  target(s).centre = h(10);
+  target(s).invisible = true;
+  s = until(
+    startScenarioTurn(order(s, 'actor', null, null, [h(9), h(10)])),
+    s => s.phase === 'movement' && s.cursor.activePath !== null,
+  );
+  expect(target(s).revealedTo).toBeUndefined();
+  s = until(s, s => !!target(s).revealedTo?.length);
+  expect(actor(s).centre).toEqual(h(9));
+  expect(visibleTo(s, target(s), 'a')).toBe(true);
+  expect(visibleTo(s, target(s), 'c')).toBe(false);
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(visibleTo(a.state, target(a.state), 'a')).toBe(false);
+});
+it('unseen creatures cannot trigger Guard but intercepted empty-ground shots still hit them', () => {
+  let s = setup('wisp');
+  actor(s).height = 'ground';
+  target(s).invisible = true;
+  target(s).centre = h(10);
+  target(s).incapacitated = true;
+  s = order(s, 'actor', { type: 'Guard', attackId: 'basic', targetId: null, area: [] });
+  target(s).incapacitated = false;
+  s = order(s, 'target', null, null, [h(9)]);
+  const ready = startScenarioTurn(s),
+    r = run(ready, true);
+  expect(r.events.some(e => e.creatureId === 'actor' && ['AttackHit', 'AttackMissed'].includes(e.type))).toBe(false);
+  const b = setup('wisp');
+  target(b).invisible = true;
+  target(b).incapacitated = true;
+  target(b).centre = h(10);
+  b.phase = 'early';
+  beginAttack(b, actor(b), { ...strike(), targetIds: [], ground: h(11) }, 'action');
+  while (b.pendingAttack) stepAttack(b, []);
+  expect(target(b).hp).toBe(19);
+});
+it('Wisp Spark is a ranged magic attack with physical resistance, light vulnerability and no corpse', () => {
+  const s = setup('wisp');
+  target(s).centre = h(11);
+  target(s).incapacitated = true;
+  attack(s);
+  expect(target(s).hp).toBe(19);
+  expect(applyDamage(s, actor(s), [{ type: 'physical', amount: 1 }], [])).toBe(1);
+  expect(applyDamage(s, actor(s), [{ type: 'light', amount: 1 }], [])).toBe(2);
+  expect(actor(s).corpseEligible).toBe(false);
+  expect(actor(s).undead).toBe(true);
+});
+it.each(rows)(
+  '%s supports bound/unbound/illusion summons without sharing capability objects',
+  (name, spell, level, species) => {
+    for (const variant of ['bound', 'unbound', 'illusion'] as const) {
+      const s = createMatch('summon-flight', ['a', 'b'], 456),
+        wizard = s.creatures[0]!;
+      wizard.centre = h(4);
+      s.creatures[1]!.centre = h(16, 20);
+      wizard.spellbook = [spell];
+      s.phase = 'early';
+      s.random.resolution = 1;
+      startCast(s, wizard, { type: 'Cast', spell, level, variant, targetId: null, ground: h(8), side: 'left' }, []);
+      completeCast(s, s.casts[0]!.id, []);
+      const summoned = s.creatures.find(c => c.species === species)!;
+      expect(summoned.readyTurn).toBe(2);
+      expect(summoned.kind).toBe(variant === 'illusion' ? 'illusion' : 'summon');
+      expect(name === 'bobby' ? summoned.seeInvisibleRange : summoned.flight).toBeDefined();
+    }
+  },
+);
+it('Bobby reanimation strips detection, Double Action and Darkness immunity', () => {
+  const s = setup('bobby'),
+    body = createCreature('body', 'a', h(8), reanimatedProfile(actor(s), true));
+  expect(body.seeInvisibleRange).toBeUndefined();
+  expect(body.doubleAction).toBe(false);
+  expect(body.ignoresDarknessDisadvantage).toBe(false);
+});
+it('public capability views clone data and hide opponents altitude orders and reveals', () => {
+  const s = order(setup('wisp'), 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height: 'ground' }] }),
+    view = projectView(s, 'b');
+  expect(view.orders.some(o => o.creatureId === 'actor')).toBe(false);
+  const shown = view.creatures.find(c => c.id === 'actor')!;
+  shown.flight!.landingCost = 99 as 1;
+  expect(actor(s).flight!.landingCost).toBe(1);
+  expect(shown.haunt).toEqual({ range: 2 });
+});
+it('malformed reveals, flight labels and resting height reject transactionally', () => {
+  const s = setup('wisp'),
+    before = encodeSnapshot(s);
+  for (const mutate of [
+    (raw: GameState) => {
+      target(raw).revealedTo = [{ playerId: 'a', turn: 1, phase: 'planning' }];
+    },
+    (raw: GameState) => {
+      target(raw).invisible = true;
+      target(raw).revealedTo = [{ playerId: 'unknown', turn: 1, phase: 'planning' }];
+    },
+    (raw: GameState) => {
+      raw.cursor.lastRestingHeight = 'air';
+    },
+  ]) {
+    const raw = JSON.parse(before) as GameState;
+    mutate(raw);
+    expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  }
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it.each(['airborne-transit', 'landing-guard', 'haunt-reveal', 'contact-reveal', 'spit-pending', 'bobby-attack'])(
+  'permanent %s fixture restores every atomic step with identical events and views',
+  name => {
+    const text = readFileSync(`tests/fixtures/flight-${name}.json`, 'utf8').trim(),
+      s = restoreSnapshot(text);
+    expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+    const a = run(s),
+      b = run(s, true);
+    expect(b).toEqual(a);
+    for (const player of ['a', 'b', 'c']) {
+      expect(projectView(b.state, player)).toEqual(projectView(a.state, player));
+      expect(projectEvents(b.state, player, b.events)).toEqual(projectEvents(a.state, player, a.events));
+    }
+  },
+);
+it('Fear prevents approaching a source by flight and casting locks vertical movement', () => {
+  const s = setup('wisp');
+  target(s).centre = h(11);
+  addCondition(s, actor(s), 'Fear', 'target', 3, 2, 'int', false);
+  expect(() => order(s, 'actor', null, null, [h(8), h(9)], { flightSteps: [{ index: 0, height: 'ground' }] })).toThrow(
+    'FEAR_APPROACH',
+  );
+  actor(s).conditions = [];
+  actor(s).mana = 50;
+  actor(s).maxMana = 50;
+  actor(s).spellbook = ['Bind'];
+  actor(s).spellLevelCap = 8;
+  s.phase = 'early';
+  startCast(
+    s,
+    actor(s),
+    { type: 'Cast', spell: 'Bind', level: 3, variant: 'bound', targetId: 'target', ground: null, side: 'left' },
+    [],
+  );
+  s.phase = 'planning';
+  expect(() => order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height: 'ground' }] })).toThrow(
+    'CASTING_IMMOBILE',
+  );
+});
+it('a named target lost from detection before execution is wasted without substitution', () => {
+  const s = setup('bobby');
+  target(s).invisible = true;
+  target(s).incapacitated = true;
+  target(s).centre = h(9);
+  s.phase = 'early';
+  beginAttack(s, actor(s), strike(), 'action');
+  delete actor(s).seeInvisibleRange;
+  const events: Event[] = [];
+  while (s.pendingAttack) stepAttack(s, events);
+  expect(target(s).hp).toBe(20);
+  expect(events.some(e => e.type === 'AttackInvalid')).toBe(true);
+});
+it('D17 does not reveal a distant blocker before reaching actual contact', () => {
+  let s = setup('bobby');
+  delete actor(s).seeInvisibleRange;
+  target(s).centre = h(12);
+  target(s).invisible = true;
+  s = until(
+    startScenarioTurn(order(s, 'actor', null, null, [h(9), h(10), h(11), h(12)])),
+    s => actor(s).centre.q === 10,
+  );
+  expect(target(s).revealedTo).toBeUndefined();
+  s = until(s, s => !!target(s).revealedTo?.length);
+  expect(actor(s).centre).toEqual(h(11));
+});
+it('a targeted Guard rechecks visibility after a queued reaction', () => {
+  let s = setup('bobby');
+  target(s).centre = h(11);
+  s = order(s, 'actor', { type: 'Guard', attackId: 'basic', targetId: 'target', area: [] });
+  s = order(s, 'target', null, null, [h(10), h(9)]);
+  s = until(startScenarioTurn(s), s => s.reactions.length > 0);
+  target(s).invisible = true;
+  delete actor(s).seeInvisibleRange;
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(20);
+});
+it('a failed Dash cannot reveal an invisible blocker beyond the remaining movement budget', () => {
+  let s = setup('wisp');
+  actor(s).height = 'ground';
+  target(s).centre = h(13);
+  target(s).invisible = true;
+  s = order(s, 'actor', 'Dash', null, [h(9), h(10), h(11), h(12), h(13)]);
+  s = until(startScenarioTurn(s), s => s.phase === 'movement' && !s.cursor.initialized);
+  s.dashed = [];
+  const r = run(s, true);
+  expect(actor(r.state).centre).toEqual(h(12));
+  expect(r.events.some(e => e.type === 'InvisibleRevealed')).toBe(false);
+});
+it('D17 cannot reveal an invisible blocker through a wall appearing after submission', () => {
+  let s = setup('bobby');
+  delete actor(s).seeInvisibleRange;
+  target(s).centre = h(9);
+  target(s).invisible = true;
+  s = order(s, 'actor', null, null, [h(9)]);
+  s.walls.push(wall('stone', 8));
+  const r = run(startScenarioTurn(s), true);
+  expect(actor(r.state).centre).toEqual(h(8));
+  expect(r.events.some(e => e.type === 'InvisibleRevealed')).toBe(false);
+  expect(target(r.state).revealedTo).toBeUndefined();
+});
+it('a named penetrating shot cannot track an invisible target after detection is lost', () => {
+  const s = setup('bobby'),
+    gun = createCreature('ballista', 'a', h(8, 12), summonProfile('Summon Archer', 5)!);
+  s.creatures.push(gun);
+  target(s).centre = h(12, 12);
+  target(s).invisible = true;
+  target(s).incapacitated = true;
+  gun.attacks[0]!.shots[0]!.crit = 0;
+  s.phase = 'late';
+  beginAttack(s, gun, strike(), 'action');
+  actor(s).incapacitated = true;
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(target(s).hp).toBe(20);
+});
+it('empty-ground Ballista fire can still intercept an unseen creature', () => {
+  const s = setup('bobby'),
+    gun = createCreature('ballista', 'a', h(8, 12), summonProfile('Summon Archer', 5)!);
+  s.creatures.push(gun);
+  actor(s).incapacitated = true;
+  target(s).centre = h(12, 12);
+  target(s).invisible = true;
+  target(s).incapacitated = true;
+  gun.attacks[0]!.shots[0]!.crit = 0;
+  s.phase = 'late';
+  beginAttack(s, gun, { ...strike(), targetIds: [], ground: h(15, 12) }, 'action');
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(target(s).hp).toBe(13);
+});
+it('committed penetration victims finish when detection is subsequently lost', () => {
+  const s = setup('bobby'),
+    gun = createCreature('ballista', 'a', h(8, 12), summonProfile('Summon Archer', 5)!);
+  s.creatures.push(gun, createCreature('second', 'b', h(14, 12), { con: 10, incapacitated: true }));
+  target(s).centre = h(12, 12);
+  target(s).invisible = true;
+  target(s).incapacitated = true;
+  gun.attacks[0]!.shots[0]!.crit = 0;
+  s.phase = 'late';
+  beginAttack(s, gun, strike(), 'action');
+  stepAttack(s, []);
+  expect(s.pendingAttack!.areaVictims).toEqual(['target', 'second']);
+  actor(s).incapacitated = true;
+  s.creatures.find(c => c.id === 'second')!.invisible = true;
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(s.creatures.find(c => c.id === 'second')!.hp).toBe(16);
+});

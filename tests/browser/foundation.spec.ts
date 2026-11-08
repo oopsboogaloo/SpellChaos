@@ -14,14 +14,26 @@ test('browser shell locks, restores and resets its demo state', async ({ page })
 });
 
 test('browser and Node produce identical serialized state after restore and continuation', async ({ page }) => {
-  const command = { matchId: 'match', playerId: 'human', turn: 1, expectedRevision: 0, commandId: 'c1', type: 'LockTurn' };
+  const command = {
+    matchId: 'match',
+    playerId: 'human',
+    turn: 1,
+    expectedRevision: 0,
+    commandId: 'c1',
+    type: 'LockTurn',
+  };
   const expected = encodeSnapshot(applyCommand(createMatch('match', ['human', 'ai'], 1), command).state);
   await page.goto('/');
-  const actual = await page.evaluate(async ({ root, command }) => {
-    const engine = await import(root + '/packages/engine/src/index.ts');
-    const persistence = await import(root + '/packages/persistence/src/snapshot.ts');
-    const initial = persistence.restoreSnapshot(persistence.encodeSnapshot(engine.createMatch('match', ['human', 'ai'], 1)));
-    return persistence.encodeSnapshot(engine.applyCommand(initial, command).state);
-  }, { root: '/@fs' + process.cwd(), command });
+  const actual = await page.evaluate(
+    async ({ root, command }) => {
+      const engine = await import(root + '/packages/engine/src/index.ts');
+      const persistence = await import(root + '/packages/persistence/src/snapshot.ts');
+      const initial = persistence.restoreSnapshot(
+        persistence.encodeSnapshot(engine.createMatch('match', ['human', 'ai'], 1)),
+      );
+      return persistence.encodeSnapshot(engine.applyCommand(initial, command).state);
+    },
+    { root: '/@fs' + process.cwd(), command },
+  );
   expect(actual).toBe(expected);
 });
