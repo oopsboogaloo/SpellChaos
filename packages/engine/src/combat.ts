@@ -6,7 +6,7 @@ import {validatePowerAction,beginPower} from './powers.js';
 import { attackTraitModifiers } from './attack-traits.js';
 import { structureReach,structureCells,strikeStructure,damageAreaWalls,damageStructure } from './walls.js';
 import { escapeWeed,damageWeed } from './tangleweed.js';
-import { sight,darkRay,visibleTo,targetVisible } from './visibility.js';
+import { sight,darkRay,visibleTo,targetVisible,clearNearestPair } from './visibility.js';
 import { isLethal } from './illusions.js';
 import { concentration,forceMove } from './casting.js';
 import { validAttackTargets } from '../../domain/src/combat.js';
@@ -61,12 +61,13 @@ export function validateCombatAction(s:GameState,c:Creature,a:CombatAction):void
   if(a.type==='Grapple' && c.grappleLimbs===0)throw new Error('NO_GRAPPLING_LIMB');
  }
 }
-function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):boolean {
- const p=pair(s,a,b);
- return b.alive && p.distance<=attack.range && p.distance>=attack.minRange &&
-  (!melee(attack)||a.height===b.height) && (sight(s,a,p.from,p.to,side)||(p.distance<=1&&clearSight(p.from,p.to,side,s.walls))) &&
-  (!melee(attack)||clearProjectile(p.from,p.to,side,s.walls));
+/** The first minimum-distance pair through which the attack is legal on the planned side, or null (#20). */
+function reachPair(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left') {
+ const d=pair(s,a,b).distance;
+ if(!b.alive||d>attack.range||d<attack.minRange||(melee(attack)&&a.height!==b.height))return null;
+ return clearNearestPair(bodyFootprint(s,a),bodyFootprint(s,b),(from,to,ray)=>(sight(s,a,from,to,ray)||(d<=1&&clearSight(from,to,ray,s.walls)))&&(!melee(attack)||clearProjectile(from,to,ray,s.walls)),[side]);
 }
+function inReach(s:GameState,a:Creature,b:Creature,attack:AttackDefinition,side:'left'|'right'='left'):boolean { return reachPair(s,a,b,attack,side)!==null; }
 export function creatureAttackModifiers(s:GameState,a:Creature,b:Creature,source:'action'|'guard') {
  const result=attackTraitModifiers(a.attackTraits,{
   plannedMovement:!!s.orders.find(o=>o.creatureId===a.id)?.path.length,
@@ -110,8 +111,11 @@ export function hitModifiers(s:GameState,a:Creature,b:Creature,attack:AttackDefi
  * impact to its nearest occupied hex. The pending action serialises that point. */
 export function guardReactionAction(s:GameState,a:Creature,targetId:string,attackId:string):AttackAction|null {
  const attack=a.attacks.find(x=>x.id===attackId),target=s.creatures.find(c=>c.id===targetId);
- if(!attack||!target||!a.controller||!visibleTo(s,target,a.controller)||!active(a)||a.controller===null||!inReach(s,a,target,attack))return null;
- return {type:'Attack',attackId,targetIds:attack.mode==='area'?[]:[targetId],ground:attack.mode==='area'?pair(s,a,target).to:null,side:'left'};
+ if(!attack||!target||!a.controller||!visibleTo(s,target,a.controller)||!active(a)||a.controller===null)return null;
+ // A Guard cannot pick a ray side when planned, so it reacts along the first side that reaches (#22).
+ const side=(['left','right'] as const).find(ray=>inReach(s,a,target,attack,ray));
+ if(!side)return null;
+ return {type:'Attack',attackId,targetIds:attack.mode==='area'?[]:[targetId],ground:attack.mode==='area'?(reachPair(s,a,target,attack,side)??pair(s,a,target)).to:null,side};
 }
 export function beginAttack(s:GameState,c:Creature,action:AttackAction,source:'action'|'guard',events:Event[]=[]):void {
  if(source==='action'&&!s.actedThisPhase.includes(c.id))s.actedThisPhase.push(c.id);
@@ -182,7 +186,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
   target=s.creatures.find(c=>c.id===(p.action.targetIds[p.shotIndex]??p.action.targetIds[0]));p.shotIndex++;
   if(target&&(!targetVisible(s,a,target)||!inReach(s,a,target,attack,p.action.side)))target=undefined;
   if(target&&attack.mode==='projectile'){
-   const trace=traceProjectile(arenaOf(s),a,pair(s,a,target).to,target.height,p.action.side,target.id);
+   const trace=traceProjectile(arenaOf(s),a,(reachPair(s,a,target,attack,p.action.side)??pair(s,a,target)).to,target.height,p.action.side,target.id);
    target=s.creatures.find(c=>c.id===trace.hit);
    if(trace.blockedBy){damageStructure(s,{kind:'wall',id:trace.blockedBy},strike.components,events,a.id);return false;}
   }

@@ -15,7 +15,7 @@ export function revealInvisible(s:GameState,target:Creature,playerId:string,even
 export function expireReveals(s:GameState):void {for(const c of s.creatures)delete c.revealedTo;}
 export function executeHaunt(s:GameState,actor:Creature,ground:Hex,events:Event[]):void {
  const origin=nearestPair(bodyFootprint(s,actor),[ground]);
- if(!actor.haunt||!actor.controller||!active(actor)||actor.readyTurn>s.turn||origin.distance>actor.haunt.range||!sight(s,actor,origin.from,ground,'left')){
+ if(!actor.haunt||!actor.controller||!active(actor)||actor.readyTurn>s.turn||origin.distance>actor.haunt.range||!(sight(s,actor,origin.from,ground,'left')||sight(s,actor,origin.from,ground,'right'))){
   emit(s,events,{type:'ActionInvalid',creatureId:actor.id,action:'Haunt'});return;
  }
  const target=s.creatures.filter(c=>c.id!==actor.id&&c.alive&&c.invisible&&bodyFootprint(s,c).some(h=>distance(h,ground)===0)).sort((a,b)=>a.id<b.id?-1:1)[0];

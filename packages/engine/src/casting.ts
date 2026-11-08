@@ -3,7 +3,7 @@ import {bodyFootprint} from './bodies.js';
 import {pruneDisplacedHolds,pruneRootNetworks} from './ground-traits.js';
 import { legalCastWall,wallOriginValid,createWall,structureCells,strikeStructure,damageStructure,crossWallHazards } from './walls.js';
 import { legalWeedLayout,createWeed,contactWeed,damageWeed } from './tangleweed.js';
-import { sight,darkRay,visibleTo } from './visibility.js';
+import { sight,darkRay,visibleTo,clearNearestPair } from './visibility.js';
 import { knowsIllusion } from './illusions.js';
 import { canReanimate, reanimate } from './reanimation.js';
 import { randomBelow } from '../../domain/src/random.js';
@@ -131,8 +131,8 @@ export function startCast(s:GameState,c:Creature,a:CastAction,events:Event[],tim
 }
 function validCompletion(s:GameState,c:Creature,origin:Creature,a:CastAction):boolean {
  if(!legalTarget(s,c,a)||(a.spell==='Tangleweed'&&!weedOriginValid(s,origin,a))||(a.spell==='Wall'&&!wallOriginValid(s,origin,a)))return false;
- const pair=nearestPair(bodyFootprint(s,origin),targets(s,a));
- if(pair.distance>spellRange(a)||!sight(s,origin,pair.from,pair.to,a.side))return false;
+ const cells=targets(s,a);
+ if(nearestPair(bodyFootprint(s,origin),cells).distance>spellRange(a)||!clearNearestPair(bodyFootprint(s,origin),cells,(from,to,side)=>sight(s,origin,from,to,side),[a.side]))return false;
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);return !!profile&&legalSummonPlacement(s,createCreature('$preview',c.controller,a.ground!,profile));
  }
@@ -146,7 +146,7 @@ function spellDamage(s:GameState,c:Creature,origin:Creature,a:CastAction,events:
   if(result.kind!=='creature')return;
   target=s.creatures.find(t=>t.id===result.id);
  }else if(projectile){
-  const aim=a.ground??nearestPair(bodyFootprint(s,origin),bodyFootprint(s,target!)).to;
+  const aim=a.ground??(clearNearestPair(bodyFootprint(s,origin),bodyFootprint(s,target!),(from,to,side)=>sight(s,origin,from,to,side),[a.side])??nearestPair(bodyFootprint(s,origin),bodyFootprint(s,target!))).to;
   const trace=traceProjectile(arenaOf(s),origin,aim,target?.height??'ground',a.side,target?.id);
   target=s.creatures.find(t=>t.id===trace.hit);
   if(trace.blockedBy)damageStructure(s,{kind:'wall',id:trace.blockedBy},[{type:a.spell==='Fire Bolt'?'fire':'magic',amount:a.level+2}],events,c.id,a.spell==='Fire Bolt');

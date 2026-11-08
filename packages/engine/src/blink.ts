@@ -15,7 +15,8 @@ export function blinkLegal(s:GameState,c:Creature,from:Hex,to:Hex,ignoreCreature
  const length=distance(from,to);
  if(!active(c)||c.readyTurn>s.turn||!c.blink||c.blinkUsedTurn===s.turn||length<1||length>c.blink.range||restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,{...c,centre:from},to)||!placement(ignoreCreatures?{...arenaOf(s),creatures:[]}:arenaOf(s),c,to).legal)return false;
  const delta={q:to.q-from.q,r:to.r-from.r};
- return footprint(from,c.size).every(origin=>!crossedWalls(traceRay(origin,add(origin,delta),'left'),s.walls).some(w=>w.material==='energy'));
+ // #22: Blink is blocked by Energy only if both boundary rays cross it, so mirror-image layouts agree.
+ return (['left','right'] as const).some(side=>footprint(from,c.size).every(origin=>!crossedWalls(traceRay(origin,add(origin,delta),side),s.walls).some(w=>w.material==='energy')));
 }
 export function movementStepCost(s:GameState,c:Creature,order:Order,index:number,from:Hex,to:Hex):number {
  if(order.flightSteps)return flightStepCost(s,c,order,index,from,to);
