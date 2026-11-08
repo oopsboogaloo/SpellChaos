@@ -1,4 +1,3 @@
-import { migrateOrdersSnapshot } from '../packages/persistence/src/migration.js';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
@@ -168,11 +167,11 @@ describe('phase queue and atomic movement', () => {
     const badAction=JSON.parse(encodeSnapshot(s));badAction.orders[0].early='Attack';
     expect(()=>restoreSnapshot(JSON.stringify(badAction))).toThrow();
   });
-  it('explicitly migrates permanent planning and mid-movement fixtures', () => {
-    for (const file of ['orders-v2-planning.json','orders-v2-movement.json']) {
+  it('permanent planning and mid-movement fixtures restore and continue', () => {
+    for (const file of ['orders-planning.json','orders-movement.json']) {
       const text=readFileSync(`tests/fixtures/${file}`,'utf8').trim();
-      expect(()=>restoreSnapshot(text)).toThrow();
-      const restored=migrateOrdersSnapshot(text);
+      
+      const restored=restoreSnapshot(text);
       expect(restoreSnapshot(encodeSnapshot(restored))).toEqual(restored);
       if(restored.phase==='movement') {
         expect(restored.cursor.pathIndex).toBe(1);

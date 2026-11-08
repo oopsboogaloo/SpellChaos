@@ -13,7 +13,6 @@ import { beginAttack,stepAttack } from '../packages/engine/src/combat.js';
 import { addCondition,applyDamage } from '../packages/engine/src/damage.js';
 import { cleanupDeaths } from '../packages/engine/src/lifecycle.js';
 import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snapshot.js';
-import { migrateCombatSnapshot,migrateCastingSnapshot } from '../packages/persistence/src/migration.js';
 import { projectView } from '../packages/views/src/index.js';
 const h=(q:number,r:number)=>({q,r});
 function fresh(seed=5):GameState {const s=createMatch('casting',['a','b'],seed);s.creatures[0]!.centre=h(5,5);s.creatures[1]!.centre=h(10,5);for(const c of s.creatures)c.spellbook=[...spellFamilies];return s;}
@@ -215,11 +214,7 @@ describe('casting portability and privacy',()=>{
   s=start(s);while(!s.casts.length)s=advanceAtomicStep(s).state;
   expect(projectView(s,'a').casts).toHaveLength(1);expect(projectView(s,'b').casts).toEqual([]);
  });
- it('explicitly migrates legacy combat saves without silently changing their version',()=>{
-  const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCombatSnapshot(text);expect(s.schemaVersion).toBe(27);expect(s.creatures[0]!.spellbook).toHaveLength(13);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
-});
 
 it('Magic Attack rolls independently against Int and spreads once across teams without chaining',()=>{
  const s=fresh();s.creatures[0]!.centre=h(5,5);s.creatures[1]!.centre=h(10,5);s.creatures[1]!.family='Cat';
@@ -303,9 +298,9 @@ it('upgrading an existing friendly binding preserves its already-planned orders'
  let s=fresh();s.creatures.push(createCreature('target','a',h(7,5),{intelligence:0,bindingLevel:1}));s=submit(s,'target',null,[h(8,5)]);direct(s,cast('Bind',{targetId:'target',level:8}));s.phase='late';s.random.resolution=1;completeCast(s,s.casts[0]!.id,[]);
  expect(s.creatures[2]!.bindingLevel).toBe(8);expect(s.orders.find(o=>o.creatureId==='target')!.path).toEqual([h(8,5)]);
 });
-it('permanent planning, Quick, Slow and ritual fixtures migrate explicitly and continue after restore',()=>{
+it('permanent planning, Quick, Slow and ritual fixtures continue identically after restore',()=>{
  for(const name of ['planning','slow','ritual','quick']){
-  const text=readFileSync(`tests/fixtures/casting-v4-${name}.json`,'utf8').trim();expect(()=>restoreSnapshot(text)).toThrow();const s=migrateCastingSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  const text=readFileSync(`tests/fixtures/casting-${name}.json`,'utf8').trim();const s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   const ready=s.phase==='planning'?start(s):s;expect(run(ready,true)).toEqual(run(ready));
  }
 });
@@ -333,7 +328,7 @@ it.each([
  if(spell==='Summon Serpent')expect(c.attacks[0]!.shots[0]!.secondary[0]!.potency).toBe(2);
  if(spell==='Summon Dragon'){expect(c.height).toBe('air');expect(c.attacks[0]!.range).toBe(3);expect(c.attacks[0]!.shots[0]!.components[0]!.type).toBe('fire');}
 });
-it('allocates summoned creature IDs without colliding with existing scenario or migrated IDs',()=>{
+it('allocates summoned creature IDs without colliding with existing scenario IDs',()=>{
  const s=fresh();s.creatures.push(createCreature('summon-1','b',h(15,10)));direct(s,summon());s.random.resolution=1;completeCast(s,s.casts[0]!.id,[]);
  expect(new Set(s.creatures.map(c=>c.id)).size).toBe(s.creatures.length);expect(s.creatures.at(-1)!.id).toBe('summon-2');
 });

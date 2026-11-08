@@ -1,4 +1,3 @@
-import {migrateOnHitSnapshot} from '../packages/persistence/src/migration.js';
 import {expect,it} from 'vitest';
 import {createMatch,createCreature} from '../packages/engine/src/index.js';
 import {summonProfile} from '../packages/content/src/summons.js';
@@ -46,8 +45,8 @@ it('new on-hit state rejects negative values and reanimation does not gain life 
  expect(createCreature('body','a',{q:10,r:10},reanimatedProfile(wraith,false)).lifeDrain).toBe(0);
 });
 it.each(['bristles','drain'])('permanent %s fixture resumes exactly through all attack boundaries',async name=>{
- const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/onhit-v12-${name}.json`,'utf8').trim();
- const a=migrateOnHitSnapshot(text);let b=restoreSnapshot(encodeSnapshot(a));expect(()=>restoreSnapshot(text)).toThrow();
+ const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/onhit-${name}.json`,'utf8').trim();
+ const a=restoreSnapshot(text);let b=restoreSnapshot(encodeSnapshot(a));
  while(a.pendingAttack){const ea:Event[]=[],eb:Event[]=[];stepAttack(a,ea);b=restoreSnapshot(encodeSnapshot(b));stepAttack(b,eb);expect(ea).toEqual(eb);expect(encodeSnapshot(a)).toBe(encodeSnapshot(b));}
  expect(a.creatures.find(c=>c.id==='attacker')!.hp).toBe(name==='bristles'?9:8);
 });
@@ -58,11 +57,4 @@ it('Wraith can drain a living plant while its physical immunity prevents Bristle
 it('Bristles incapacitation stops remaining compound-attack bites without another retaliation loop',()=>{
  const s=setup(),hydra=createCreature('hydra','a',{q:14,r:10},{...summonProfile('Summon Serpent',7)!,hp:2}),thorn=createCreature('thorn','b',{q:10,r:10},{...summonProfile('Summon Plant',3)!,incapacitated:true});hydra.attacks[0]!.shots.forEach(shot=>shot.crit=0);s.creatures.push(hydra,thorn);
  const result=strike(s,hydra,thorn);expect(result.s.creatures.find(c=>c.id==='hydra')!.hp).toBe(0);expect(result.s.creatures.find(c=>c.id==='thorn')!.hp).toBe(11);expect(result.events.filter(e=>e.type==='AttackHit')).toHaveLength(2);
-});
-it('schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work',async()=>{
- const {readFileSync}=await import('node:fs');const {migrateAttackTraitContent}=await import('../packages/persistence/src/migration.js');
- const text=readFileSync('tests/fixtures/traits-content-v3-guard.json','utf8'),old=JSON.parse(text),next=migrateAttackTraitContent(text);
- expect(()=>restoreSnapshot(text)).toThrow();expect(next.schemaVersion).toBe(27);expect(next.random).toEqual(old.random);expect(next.pendingAttack).toEqual(old.pendingAttack);
- expect(next.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null,canMarkQuarry:false,quarryTargetId:null,bristles:0,lifeDrain:0})));
- expect(restoreSnapshot(encodeSnapshot(next))).toEqual(next);
 });

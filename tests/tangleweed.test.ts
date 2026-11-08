@@ -12,7 +12,6 @@ import { projectView } from '../packages/views/src/index.js';
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 import { startScenarioTurn } from '../packages/scenario/src/casting.js';
 import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snapshot.js';
-import { migrateDarknessSnapshot,migrateOrdersSnapshot,migrateTangleweedSnapshot } from '../packages/persistence/src/migration.js';
 import { manaCost,castingTime,alignment } from '../packages/content/src/spells.js';
 import type { GameState,Order } from '../packages/domain/src/state.js';
 import type { CastAction } from '../packages/domain/src/spells.js';
@@ -100,11 +99,7 @@ describe('Tangleweed destruction and saves',()=>{
  it('rejects malformed terrain, hold and movement references without changing the original',()=>{
   const s=fresh();patch(s);const original=encodeSnapshot(s);for(const mutate of [(t:GameState)=>{t.tangleweed[0]!.cells[0]!.hp=4;},(t:GameState)=>{t.tangleweed[0]!.casterId='missing';},(t:GameState)=>{t.weedHolds.push({creatureId:'wizard-0',patchId:'missing',hex:h(7,5)});},(t:GameState)=>{t.movementSpent.push({creatureId:'missing',amount:1});}]){const t=structuredClone(s);mutate(t);expect(()=>restoreSnapshot(JSON.stringify(t))).toThrow();}expect(encodeSnapshot(s)).toBe(original);
  });
- it('migrates v8 cloud state and v2 movement cost explicitly',()=>{
-  const text=readFileSync('tests/fixtures/darkness-v8-active.json','utf8'),old=JSON.parse(text),s=migrateDarknessSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(s.darkness).toEqual(old.darkness);expect(s.random).toEqual(old.random);expect(s.tangleweed).toEqual([]);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
-  const moving=migrateOrdersSnapshot(readFileSync('tests/fixtures/orders-v2-movement.json','utf8'));expect(moving.movementSpent[0]!.amount).toBe(moving.cursor.pathIndex);
- });
- it('restores every atomic boundary for generated casts and seeds',()=>{
+  it('restores every atomic boundary for generated casts and seeds',()=>{
   fc.assert(fc.property(fc.integer({min:1,max:10000}),fc.integer({min:1,max:8}),(seed,level)=>{let s=fresh();s.random.resolution=seed;s=draft(s,'wizard-0',weed(level,Array.from({length:level},(_,i)=>h(6+i%4,6+Math.floor(i/4)))));s=startScenarioTurn(s);expect(run(s,true)).toEqual(run(s));}),{seed:9001,numRuns:20});
  });
 });
@@ -118,9 +113,9 @@ it('checks a new summon’s contact without granting it an action',()=>{
 it('teleporting into weed checks restraint without a Guard reaction',()=>{
  const s=fresh(),c=s.creatures[0]!;patch(s);s.phase='early';s.random.resolution=1;startCast(s,c,{type:'Cast',spell:'Teleport',level:1,variant:'bound',ground:h(7,5),targetId:null,side:'left'},[]);expect(c.centre).toEqual(h(7,5));expect(s.weedAttempts).toEqual([c.id]);expect(s.reactions).toEqual([]);
 });
-it.each(['planning','casting','movement','held','attack'])('preserves the immutable v9 %s fixture and continues identically',name=>{
- const text=readFileSync(`tests/fixtures/tangleweed-v9-${name}.json`,'utf8').trim(),s=migrateTangleweedSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
+it.each(['planning','casting','movement','held','attack'])('permanent Tangleweed %s fixture restores and continues identically',name=>{
+ const text=readFileSync(`tests/fixtures/tangleweed-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
 });
 it('preserves spent movement even if the remaining terrain is destroyed mid-path',()=>{
- let s=migrateTangleweedSnapshot(readFileSync('tests/fixtures/tangleweed-v9-movement.json','utf8'));expect(s.movementSpent.find(m=>m.creatureId==='wizard-0')!.amount).toBe(3);damageWeed(s,[h(7,5)],[{type:'fire',amount:3}],[],'wizard-1');const restored=restoreSnapshot(encodeSnapshot(s));expect(restored.movementSpent).toEqual(s.movementSpent);expect(run(restored,true)).toEqual(run(s));
+ let s=restoreSnapshot(readFileSync('tests/fixtures/tangleweed-movement.json','utf8'));expect(s.movementSpent.find(m=>m.creatureId==='wizard-0')!.amount).toBe(3);damageWeed(s,[h(7,5)],[{type:'fire',amount:3}],[],'wizard-1');const restored=restoreSnapshot(encodeSnapshot(s));expect(restored.movementSpent).toEqual(s.movementSpent);expect(run(restored,true)).toEqual(run(s));
 });

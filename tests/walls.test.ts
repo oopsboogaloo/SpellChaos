@@ -1,5 +1,3 @@
-import { stateSchema as wallLegacySchema } from '../packages/domain/src/legacy-v10.js';
-import { migrateWallSnapshot } from '../packages/persistence/src/migration.js';
 import { describe,it,expect } from 'vitest';
 import fc from 'fast-check';
 import { readFileSync } from 'node:fs';
@@ -14,7 +12,6 @@ import { projectView } from '../packages/views/src/index.js';
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 import { startScenarioTurn } from '../packages/scenario/src/casting.js';
 import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snapshot.js';
-import { migrateTangleweedSnapshot } from '../packages/persistence/src/migration.js';
 import { alignment,successChance } from '../packages/content/src/spells.js';
 import { edge,clearSight,clearProjectile,type Material } from '../packages/geometry/src/walls.js';
 import { boundaryEdges } from '../packages/geometry/src/wall-layout.js';
@@ -132,10 +129,7 @@ describe('Wall persistence and deterministic interactions',()=>{
  it('rejects invalid owners, crossing records and damage without replacing a save',()=>{
   const s=fresh();wall(s);const text=encodeSnapshot(s);for(const mutate of [(t:GameState)=>{t.walls[0]!.casterId='missing';},(t:GameState)=>{t.wallCrossings.push({creatureId:'missing',networkId:'wall'});},(t:GameState)=>{t.destroyedWallIds.push('wall');}]){const t=structuredClone(s);mutate(t);expect(()=>restoreSnapshot(JSON.stringify(t))).toThrow();}expect(()=>damageWall(s,'wall',[{type:'physical',amount:-1}],[])).toThrow();expect(encodeSnapshot(s)).toBe(text);
  });
- it('explicitly migrates v9 while retaining weed holds and paid movement',()=>{
-  const text=readFileSync('tests/fixtures/tangleweed-v9-held.json','utf8'),old=JSON.parse(text),s=migrateTangleweedSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(s.weedHolds).toEqual(old.weedHolds);expect(s.movementSpent).toEqual(old.movementSpent);expect(s.random).toEqual(old.random);expect(s.wallCrossings).toEqual([]);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
- });
- it('replays all material casts identically through every saved boundary across seeds',()=>{
+  it('replays all material casts identically through every saved boundary across seeds',()=>{
   fc.assert(fc.property(fc.integer({min:1,max:10000}),fc.integer({min:1,max:8}),(seed,level)=>{let s=fresh();s.random.resolution=seed;s=draft(s,'wizard-0',castWall(level));s=startScenarioTurn(s);expect(run(s,true)).toEqual(run(s));}),{seed:10001,numRuns:24});
  });
 });
@@ -154,8 +148,8 @@ it('remembers network crossings through re-entry and clears the limit next turn'
 it('refreshes wood burning without multiplying its tick damage',()=>{
  const s=fresh();wall(s);damageStructure(s,{kind:'wall',id:'wall'},[{type:'fire',amount:1}],[],'wizard-0',true);s.turn=2;damageStructure(s,{kind:'wall',id:'wall'},[{type:'fire',amount:1}],[],'wizard-0',true);expect(s.walls[0]!.burning).toEqual({startsTurn:2,endsTurn:4});ongoingDamage(s,[]);expect(s.walls[0]!.hp).toBe(25);s.turn=3;ongoingDamage(s,[]);expect(s.walls[0]!.hp).toBe(23);
 });
-it.each(['planning','casting','crossing','interception','resolved'])('preserves the v10 %s fixture and identical continuation',name=>{
- const text=readFileSync(`tests/fixtures/walls-v10-${name}.json`,'utf8').trim(),s=migrateWallSnapshot(text);expect(wallLegacySchema.parse(JSON.parse(text))).toEqual(JSON.parse(text));expect(()=>restoreSnapshot(text)).toThrow();const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
+it.each(['planning','casting','crossing','interception','resolved'])('permanent Wall %s fixture restores and continues identically',name=>{
+ const text=readFileSync(`tests/fixtures/walls-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
 });
 
 it('refreshing a burning creature also retains its already-due tick',()=>{

@@ -1,4 +1,3 @@
-import {migrateFlightDetectionSnapshot} from '../../packages/persistence/src/migration.js';
 import type {Event} from '../../packages/engine/src/events.js';
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
@@ -9,7 +8,7 @@ import {projectView,projectEvents} from '../../packages/views/src/index.js';
 
 for(const name of ['airborne-transit','landing-guard','haunt-reveal','contact-reveal','spit-pending','bobby-attack']){
  test(`Node and Chromium agree on ${name} at every saved boundary`,async({page})=>{
-  const initial=encodeSnapshot(migrateFlightDetectionSnapshot(readFileSync(`tests/fixtures/flight-v25-${name}.json`,'utf8')));
+  const initial=encodeSnapshot(restoreSnapshot(readFileSync(`tests/fixtures/flight-${name}.json`,'utf8')));
   let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);const events:Event[]=[];
   for(let n=0;!['planning','ended'].includes(s.phase);n++){
    if(n>1000)throw new Error('STEP_LIMIT');

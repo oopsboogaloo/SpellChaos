@@ -53,7 +53,7 @@ Rejected alternatives:
 
 ### 3.2 Measured engine cost
 
-Measured on this repository at `6776411` (Node 22, cold process, `tests/fixtures/mounts-v26-full-roster.json`: 2 players, 42 creatures, all 40 MVP profiles acting):
+Measured on this repository at `6776411` (Node 22, cold process, `tests/fixtures/mounts-full-roster.json`: 2 players, 42 creatures, all 40 MVP profiles acting):
 
 | Operation | Result |
 | --- | --- |

@@ -8,8 +8,6 @@ import { startCast, completeCast, interruptCast, selectOrigin } from '../package
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 import { damageCorpse, damageMultiplier } from '../packages/engine/src/damage.js';
 import { encodeSnapshot, restoreSnapshot, canonical } from '../packages/persistence/src/snapshot.js';
-import { migrateCastingSnapshot, migrateEnvironmentSnapshot } from '../packages/persistence/src/migration.js';
-import { stateSchema as legacySchema } from '../packages/domain/src/legacy-v4.js';
 import { summonProfile } from '../packages/content/src/summons.js';
 import { projectView } from '../packages/views/src/index.js';
 import type { Creature, GameState } from '../packages/domain/src/state.js';
@@ -126,9 +124,9 @@ describe('Reanimate body and casting rules',()=>{
 });
 
 describe('reanimation persistence and permitted views',()=>{
- it.each(['planning','casting','restored'])('explicitly migrates the published v5 %s fixture and preserves continuation',name=>{
-  const text=readFileSync(`tests/fixtures/reanimation-v5-${name}.json`,'utf8').trim();
-  expect(()=>restoreSnapshot(text)).toThrow();const s=migrateEnvironmentSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+ it.each(['planning','casting','restored'])('permanent reanimation %s fixture restores and continues identically',name=>{
+  const text=readFileSync(`tests/fixtures/reanimation-${name}.json`,'utf8').trim();
+  const s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   const ready=s.phase==='planning'?start(s):s;expect(run(ready,true)).toEqual(run(ready));
  });
  it('rejects negative or non-finite corpse exposure without changing skeletal state',()=>{
@@ -143,14 +141,7 @@ describe('reanimation persistence and permitted views',()=>{
    if(late){const next=start(direct.state);expect(run(next,true)).toEqual(run(next));}
   }),{seed:6001,numRuns:25});
  },30000);
- it('explicitly migrates the frozen v4 fixture without altering RNG or corpse data',()=>{
-  const text=readFileSync('tests/fixtures/casting-v4.json','utf8').trim();const old=legacySchema.parse(JSON.parse(text));
-  expect(canonical(old)).toBe(text);expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateCastingSnapshot(text);expect(s.schemaVersion).toBe(27);expect(s.random).toEqual(old.random);expect(s.corpses).toEqual(old.corpses);
-  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
-  expect(()=>migrateCastingSnapshot(encodeSnapshot(s))).toThrow();
- });
- it('rejects malformed body attack references and pending corpse references transactionally',()=>{
+  it('rejects malformed body attack references and pending corpse references transactionally',()=>{
   let s=start(draft(setup()));while(!s.casts.length)s=advanceAtomicStep(s).state;
   const original=encodeSnapshot(s),bad=JSON.parse(original);bad.casts[0].action.targetId='missing-corpse';
   expect(()=>restoreSnapshot(JSON.stringify(bad))).toThrow();bad.casts[0].action.targetId='corpse:body';bad.creatures[2].reanimationAttackIds=['missing-attack'];

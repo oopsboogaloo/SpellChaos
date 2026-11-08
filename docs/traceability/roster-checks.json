@@ -112,8 +112,7 @@
       "testNames": [
         "vine uses two distinct tendrils at reach two against equal-sized targets and cannot take a third hold",
         "Spectre Wither requires damage and retains reversible illusion provenance (%s)",
-        "%s level %i pays from its own mana, respects its cap and restores its pending cast",
-        "explicitly migrates content v2 without changing creature data, RNG, pending attack or phase activity"
+        "%s level %i pays from its own mana, respects its cap and restores its pending cast"
       ]
     },
     {
@@ -126,8 +125,7 @@
         "Bristles still retaliates against a lethal damaging hit, and illusion retaliation reverses",
         "Wraith drains only damaging hits on a living real target (%s)",
         "permanent %s fixture resumes exactly through all attack boundaries",
-        "Bristles incapacitation stops remaining compound-attack bites without another retaliation loop",
-        "schema-11 content-v3 migration supplies neutral on-hit traits and preserves pending work"
+        "Bristles incapacitation stops remaining compound-attack bites without another retaliation loop"
       ]
     },
     {
@@ -140,8 +138,7 @@
         "selection costs the normal action and survives every atomic boundary and the next turn",
         "changing quarry replaces the bonus; losing a target clears it without selecting another",
         "the selected bonus affects production hit rolls, not merely the preview",
-        "permanent %s fixture resumes identically at every atomic boundary",
-        "schema-12 migration preserves existing on-hit state without granting Marked Quarry"
+        "permanent %s fixture resumes identically at every atomic boundary"
       ]
     },
     {
@@ -156,7 +153,6 @@
         "Double Action cannot bypass the fire/reload exclusion",
         "real explosions finish after controller death; dispelled illusion attacks stop (%s)",
         "permanent %s fixture resumes identically through every atomic step",
-        "schema-13 migration retains quarry state and grants no reload capability",
         "owner views expose independent reload state while opponents receive no private readiness or quarry state"
       ]
     },
@@ -169,8 +165,7 @@
       "testNames": [
         "Siege Catapult doubles structure damage once per segment without doubling creature damage",
         "illusory siege shots cannot damage structures but still damage intelligent creatures",
-        "permanent mid-impact fixture resumes without repeating structure damage",
-        "legacy validator rejects new structure abilities instead of silently changing old saves"
+        "permanent mid-impact fixture resumes without repeating structure damage"
       ]
     },
     {
@@ -250,8 +245,7 @@
         "Pounce rechecks the selected target at its current footprint without substitution",
         "forced movement clears approach history",
         "illusory Pounce damage reverses for survivors",
-        "permanent %s fixture resumes identically at every atomic boundary",
-        "schema-19 migration preserves transit without granting Pounce or history"
+        "permanent %s fixture resumes identically at every atomic boundary"
       ]
     },
     {
@@ -267,8 +261,7 @@
         "Shove interrupts an immobile cast exactly once without refunding spent mana",
         "Shove clears a Cougar approach and marks actual movement",
         "illusory Shove restores damage without rewinding resolved relocation",
-        "permanent %s Shove fixture restores every boundary without a second push",
-        "schema-20 migration preserves Cougar %s and grants no Shove"
+        "permanent %s Shove fixture restores every boundary without a second push"
       ]
     },
     {
@@ -337,8 +330,7 @@
         "early Spores sleep lasts through the late phase and prevents intervening movement",
         "late Spores persists into next turn, then permits plans after the next Early phase",
         "Spores uses Con resistance instead of Int",
-        "damage wakes Spore sleep, but zero damage does not",
-        "schema-22 Sleep keeps its historical turn expiry without inferred phase timing"
+        "damage wakes Spore sleep, but zero damage does not"
       ]
     },
     {
@@ -481,7 +473,6 @@
       "testNames": [
         "the full roster scenario is a reproducible legal production setup for all 40 MVP profiles",
         "permanent %s fixture restores every atomic step with exact continuation",
-        "schema-25 %s migrates without granting mounting or Dive",
         "D12 no-space death cleanup itself round-trips before replacing the current atomic state"
       ]
     }

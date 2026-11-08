@@ -5,7 +5,6 @@ import {summonProfile} from '../packages/content/src/summons.js';
 import {startScenarioTurn} from '../packages/scenario/src/casting.js';
 import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
 import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import {migrateReloadSnapshot,migrateSiegeSnapshot} from '../packages/persistence/src/migration.js';
 import type {GameState} from '../packages/domain/src/state.js';
 import type {Event} from '../packages/engine/src/events.js';
 function setup(illusion=false){
@@ -31,18 +30,11 @@ it('destroyed walls remain destroyed across mid-attack restore and are not struc
 it('structure multiplier validation rejects unsupported values',()=>{
  const raw=JSON.parse(encodeSnapshot(setup()));raw.creatures.find((c:{id:string})=>c.id==='siege').attacks[0].structureMultiplier=3;expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();
 });
-it.each(['firing','guard','reload-planning','refire-planning'])('schema 14 %s migration preserves readiness, pending effects and random state',name=>{
- const text=readFileSync(`tests/fixtures/reload-v14-${name}.json`,'utf8'),old=JSON.parse(text),s=migrateReloadSnapshot(text);
- expect(s.creatures).toEqual(old.creatures);expect(s.random).toEqual(old.random);expect(s.pendingAttack).toEqual(old.pendingAttack);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
-});
-it('legacy validator rejects new structure abilities instead of silently changing old saves',()=>{
- const old=JSON.parse(readFileSync('tests/fixtures/reload-v14-firing.json','utf8'));old.creatures.find((c:{id:string})=>c.id==='siege').attacks[0].structureMultiplier=2;expect(()=>migrateReloadSnapshot(JSON.stringify(old))).toThrow();
-});
 it.each([false,true])('siege damage to constructed Tangleweed respects illusion restrictions (%s)',illusion=>{
  const s=setup(illusion);s.tangleweed.push({id:'weed',casterId:'wizard-1',level:8,createdTurn:1,endsTurn:9,cells:[{hex:{q:15,r:5},hp:24}]});
  const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.state.tangleweed[0]!.cells[0]!.hp).toBe(illusion?24:10);
 });
 it('permanent mid-impact fixture resumes without repeating structure damage',()=>{
- const text=readFileSync('tests/fixtures/siege-v15-impact.json','utf8').trim(),s=migrateSiegeSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(s.walls[0]!.hp).toBe(15);
+ const text=readFileSync('tests/fixtures/siege-impact.json','utf8').trim(),s=restoreSnapshot(text);expect(s.walls[0]!.hp).toBe(15);
  const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.state.walls[0]!.hp).toBe(15);expect(a.events.some(e=>e.type==='WallDamaged')).toBe(false);
 });

@@ -151,11 +151,9 @@
     {
       "id": "REANIMATE-017",
       "requirement": "explicitly migrates the frozen v4 fixture without altering RNG or corpse data",
-      "status": "verified",
+      "status": "withdrawn: pre-release saves have no migrations (owner decision 2026-11-07)",
       "testFile": "tests/reanimation.test.ts",
-      "testNames": [
-        "explicitly migrates the frozen v4 fixture without altering RNG or corpse data"
-      ]
+      "testNames": []
     },
     {
       "id": "REANIMATE-018",
@@ -520,11 +518,9 @@
     {
       "id": "SWARM-033",
       "requirement": "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness",
-      "status": "verified",
+      "status": "withdrawn: pre-release saves have no migrations (owner decision 2026-11-07)",
       "testFile": "tests/swarms.test.ts",
-      "testNames": [
-        "explicitly migrates v5 without rewriting the frozen fixture or consuming randomness"
-      ]
+      "testNames": []
     },
     {
       "id": "ILLUSION-001",
@@ -726,11 +722,11 @@
     },
     {
       "id": "ILLUSION-023",
-      "requirement": "preserves the immutable v7 %s fixture and exact continuation",
+      "requirement": "permanent illusion %s fixture restores with exact continuation",
       "status": "verified",
       "testFile": "tests/illusions.test.ts",
       "testNames": [
-        "preserves the immutable v7 %s fixture and exact continuation"
+        "permanent illusion %s fixture restores with exact continuation"
       ]
     },
     {
@@ -898,11 +894,9 @@
     {
       "id": "DARKNESS-014",
       "requirement": "explicitly migrates v7 without changing RNG or pending attacks",
-      "status": "verified",
+      "status": "withdrawn: pre-release saves have no migrations (owner decision 2026-11-07)",
       "testFile": "tests/darkness.test.ts",
-      "testNames": [
-        "explicitly migrates v7 without changing RNG or pending attacks"
-      ]
+      "testNames": []
     },
     {
       "id": "DARKNESS-015",
@@ -951,11 +945,11 @@
     },
     {
       "id": "DARKNESS-020",
-      "requirement": "retains the immutable v8 %s fixture and resumes every boundary exactly",
+      "requirement": "permanent Darkness %s fixture resumes every boundary exactly",
       "status": "verified",
       "testFile": "tests/darkness.test.ts",
       "testNames": [
-        "retains the immutable v8 %s fixture and resumes every boundary exactly"
+        "permanent Darkness %s fixture resumes every boundary exactly"
       ]
     },
     {
@@ -1123,11 +1117,9 @@
     {
       "id": "TANGLEWEED-018",
       "requirement": "migrates v8 cloud state and v2 movement cost explicitly",
-      "status": "verified",
+      "status": "withdrawn: pre-release saves have no migrations (owner decision 2026-11-07)",
       "testFile": "tests/tangleweed.test.ts",
-      "testNames": [
-        "migrates v8 cloud state and v2 movement cost explicitly"
-      ]
+      "testNames": []
     },
     {
       "id": "TANGLEWEED-019",
@@ -1185,11 +1177,11 @@
     },
     {
       "id": "TANGLEWEED-025",
-      "requirement": "preserves the immutable v9 %s fixture and continues identically",
+      "requirement": "permanent Tangleweed %s fixture restores and continues identically",
       "status": "verified",
       "testFile": "tests/tangleweed.test.ts",
       "testNames": [
-        "preserves the immutable v9 %s fixture and continues identically"
+        "permanent Tangleweed %s fixture restores and continues identically"
       ]
     },
     {
@@ -1402,11 +1394,9 @@
     {
       "id": "WALL-024",
       "requirement": "explicitly migrates v9 while retaining weed holds and paid movement",
-      "status": "verified",
+      "status": "withdrawn: pre-release saves have no migrations (owner decision 2026-11-07)",
       "testFile": "tests/walls.test.ts",
-      "testNames": [
-        "explicitly migrates v9 while retaining weed holds and paid movement"
-      ]
+      "testNames": []
     },
     {
       "id": "WALL-025",
@@ -1491,11 +1481,11 @@
     },
     {
       "id": "WALL-034",
-      "requirement": "preserves the v10 %s fixture and identical continuation",
+      "requirement": "permanent Wall %s fixture restores and continues identically",
       "status": "verified",
       "testFile": "tests/walls.test.ts",
       "testNames": [
-        "preserves the v10 %s fixture and identical continuation"
+        "permanent Wall %s fixture restores and continues identically"
       ]
     },
     {
