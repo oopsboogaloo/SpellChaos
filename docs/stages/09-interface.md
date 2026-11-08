@@ -97,3 +97,23 @@ Stage 9 remains partial: improve targeting previews/inspection and saved-editor
 hydration, provide filtered logs/replay and planning timers, and finish full-match,
 physical-input and visual acceptance. Terrain and movement controls still use
 coordinate entry as an accessible alternative to board interactions.
+
+## Event log, planning timer and difficulty
+
+The worker records the human player's permitted events (`projectEvents`) per turn and
+sends the most recent 20 turns with each view. The Event log panel writes them as plain
+sentences, hides bookkeeping events unless "Show every step" is ticked, and lets earlier
+turns be reviewed. "Resolve turn" plays the remaining resolution at once. The log is held
+in memory and starts empty after a reload or import.
+
+New match now chooses AI difficulty (easy, standard, hard) and a planning timer (off, 30,
+60, 90 or 180 seconds; 90 by default, as specified). Both are saved beside the local
+checkpoint as session settings, not game state. When the timer reaches zero, AI seats
+submit, then the engine's DeadlineReached rules apply: a player who drafted is locked with
+those drafts, one who did not gets Total Defence and a missed turn. The countdown runs in
+the page, so it restarts from full after a reload.
+
+Browser coverage: a resolved turn appears in the log and an earlier turn can be reviewed;
+the timer counts down and resolves the turn when it expires (fake clock); Off shows no
+countdown. Remaining: richer previews and inspection, editor hydration, replay seeking with
+board positions, and full-match acceptance on physical devices.

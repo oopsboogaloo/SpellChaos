@@ -70,3 +70,44 @@ export async function loadLocal(): Promise<{ state: GameState; recovered: boolea
   if (records.some(r => r !== undefined)) throw new Error('NO_VALID_LOCAL_SAVE');
   return null;
 }
+export type LocalSettings = { difficulty: 'easy' | 'standard' | 'hard'; timerSeconds: number };
+export const DEFAULT_SETTINGS: LocalSettings = { difficulty: 'standard', timerSeconds: 90 };
+/** Session settings live beside the checkpoint; they are not game state. */
+export async function saveSettings(settings: LocalSettings): Promise<void> {
+  const db = await open();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.objectStore(storeName).put(JSON.stringify(settings), 'settings');
+    });
+  } finally {
+    db.close();
+  }
+}
+export async function loadSettings(): Promise<LocalSettings> {
+  const db = await open();
+  try {
+    const text = await new Promise<unknown>((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly'),
+        request = tx.objectStore(storeName).get('settings');
+      tx.oncomplete = () => resolve(request.result);
+      tx.onerror = () => reject(tx.error);
+    });
+    const parsed = typeof text === 'string' ? JSON.parse(text) : {};
+    return {
+      difficulty: ['easy', 'standard', 'hard'].includes(parsed.difficulty)
+        ? parsed.difficulty
+        : DEFAULT_SETTINGS.difficulty,
+      timerSeconds:
+        Number.isInteger(parsed.timerSeconds) && parsed.timerSeconds >= 0
+          ? parsed.timerSeconds
+          : DEFAULT_SETTINGS.timerSeconds,
+    };
+  } catch {
+    return DEFAULT_SETTINGS;
+  } finally {
+    db.close();
+  }
+}
