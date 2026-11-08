@@ -1,97 +1,820 @@
-import {it,expect} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {beginPower,stepPower} from '../packages/engine/src/powers.js';
-import {blinkLegal} from '../packages/engine/src/blink.js';
-import {beginAttack,stepAttack,resolveCombatAction} from '../packages/engine/src/combat.js';
-import {startCast,completeCast,forceMove} from '../packages/engine/src/casting.js';
-import {applyDamage,addCondition} from '../packages/engine/src/damage.js';
-import {cleanupDeaths} from '../packages/engine/src/lifecycle.js';
-import {active} from '../packages/engine/src/status.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {reanimatedProfile} from '../packages/engine/src/reanimation.js';
-import {projectView,projectEvents} from '../packages/views/src/index.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import type {GameState,Order,Creature} from '../packages/domain/src/state.js';
-import type {PowerAction} from '../packages/domain/src/combat.js';
-import type {Event} from '../packages/engine/src/events.js';
-const h=(q:number,r=5)=>({q,r});
-const profileRows=[['fey','Summon Cat',5,'Fey leopard'],['mushroom','Summon Plant',1,'Walking mushroom'],['banshee','Summon Spirit',6,'Banshee']] as const;
-type Profile=typeof profileRows[number][0];
-const actor=(s:GameState)=>s.creatures.find(c=>c.id==='actor')!;
-const target=(s:GameState)=>s.creatures.find(c=>c.id==='target')!;
-function setup(name:Profile='fey'){
- const row=profileRows.find(r=>r[0]===name)!,s=createMatch('blink-spores-wail',['a','b'],456);
- s.creatures[0]!.centre=h(2,2);s.creatures[1]!.centre=h(20,15);
- s.creatures.push(createCreature('actor','a',h(6),summonProfile(row[1],row[2])!),createCreature('target','b',h(7),{con:6,intelligence:1}));
- return s;
+import { it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createMatch, createCreature, applyCommand } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { beginPower, stepPower } from '../packages/engine/src/powers.js';
+import { blinkLegal } from '../packages/engine/src/blink.js';
+import { beginAttack, stepAttack, resolveCombatAction } from '../packages/engine/src/combat.js';
+import { startCast, completeCast, forceMove } from '../packages/engine/src/casting.js';
+import { applyDamage, addCondition } from '../packages/engine/src/damage.js';
+import { cleanupDeaths } from '../packages/engine/src/lifecycle.js';
+import { active } from '../packages/engine/src/status.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { reanimatedProfile } from '../packages/engine/src/reanimation.js';
+import { projectView, projectEvents } from '../packages/views/src/index.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import type { GameState, Order, Creature } from '../packages/domain/src/state.js';
+import type { PowerAction } from '../packages/domain/src/combat.js';
+import type { Event } from '../packages/engine/src/events.js';
+const h = (q: number, r = 5) => ({ q, r });
+const profileRows = [
+  ['fey', 'Summon Cat', 5, 'Fey leopard'],
+  ['mushroom', 'Summon Plant', 1, 'Walking mushroom'],
+  ['banshee', 'Summon Spirit', 6, 'Banshee'],
+] as const;
+type Profile = (typeof profileRows)[number][0];
+const actor = (s: GameState) => s.creatures.find(c => c.id === 'actor')!;
+const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
+function setup(name: Profile = 'fey') {
+  const row = profileRows.find(r => r[0] === name)!,
+    s = createMatch('blink-spores-wail', ['a', 'b'], 456);
+  s.creatures[0]!.centre = h(2, 2);
+  s.creatures[1]!.centre = h(20, 15);
+  s.creatures.push(
+    createCreature('actor', 'a', h(6), summonProfile(row[1], row[2])!),
+    createCreature('target', 'b', h(7), { con: 6, intelligence: 1 }),
+  );
+  return s;
 }
-function order(s:GameState,id:string,early:Order['early']=null,late:Order['late']=null,path:Order['path']=[],blinkIndex?:number){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:s.creatures.find(c=>c.id===id)!.controller!,turn:s.turn,commandId:`order-${s.revision}`,expectedRevision:s.revision,order:{creatureId:id,path,early,late,...(blinkIndex===undefined?{}:{blinkIndex})}}).state;}
-function until(s:GameState,predicate:(s:GameState)=>boolean){for(let n=0;!predicate(s);n++){if(n>1000)throw new Error('STEP_LIMIT');s=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;}return s;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-function use(s:GameState,action:PowerAction,phase:'early'|'late'='early',seed=3){s.phase=phase;s.random.resolution=seed;const events:Event[]=[];beginPower(s,actor(s),action,events);while(s.pendingPower)stepPower(s,events);return events;}
-function pending(name:'mushroom'|'banshee',phase:'early'|'late'='early'){
- let s=setup(name),a:PowerAction=name==='mushroom'?{type:'Spores',targetId:'target'}:{type:'Wail'};
- s=order(s,'actor',phase==='early'?a:null,phase==='late'?a:null);
- s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;return s;
+function order(
+  s: GameState,
+  id: string,
+  early: Order['early'] = null,
+  late: Order['late'] = null,
+  path: Order['path'] = [],
+  blinkIndex?: number,
+) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: s.creatures.find(c => c.id === id)!.controller!,
+    turn: s.turn,
+    commandId: `order-${s.revision}`,
+    expectedRevision: s.revision,
+    order: { creatureId: id, path, early, late, ...(blinkIndex === undefined ? {} : { blinkIndex }) },
+  }).state;
 }
-function blinkTurn(path:Order['path']=[h(9),h(10),h(11),h(12)],index=0){const s=setup();target(s).centre=h(20);return startScenarioTurn(order(s,'actor',null,null,path,index));}
-it('Fey Leopard Blink replaces three movement steps and continues normally with exact reloads',()=>{const ready=blinkTurn(),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(actor(a.state).centre).toEqual(h(12));expect(actor(a.state).blinkUsedTurn).toBe(1);expect(a.events.filter(e=>e.type==='CreatureBlinked')).toHaveLength(1);expect(a.events.filter(e=>e.type==='CreatureMoved'&&e.creatureId==='actor')).toHaveLength(3);});
-it('Blink can follow ordinary steps and costs its actual distance',()=>{let s=blinkTurn([h(7),h(8),h(11)],2);s=until(s,s=>actor(s).centre.q===11);expect(s.movementSpent.find(m=>m.creatureId==='actor')!.amount).toBe(5);expect(actor(s).blinkUsedTurn).toBe(1);});
-it.each([0,4])('Blink rejects a segment of distance %i',length=>{const s=setup();target(s).centre=h(20);expect(()=>order(s,'actor',null,null,[h(6+length)],0)).toThrow('INVALID_PATH');});
-it('Blink spends normal movement allowance and cannot add free range',()=>{const s=setup();target(s).centre=h(20);expect(()=>order(s,'actor',null,null,[h(9),h(10),h(11),h(12),h(13)],0)).toThrow('MOVEMENT_BUDGET');expect(()=>order(s,'actor','Dash',null,[h(9),h(10),h(11),h(12),h(13)],0)).not.toThrow();});
-it('ordinary creatures and unmarked nonadjacent paths never gain Blink',()=>{const s=setup();delete actor(s).blink;expect(()=>order(s,'actor',null,null,[h(9)],0)).toThrow('INVALID_BLINK_ORDER');const b=setup();expect(()=>order(b,'actor',null,null,[h(9)])).toThrow('INVALID_PATH');});
-it('Blink rejects an out-of-path marker and malformed repeated markers',()=>{const s=setup();expect(()=>order(s,'actor',null,null,[h(9)],1)).toThrow('INVALID_BLINK_ORDER');const before=encodeSnapshot(s),raw=JSON.parse(before);raw.orders=[{creatureId:'actor',path:[h(9)],early:null,late:null,blinkIndex:[0,1]}];expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();expect(encodeSnapshot(s)).toBe(before);});
-it.each(['stone','crystal','fire'] as const)('Blink crosses an ordinary %s edge without crossing damage',material=>{let s=setup();target(s).centre=h(8);s.walls.push({id:'wall',edge:{a:h(7),b:h(8)},material,hp:20,maxHp:20,burning:null});const ready=startScenarioTurn(order(s,'actor',null,null,[h(9)],0)),r=run(ready,true);expect(actor(r.state).centre).toEqual(h(9));expect(actor(r.state).hp).toBe(10);});
-it('Energy stops Blink on its ray and is revalidated at execution',()=>{const s=setup();s.walls.push({id:'wall',edge:{a:h(7),b:h(8)},material:'energy',hp:20,maxHp:20,burning:null});expect(()=>order(s,'actor',null,null,[h(9)],0)).toThrow('INVALID_PATH');let ready=blinkTurn();ready=until(ready,s=>s.phase==='movement'&&s.cursor.activePath!==null);ready.walls.push({id:'wall',edge:{a:h(7),b:h(8)},material:'energy',hp:20,maxHp:20,burning:null});const r=run(ready,true);expect(actor(r.state).centre).toEqual(h(6));expect(actor(r.state).blinkUsedTurn).toBeUndefined();});
-it('Blink cannot land on a creature and never reroutes',()=>{let s=setup();target(s).centre=h(9);const r=run(startScenarioTurn(order(s,'actor',null,null,[h(9)],0)),true);expect(actor(r.state).centre).toEqual(h(6));expect(actor(r.state).blinkUsedTurn).toBeUndefined();});
-it('Blink rechecks destination occupancy after path preparation',()=>{let s=blinkTurn();s=until(s,s=>s.phase==='movement'&&s.cursor.activePath!==null);target(s).centre=h(9);const r=run(s,true);expect(actor(r.state).centre).toEqual(h(6));expect(r.events.some(e=>e.type==='MovementBlocked')).toBe(true);});
-it('Blink cannot escape restraint, Fear approach or a casting movement lock',()=>{for(const restraint of ['flag','hold','condition'] as const){const s=setup();if(restraint==='flag')actor(s).restrained=true;else if(restraint==='condition')addCondition(s,actor(s),'Restrained','target',5,2,'int');else {target(s).grappleLimbs=1;s.holds.push({grapplerId:'target',targetId:'actor',limb:0});}expect(blinkLegal(s,actor(s),h(6),h(9))).toBe(false);}const s=setup();target(s).centre=h(10);addCondition(s,actor(s),'Fear','target',5,2,'int');expect(blinkLegal(s,actor(s),h(6),h(9))).toBe(false);actor(s).conditions=[];Object.assign(actor(s),{mana:50,maxMana:50,spellbook:['Bind'],spellLevelCap:8});s.phase='early';startCast(s,actor(s),{type:'Cast',spell:'Bind',level:8,variant:'bound',targetId:'target',ground:null,side:'left'},[]);expect(blinkLegal(s,actor(s),h(6),h(9))).toBe(false);});
-it('Blink is available again next turn and its used state survives a save',()=>{let s=blinkTurn([h(9)]);s=until(s,s=>actor(s).centre.q===9);expect(actor(restoreSnapshot(encodeSnapshot(s))).blinkUsedTurn).toBe(1);expect(blinkLegal(s,actor(s),h(9),h(12))).toBe(false);s=run(s,true).state;expect(()=>order(s,'actor',null,null,[h(12)],0)).not.toThrow();});
-it('Blink itself does not trigger Guard, while a following ordinary step does',()=>{for(const ordinary of [false,true]){let s=setup();target(s).centre=h(20);s.creatures.push(createCreature('guard','b',h(ordinary?10:9,6)));s=order(s,'guard',{type:'Guard',attackId:'staff',targetId:'actor',area:[]});s=order(s,'actor',null,null,ordinary?[h(9),h(10)]:[h(9)],0);const r=run(startScenarioTurn(s),true);expect(r.events.some(e=>e.creatureId==='guard'&&['AttackHit','AttackMissed'].includes(e.type))).toBe(ordinary);}});
-it('Blink can be followed by a normal late Claws attack',()=>{let s=setup();target(s).centre=h(10);target(s).incapacitated=true;actor(s).attacks[0]!.shots[0]!.crit=0;s=order(s,'actor',null,{type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'},[h(9)],0);const ready=startScenarioTurn(s),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(8);});
-it('Blink landing contacts Tangleweed without paying skipped terrain costs',()=>{let s=setup();target(s).centre=h(20);s.tangleweed.push({id:'weed',casterId:'wizard-1',level:3,createdTurn:1,endsTurn:4,cells:[{hex:h(9),hp:9}]});s=startScenarioTurn(order(s,'actor',null,null,[h(9)],0));s=until(s,s=>actor(s).centre.q===9);expect(s.weedAttempts).toContain('actor');expect(s.movementSpent.find(m=>m.creatureId==='actor')!.amount).toBe(3);});
-it('Blink clears an approach trail and preserves voluntary movement history',()=>{let s=setup();target(s).centre=h(20);actor(s).pounce={attackId:'basic',steps:3,damage:2};s=startScenarioTurn(order(s,'actor',null,null,[h(7),h(8),h(11)],2));s=until(s,s=>actor(s).centre.q===11);expect(actor(s).pounceTrail).toBeUndefined();expect(s.moved).toContain('actor');});
-it('revising a Blink order clears its old segment marker',()=>{let s=setup();target(s).centre=h(20);s=order(s,'actor',null,null,[h(9)],0);s=order(s,'actor',null,null,[h(7),h(8),h(9)]);expect(s.orders.find(o=>o.creatureId==='actor')).not.toHaveProperty('blinkIndex');});
-it('early Spores sleep lasts through the late phase and prevents intervening movement',()=>{let s=setup('mushroom');s=order(s,'target',null,{type:'Attack',attackId:'staff',targetIds:['actor'],ground:null,side:'left'},[h(8)]);s=order(s,'actor',{type:'Spores',targetId:'target'});s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;s=advanceAtomicStep(s).state;expect(target(s).conditions[0]!.expiresAfterPhase).toEqual({turn:1,phase:'late'});const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).centre).toEqual(h(7));expect(actor(a.state).hp).toBe(4);expect(active(target(a.state))).toBe(true);expect(target(a.state).conditions).toEqual([]);});
-it('late Spores persists into next turn, then permits plans after the next Early phase',()=>{let s=pending('mushroom','late');s=advanceAtomicStep(s).state;expect(target(s).conditions[0]!.expiresAfterPhase).toEqual({turn:2,phase:'early'});s=run(s,true).state;expect(active(target(s))).toBe(false);expect(()=>order(s,'target','Defend')).toThrow('INELIGIBLE_CREATURE');s=order(s,'target',null,'Defend',[h(8)]);s=until(startScenarioTurn(s),s=>s.phase==='movement');expect(active(target(s))).toBe(true);const r=run(s,true);expect(target(r.state).centre).toEqual(h(8));});
-it('other incapacitation cannot use a known Sleep expiry to gain orders',()=>{let s=pending('mushroom','late');s=run(advanceAtomicStep(s).state,true).state;target(s).hp=0;expect(()=>order(s,'target',null,'Defend',[h(8)])).toThrow('INELIGIBLE_CREATURE');});
-it('Spores uses Con resistance instead of Int',()=>{const s=setup('mushroom');target(s).con=100;target(s).intelligence=1;const events=use(s,{type:'Spores',targetId:'target'},'early',1);expect(target(s).conditions).toEqual([]);expect(events.some(e=>e.type==='PowerResisted')).toBe(true);});
-it.each(['undead','construct','illusion'] as const)('Spores rejects a nonliving %s target',trait=>{const s=setup('mushroom');if(trait==='illusion')Object.assign(target(s),{kind:'illusion',creatorId:'wizard-1',knownIllusionBy:['b']});else target(s)[trait]=true;expect(()=>order(s,'actor',{type:'Spores',targetId:'target'})).toThrow('INVALID_POWER_TARGET');});
-it('Spores respects Int0 immunity and accepts susceptible intelligent plants',()=>{const a=setup('mushroom');target(a).intelligence=0;use(a,{type:'Spores',targetId:'target'});expect(target(a).conditions).toEqual([]);const b=setup('mushroom');target(b).plant=true;use(b,{type:'Spores',targetId:'target'});expect(active(target(b))).toBe(false);});
-it('damage wakes Spore sleep, but zero damage does not',()=>{const s=setup('mushroom');use(s,{type:'Spores',targetId:'target'});target(s).defences=[{type:'physical',multiplier:0}];applyDamage(s,target(s),[{type:'physical',amount:1}],[]);expect(active(target(s))).toBe(false);applyDamage(s,target(s),[{type:'magic',amount:1}],[]);expect(active(target(s))).toBe(true);});
-it('an allied Wake action removes Spore sleep',()=>{const s=setup('mushroom');use(s,{type:'Spores',targetId:'target'});const ally=createCreature('ally','b',h(8));s.creatures.push(ally);resolveCombatAction(s,ally,{type:'Wake',targetId:'target'},[]);expect(active(target(s))).toBe(true);});
-it('illusory Spores carries reversible phase expiry and cannot sleep Int0 targets',()=>{const s=setup('mushroom');Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});use(s,{type:'Spores',targetId:'target'});expect(target(s).conditions[0]!.illusionId).toBe('actor');expect(target(s).conditions[0]!.expiresAfterPhase).toBeDefined();reverseIllusion(s,'actor',[]);expect(active(target(s))).toBe(true);target(s).intelligence=0;use(s,{type:'Spores',targetId:'target'});expect(target(s).conditions).toEqual([]);});
-it('renewed Sleep revalidates a plan made for a known Early wake-up',()=>{let s=pending('mushroom','late');s=run(advanceAtomicStep(s).state,true).state;s=order(s,'target',null,'Defend',[h(8)]);s=until(startScenarioTurn(s),s=>s.phase==='early');target(s).conditions[0]!.expiresAfterPhase={turn:2,phase:'late'};target(s).conditions[0]!.startsTurn=2;const r=run(s,true);expect(target(r.state).centre).toEqual(h(7));});
-it('Wail resolves five area magic damage and separate Fear with a three-turn cooldown',()=>{const s=setup('banshee'),events=use(s,{type:'Wail'});expect(target(s).hp).toBe(7);expect(target(s).conditions[0]).toEqual(expect.objectContaining({kind:'Fear',potency:6,resistance:'int',endsTurn:2,requiresDamage:false}));expect(actor(s).wailReadyTurn).toBe(4);expect(events.some(e=>e.type==='AttackHit')).toBe(false);});
-it('Wail halves five magic damage with Dex and never rolls a default critical',()=>{const s=setup('banshee');target(s).intelligence=0;use(s,{type:'Wail'},'early',1);expect(target(s).hp).toBe(9);expect(target(s).conditions).toEqual([]);});
-it('Wail Fear does not require damage and Defend does not alter resistance',()=>{const a=setup('banshee'),b=setup('banshee');target(a).defences=[{type:'magic',multiplier:0}];target(b).defences=[{type:'magic',multiplier:0}];b.defending.push({creatureId:'target',phases:['early','late']});use(a,{type:'Wail'});use(b,{type:'Wail'});expect(target(a).hp).toBe(12);expect(target(a).conditions.some(e=>e.kind==='Fear')).toBe(true);expect(a.random).toEqual(b.random);expect(target(a).conditions).toEqual(target(b).conditions);});
-it.each(['undead','construct'] as const)('Wail damages a %s creature without applying living Fear',trait=>{const s=setup('banshee');target(s)[trait]=true;use(s,{type:'Wail'});expect(target(s).hp).toBe(7);expect(target(s).conditions).toEqual([]);});
-it('Wail includes allies and other heights but excludes its own body',()=>{const s=setup('banshee');target(s).controller='a';target(s).height='air';const events=use(s,{type:'Wail'});expect(target(s).hp).toBe(7);expect(actor(s).hp).toBe(10);expect(events.filter(e=>e.type==='WailResolved')).toHaveLength(1);});
-it('Wail radius uses minimum occupied distance and hits a large creature once',()=>{const s=setup('banshee');Object.assign(target(s),{centre:h(10),size:3,originalSize:3,con:6,maxHp:18,hp:18,intelligence:0});const events=use(s,{type:'Wail'});expect(target(s).hp).toBe(13);expect(events.filter(e=>e.type==='WailResolved')).toHaveLength(1);});
-it('Wail reaches through opaque walls and Darkness without leaking hidden events',()=>{const s=setup('banshee');target(s).centre=h(9);s.walls.push({id:'wall',edge:{a:h(7),b:h(8)},material:'stone',hp:20,maxHp:20,burning:null});s.darkness.push({id:'dark',casterId:'wizard-1',centre:h(9),level:1,createdTurn:1,endsTurn:2});const events=use(s,{type:'Wail'});expect(target(s).hp).toBe(7);expect(projectEvents(s,'a',events).some(e=>e.targetId==='target'||e.creatureId==='target')).toBe(false);});
-it('Wail uses area vulnerability on swarms without applying it twice',()=>{const s=setup('banshee');Object.assign(target(s),{swarm:true,originalSize:4,size:4,con:4,hp:16,maxHp:16,intelligence:0});use(s,{type:'Wail'});expect(target(s).hp).toBe(8);});
-it('Wail cooldown survives restoration and blocks turns two and three',()=>{let s=run(pending('banshee'),true).state;expect(actor(s).wailReadyTurn).toBe(4);expect(actor(restoreSnapshot(encodeSnapshot(s))).wailReadyTurn).toBe(4);expect(()=>order(s,'actor',{type:'Wail'})).toThrow('POWER_COOLDOWN');s.turn=3;expect(()=>order(s,'actor',{type:'Wail'})).toThrow('POWER_COOLDOWN');s.turn=4;expect(()=>order(s,'actor',{type:'Wail'})).not.toThrow();});
-it('an empty Wail spends its cooldown without selecting new victims',()=>{const s=setup('banshee');target(s).centre=h(15);use(s,{type:'Wail'});expect(actor(s).wailReadyTurn).toBe(4);expect(target(s).hp).toBe(12);});
-it('Double Action cannot bypass Wail cooldown between early and late slots',()=>{let s=setup('banshee');actor(s).doubleAction=true;s=order(s,'actor',{type:'Wail'},{type:'Wail'});s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;const r=run(s,true);expect(r.events.filter(e=>e.type==='PowerStarted'&&e.action==='Wail')).toHaveLength(0);expect(r.events.some(e=>e.type==='ActionInvalid'&&e.action==='Wail')).toBe(true);expect(target(r.state).hp).toBe(7);});
-it('Wail checks concentration once per damaged caster at action completion',()=>{const s=setup('banshee');Object.assign(target(s),{con:20,maxHp:40,hp:40,mana:50,maxMana:50,spellbook:['Bind'],spellLevelCap:6});s.phase='early';startCast(s,target(s),{type:'Cast',spell:'Bind',level:6,variant:'bound',targetId:'actor',ground:null,side:'left'},[]);const events=use(s,{type:'Wail'});expect(events.filter(e=>e.type==='ConcentrationChecked'&&e.creatureId==='target')).toHaveLength(1);expect(events.find(e=>e.type==='ConcentrationChecked')!.amount).toBe(5);});
-it('zero-damage Wail does not check concentration',()=>{const s=setup('banshee');Object.assign(target(s),{mana:50,maxMana:50,spellbook:['Bind'],spellLevelCap:6,defences:[{type:'magic',multiplier:0}]});s.phase='early';startCast(s,target(s),{type:'Cast',spell:'Bind',level:6,variant:'bound',targetId:'actor',ground:null,side:'left'},[]);const events=use(s,{type:'Wail'});expect(events.some(e=>e.type==='ConcentrationChecked')).toBe(false);expect(s.casts).toHaveLength(1);});
-it('a real emitted Wail continues after its source dies, while an illusory Wail stops',()=>{for(const illusion of [false,true]){const s=pending('banshee');if(illusion)Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});actor(s).hp=-10;cleanupDeaths(s,[]);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.events.some(e=>e.type==='WailResolved')).toBe(!illusion);expect(target(a.state).hp).toBe(illusion?12:7);}});
-it('wizard death collapses Spirit servants, preserves ordinary unbinding, and cannot cancel an emitted real Wail',()=>{let s=setup('banshee');s.creatures[0]!.centre=h(7,6);s.creatures[0]!.hp=-7;s.creatures.push(createCreature('ordinary','a',h(15),summonProfile('Summon Cat',1)!),createCreature('z-victim','b',h(6,7),{intelligence:0}));s=order(s,'actor',{type:'Wail'});s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.state.players[0]!.eliminated).toBe(true);expect(actor(a.state).alive).toBe(false);expect(a.state.creatures.find(c=>c.id==='ordinary')!.controller).toBeNull();expect(a.state.creatures.find(c=>c.id==='ordinary')!.alive).toBe(true);expect(a.events.some(e=>e.type==='WailResolved'&&e.targetId==='z-victim')).toBe(true);});
-it('illusory Wail reverses survivor damage and Fear but cannot affect Int0 bodies',()=>{const s=setup('banshee');Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});use(s,{type:'Wail'});expect(target(s).hp).toBe(7);expect(target(s).conditions[0]!.illusionId).toBe('actor');reverseIllusion(s,'actor',[]);expect(target(s).hp).toBe(12);expect(target(s).conditions).toEqual([]);target(s).intelligence=0;s.turn=4;use(s,{type:'Wail'});expect(target(s).hp).toBe(12);});
-it.each(profileRows)('%s keeps approved body attacks and loses special powers on reanimation',(name)=>{const s=setup(name);target(s).incapacitated=true;actor(s).attacks[0]!.shots[0]!.crit=0;s.phase='early';beginAttack(s,actor(s),{type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'},'action');while(s.pendingAttack)stepAttack(s,[]);expect(target(s).hp).toBe(name==='fey'?8:name==='mushroom'?11:9);const body=createCreature('body','a',h(15),reanimatedProfile(actor(s),false));expect(body.blink).toBeUndefined();expect(body.blinkUsedTurn).toBeUndefined();expect(body.spores).toBeUndefined();expect(body.wail).toBeUndefined();expect(body.wailReadyTurn).toBeUndefined();});
-it('the three profiles retain their approved defences and corpse restrictions',()=>{const f=setup('fey');expect(applyDamage(f,actor(f),[{type:'magic',amount:2}],[])).toBe(1);expect(applyDamage(f,actor(f),[{type:'physical',amount:2}],[])).toBe(3);const m=setup('mushroom');expect(applyDamage(m,actor(m),[{type:'cold',amount:2}],[])).toBe(1);expect(applyDamage(m,actor(m),[{type:'fire',amount:2}],[])).toBe(3);expect(actor(m).corpseEligible).toBe(false);const b=setup('banshee');expect(applyDamage(b,actor(b),[{type:'physical',amount:2}],[])).toBe(0);expect(applyDamage(b,actor(b),[{type:'cold',amount:2}],[])).toBe(1);expect(applyDamage(b,actor(b),[{type:'light',amount:2}],[])).toBe(4);expect(actor(b).corpseEligible).toBe(false);});
-it.each(profileRows)('%s Quick bound, unbound and illusion summons retain powers but wait for readiness',(name,spell,level,species)=>{for(const variant of ['bound','unbound','illusion'] as const){const s=createMatch('summon-three',['a','b'],456),wizard=s.creatures[0]!;wizard.centre=h(5);wizard.spellbook=[spell];s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell,level,variant,targetId:null,ground:h(8),side:'left'},[]);completeCast(s,s.casts[0]!.id,[]);const summoned=s.creatures.find(c=>c.species===species)!;expect(summoned.readyTurn).toBe(2);expect(name==='fey'?summoned.blink:name==='mushroom'?summoned.spores:summoned.wail).toBeDefined();expect(summoned.kind).toBe(variant==='illusion'?'illusion':'summon');}});
-it('public metadata is isolated, and opponents receive no cooldown or Blink-use history',()=>{const s=setup('banshee');actor(s).blink={range:3};actor(s).blinkUsedTurn=1;actor(s).wailReadyTurn=4;const own=projectView(s,'a').creatures.find(c=>c.id==='actor')!,other=projectView(s,'b').creatures.find(c=>c.id==='actor')!;expect(own.wailReadyTurn).toBe(4);expect(own.blinkUsedTurn).toBe(1);expect(other).not.toHaveProperty('wailReadyTurn');expect(other).not.toHaveProperty('blinkUsedTurn');other.wail!.damage=99 as 5;expect(actor(s).wail!.damage).toBe(5);expect(JSON.parse(JSON.stringify(projectView(s,'a')))).toEqual(projectView(s,'a'));});
-it.each(['blink-before','blink-after','spores-early','spores-late','wail-middle','wail-cooldown'])('permanent %s fixture resumes exactly without repeating a completed effect',name=>{const text=readFileSync(`tests/fixtures/next3-${name}.json`,'utf8').trim();let s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);if(s.phase==='planning')s=startScenarioTurn(s);expect(run(s,true)).toEqual(run(s));if(name==='blink-after')expect(run(s).events.some(e=>e.type==='CreatureBlinked')).toBe(false);if(name==='wail-middle')expect(run(s).events.some(e=>e.type==='WailResolved'&&e.targetId==='target')).toBe(false);});
-it('malformed Blink, Sleep expiry and Wail continuation snapshots are rejected transactionally',()=>{const s=pending('banshee'),before=encodeSnapshot(s);const mutations:((r:GameState)=>void)[]=[r=>{delete r.pendingPower!.origin;},r=>{delete r.pendingPower!.actionId;},r=>{r.pendingPower!.damageByTarget=[{targetId:'target',amount:5}];},r=>{actor(r).blinkUsedTurn=99;},r=>{actor(r).wailReadyTurn=0;}];for(const mutate of mutations){const raw=JSON.parse(before) as GameState;mutate(raw);expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();}const sleep=setup('mushroom');use(sleep,{type:'Spores',targetId:'target'});const raw=JSON.parse(before);raw.creatures.find((c:Creature)=>c.id==='target').conditions=target(sleep).conditions;raw.creatures.find((c:Creature)=>c.id==='target').conditions[0].expiresAfterPhase={turn:99,phase:'late'};expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();expect(encodeSnapshot(s)).toBe(before);});
-it('an illusory Fey Leopard uses the same legal Blink path',()=>{let s=setup();target(s).centre=h(20);Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});s.walls.push({id:'stone',edge:{a:h(7),b:h(8)},material:'stone',hp:20,maxHp:20,burning:null});const ready=startScenarioTurn(order(s,'actor',null,null,[h(9)],0)),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(actor(a.state).centre).toEqual(h(9));});
-it('dispel between Wail victims restores the first survivor and stops remaining damage',()=>{let s=setup('banshee');Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});s.creatures.push(createCreature('z-enemy','b',h(6,7),{intelligence:1}));s=until(startScenarioTurn(order(s,'actor',{type:'Wail'})),s=>s.pendingPower!==null);s.random.resolution=3;s=advanceAtomicStep(s).state;expect(target(s).hp).toBe(7);actor(s).hp=-10;cleanupDeaths(s,[]);expect(target(s).hp).toBe(12);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.events.some(e=>e.type==='WailResolved')).toBe(false);expect(a.state.creatures.find(c=>c.id==='z-enemy')!.hp).toBe(10);});
-it('Wail keeps its emitted origin if the source is later displaced',()=>{let s=pending('banshee');forceMove(s,actor(s),h(15),[]);expect(s.pendingPower!.origin).toEqual(h(6));const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(7);});
-it('a saved Wail damage accumulator checks concentration once before a late cast completion',()=>{let s=setup('banshee');Object.assign(target(s),{con:20,maxHp:40,hp:40,mana:50,maxMana:50,spellbook:['Bind'],spellLevelCap:6});s=order(s,'target',{type:'Cast',spell:'Bind',level:6,variant:'bound',targetId:'actor',ground:null,side:'left'});s=order(s,'actor',null,{type:'Wail'});s=until(startScenarioTurn(s),s=>s.phase==='late'&&s.pendingPower!==null);s.random.resolution=3;s=advanceAtomicStep(s).state;expect(s.pendingPower!.damageByTarget).toEqual([{targetId:'target',amount:5}]);expect(s.casts).toHaveLength(1);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(a.events.filter(e=>e.type==='ConcentrationChecked'&&e.creatureId==='target')).toHaveLength(1);expect(target(a.state).mana).toBe(20);});
-it('schema-22 Sleep keeps its historical turn expiry without inferred phase timing',()=>{const old=JSON.parse(readFileSync('tests/fixtures/powers-frighten.json','utf8'));old.creatures.find((c:Creature)=>c.id==='target').conditions=[{kind:'Unconscious',potency:2,resistance:'con',duration:3,requiresDamage:false,startsTurn:1,endsTurn:3,activatesTurn:null,active:true,sourceId:'actor',illusionId:null}];const s=restoreSnapshot(JSON.stringify(old));expect(target(s).conditions[0]!.endsTurn).toBe(3);expect(target(s).conditions[0]).not.toHaveProperty('expiresAfterPhase');const r=run(s,true);expect(active(target(r.state))).toBe(false);expect(()=>order(r.state,'target',null,'Defend',[h(8)])).toThrow('INELIGIBLE_CREATURE');});
-it('Release clears a cancelled Blink marker together with its path and preserves reloads',()=>{let s=setup();target(s).centre=h(20);s.creatures[1]!.centre=h(8);s=order(s,'actor',null,null,[h(9)],0);s=order(s,'wizard-1',{type:'Cast',spell:'Release',level:8,variant:'bound',targetId:'actor',ground:null,side:'left'});s=until(startScenarioTurn(s),s=>s.phase==='early'&&s.cursor.initialized&&s.cursor.entries[s.cursor.index]?.creatureId==='wizard-1');s.random.resolution=4;s=advanceAtomicStep(s).state;expect(actor(s).controller).toBeNull();expect(s.orders.find(o=>o.creatureId==='actor')).toEqual({creatureId:'actor',path:[],early:null,late:null});expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);expect(run(s,true)).toEqual(run(s));});
-it.each([false,true])('known Early wake-up registers Late Defend before initiative (%s)',defend=>{let s=pending('mushroom','late');s=run(advanceAtomicStep(s).state,true).state;actor(s).dex=10;actor(s).attacks[0]!.shots[0]!.crit=0;s=order(s,'target',null,defend?'Defend':null);s=order(s,'actor',null,{type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'});s=startScenarioTurn(s);expect(s.defending.find(d=>d.creatureId==='target')?.phases??[]).toEqual(defend?['late']:[]);s=until(s,s=>s.phase==='late'&&s.pendingAttack!==null);expect(active(target(s))).toBe(true);s.random.resolution=2;const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(defend?12:11);expect(a.events.some(e=>e.type==='AttackMissed'&&e.creatureId==='actor')).toBe(defend);});
+function until(s: GameState, predicate: (s: GameState) => boolean) {
+  for (let n = 0; !predicate(s); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    s = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;
+  }
+  return s;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+function use(s: GameState, action: PowerAction, phase: 'early' | 'late' = 'early', seed = 3) {
+  s.phase = phase;
+  s.random.resolution = seed;
+  const events: Event[] = [];
+  beginPower(s, actor(s), action, events);
+  while (s.pendingPower) stepPower(s, events);
+  return events;
+}
+function pending(name: 'mushroom' | 'banshee', phase: 'early' | 'late' = 'early') {
+  let s = setup(name),
+    a: PowerAction = name === 'mushroom' ? { type: 'Spores', targetId: 'target' } : { type: 'Wail' };
+  s = order(s, 'actor', phase === 'early' ? a : null, phase === 'late' ? a : null);
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  return s;
+}
+function blinkTurn(path: Order['path'] = [h(9), h(10), h(11), h(12)], index = 0) {
+  const s = setup();
+  target(s).centre = h(20);
+  return startScenarioTurn(order(s, 'actor', null, null, path, index));
+}
+it('Fey Leopard Blink replaces three movement steps and continues normally with exact reloads', () => {
+  const ready = blinkTurn(),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).centre).toEqual(h(12));
+  expect(actor(a.state).blinkUsedTurn).toBe(1);
+  expect(a.events.filter(e => e.type === 'CreatureBlinked')).toHaveLength(1);
+  expect(a.events.filter(e => e.type === 'CreatureMoved' && e.creatureId === 'actor')).toHaveLength(3);
+});
+it('Blink can follow ordinary steps and costs its actual distance', () => {
+  let s = blinkTurn([h(7), h(8), h(11)], 2);
+  s = until(s, s => actor(s).centre.q === 11);
+  expect(s.movementSpent.find(m => m.creatureId === 'actor')!.amount).toBe(5);
+  expect(actor(s).blinkUsedTurn).toBe(1);
+});
+it.each([0, 4])('Blink rejects a segment of distance %i', length => {
+  const s = setup();
+  target(s).centre = h(20);
+  expect(() => order(s, 'actor', null, null, [h(6 + length)], 0)).toThrow('INVALID_PATH');
+});
+it('Blink spends normal movement allowance and cannot add free range', () => {
+  const s = setup();
+  target(s).centre = h(20);
+  expect(() => order(s, 'actor', null, null, [h(9), h(10), h(11), h(12), h(13)], 0)).toThrow('MOVEMENT_BUDGET');
+  expect(() => order(s, 'actor', 'Dash', null, [h(9), h(10), h(11), h(12), h(13)], 0)).not.toThrow();
+});
+it('ordinary creatures and unmarked nonadjacent paths never gain Blink', () => {
+  const s = setup();
+  delete actor(s).blink;
+  expect(() => order(s, 'actor', null, null, [h(9)], 0)).toThrow('INVALID_BLINK_ORDER');
+  const b = setup();
+  expect(() => order(b, 'actor', null, null, [h(9)])).toThrow('INVALID_PATH');
+});
+it('Blink rejects an out-of-path marker and malformed repeated markers', () => {
+  const s = setup();
+  expect(() => order(s, 'actor', null, null, [h(9)], 1)).toThrow('INVALID_BLINK_ORDER');
+  const before = encodeSnapshot(s),
+    raw = JSON.parse(before);
+  raw.orders = [{ creatureId: 'actor', path: [h(9)], early: null, late: null, blinkIndex: [0, 1] }];
+  expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it.each(['stone', 'crystal', 'fire'] as const)(
+  'Blink crosses an ordinary %s edge without crossing damage',
+  material => {
+    let s = setup();
+    target(s).centre = h(8);
+    s.walls.push({ id: 'wall', edge: { a: h(7), b: h(8) }, material, hp: 20, maxHp: 20, burning: null });
+    const ready = startScenarioTurn(order(s, 'actor', null, null, [h(9)], 0)),
+      r = run(ready, true);
+    expect(actor(r.state).centre).toEqual(h(9));
+    expect(actor(r.state).hp).toBe(10);
+  },
+);
+it('Energy stops Blink on its ray and is revalidated at execution', () => {
+  const s = setup();
+  s.walls.push({ id: 'wall', edge: { a: h(7), b: h(8) }, material: 'energy', hp: 20, maxHp: 20, burning: null });
+  expect(() => order(s, 'actor', null, null, [h(9)], 0)).toThrow('INVALID_PATH');
+  let ready = blinkTurn();
+  ready = until(ready, s => s.phase === 'movement' && s.cursor.activePath !== null);
+  ready.walls.push({ id: 'wall', edge: { a: h(7), b: h(8) }, material: 'energy', hp: 20, maxHp: 20, burning: null });
+  const r = run(ready, true);
+  expect(actor(r.state).centre).toEqual(h(6));
+  expect(actor(r.state).blinkUsedTurn).toBeUndefined();
+});
+it('Blink cannot land on a creature and never reroutes', () => {
+  let s = setup();
+  target(s).centre = h(9);
+  const r = run(startScenarioTurn(order(s, 'actor', null, null, [h(9)], 0)), true);
+  expect(actor(r.state).centre).toEqual(h(6));
+  expect(actor(r.state).blinkUsedTurn).toBeUndefined();
+});
+it('Blink rechecks destination occupancy after path preparation', () => {
+  let s = blinkTurn();
+  s = until(s, s => s.phase === 'movement' && s.cursor.activePath !== null);
+  target(s).centre = h(9);
+  const r = run(s, true);
+  expect(actor(r.state).centre).toEqual(h(6));
+  expect(r.events.some(e => e.type === 'MovementBlocked')).toBe(true);
+});
+it('Blink cannot escape restraint, Fear approach or a casting movement lock', () => {
+  for (const restraint of ['flag', 'hold', 'condition'] as const) {
+    const s = setup();
+    if (restraint === 'flag') actor(s).restrained = true;
+    else if (restraint === 'condition') addCondition(s, actor(s), 'Restrained', 'target', 5, 2, 'int');
+    else {
+      target(s).grappleLimbs = 1;
+      s.holds.push({ grapplerId: 'target', targetId: 'actor', limb: 0 });
+    }
+    expect(blinkLegal(s, actor(s), h(6), h(9))).toBe(false);
+  }
+  const s = setup();
+  target(s).centre = h(10);
+  addCondition(s, actor(s), 'Fear', 'target', 5, 2, 'int');
+  expect(blinkLegal(s, actor(s), h(6), h(9))).toBe(false);
+  actor(s).conditions = [];
+  Object.assign(actor(s), { mana: 50, maxMana: 50, spellbook: ['Bind'], spellLevelCap: 8 });
+  s.phase = 'early';
+  startCast(
+    s,
+    actor(s),
+    { type: 'Cast', spell: 'Bind', level: 8, variant: 'bound', targetId: 'target', ground: null, side: 'left' },
+    [],
+  );
+  expect(blinkLegal(s, actor(s), h(6), h(9))).toBe(false);
+});
+it('Blink is available again next turn and its used state survives a save', () => {
+  let s = blinkTurn([h(9)]);
+  s = until(s, s => actor(s).centre.q === 9);
+  expect(actor(restoreSnapshot(encodeSnapshot(s))).blinkUsedTurn).toBe(1);
+  expect(blinkLegal(s, actor(s), h(9), h(12))).toBe(false);
+  s = run(s, true).state;
+  expect(() => order(s, 'actor', null, null, [h(12)], 0)).not.toThrow();
+});
+it('Blink itself does not trigger Guard, while a following ordinary step does', () => {
+  for (const ordinary of [false, true]) {
+    let s = setup();
+    target(s).centre = h(20);
+    s.creatures.push(createCreature('guard', 'b', h(ordinary ? 10 : 9, 6)));
+    s = order(s, 'guard', { type: 'Guard', attackId: 'staff', targetId: 'actor', area: [] });
+    s = order(s, 'actor', null, null, ordinary ? [h(9), h(10)] : [h(9)], 0);
+    const r = run(startScenarioTurn(s), true);
+    expect(r.events.some(e => e.creatureId === 'guard' && ['AttackHit', 'AttackMissed'].includes(e.type))).toBe(
+      ordinary,
+    );
+  }
+});
+it('Blink can be followed by a normal late Claws attack', () => {
+  let s = setup();
+  target(s).centre = h(10);
+  target(s).incapacitated = true;
+  actor(s).attacks[0]!.shots[0]!.crit = 0;
+  s = order(
+    s,
+    'actor',
+    null,
+    { type: 'Attack', attackId: 'basic', targetIds: ['target'], ground: null, side: 'left' },
+    [h(9)],
+    0,
+  );
+  const ready = startScenarioTurn(s),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(8);
+});
+it('Blink landing contacts Tangleweed without paying skipped terrain costs', () => {
+  let s = setup();
+  target(s).centre = h(20);
+  s.tangleweed.push({
+    id: 'weed',
+    casterId: 'wizard-1',
+    level: 3,
+    createdTurn: 1,
+    endsTurn: 4,
+    cells: [{ hex: h(9), hp: 9 }],
+  });
+  s = startScenarioTurn(order(s, 'actor', null, null, [h(9)], 0));
+  s = until(s, s => actor(s).centre.q === 9);
+  expect(s.weedAttempts).toContain('actor');
+  expect(s.movementSpent.find(m => m.creatureId === 'actor')!.amount).toBe(3);
+});
+it('Blink clears an approach trail and preserves voluntary movement history', () => {
+  let s = setup();
+  target(s).centre = h(20);
+  actor(s).pounce = { attackId: 'basic', steps: 3, damage: 2 };
+  s = startScenarioTurn(order(s, 'actor', null, null, [h(7), h(8), h(11)], 2));
+  s = until(s, s => actor(s).centre.q === 11);
+  expect(actor(s).pounceTrail).toBeUndefined();
+  expect(s.moved).toContain('actor');
+});
+it('revising a Blink order clears its old segment marker', () => {
+  let s = setup();
+  target(s).centre = h(20);
+  s = order(s, 'actor', null, null, [h(9)], 0);
+  s = order(s, 'actor', null, null, [h(7), h(8), h(9)]);
+  expect(s.orders.find(o => o.creatureId === 'actor')).not.toHaveProperty('blinkIndex');
+});
+it('early Spores sleep lasts through the late phase and prevents intervening movement', () => {
+  let s = setup('mushroom');
+  s = order(
+    s,
+    'target',
+    null,
+    { type: 'Attack', attackId: 'staff', targetIds: ['actor'], ground: null, side: 'left' },
+    [h(8)],
+  );
+  s = order(s, 'actor', { type: 'Spores', targetId: 'target' });
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  s = advanceAtomicStep(s).state;
+  expect(target(s).conditions[0]!.expiresAfterPhase).toEqual({ turn: 1, phase: 'late' });
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).centre).toEqual(h(7));
+  expect(actor(a.state).hp).toBe(4);
+  expect(active(target(a.state))).toBe(true);
+  expect(target(a.state).conditions).toEqual([]);
+});
+it('late Spores persists into next turn, then permits plans after the next Early phase', () => {
+  let s = pending('mushroom', 'late');
+  s = advanceAtomicStep(s).state;
+  expect(target(s).conditions[0]!.expiresAfterPhase).toEqual({ turn: 2, phase: 'early' });
+  s = run(s, true).state;
+  expect(active(target(s))).toBe(false);
+  expect(() => order(s, 'target', 'Defend')).toThrow('INELIGIBLE_CREATURE');
+  s = order(s, 'target', null, 'Defend', [h(8)]);
+  s = until(startScenarioTurn(s), s => s.phase === 'movement');
+  expect(active(target(s))).toBe(true);
+  const r = run(s, true);
+  expect(target(r.state).centre).toEqual(h(8));
+});
+it('other incapacitation cannot use a known Sleep expiry to gain orders', () => {
+  let s = pending('mushroom', 'late');
+  s = run(advanceAtomicStep(s).state, true).state;
+  target(s).hp = 0;
+  expect(() => order(s, 'target', null, 'Defend', [h(8)])).toThrow('INELIGIBLE_CREATURE');
+});
+it('Spores uses Con resistance instead of Int', () => {
+  const s = setup('mushroom');
+  target(s).con = 100;
+  target(s).intelligence = 1;
+  const events = use(s, { type: 'Spores', targetId: 'target' }, 'early', 1);
+  expect(target(s).conditions).toEqual([]);
+  expect(events.some(e => e.type === 'PowerResisted')).toBe(true);
+});
+it.each(['undead', 'construct', 'illusion'] as const)('Spores rejects a nonliving %s target', trait => {
+  const s = setup('mushroom');
+  if (trait === 'illusion')
+    Object.assign(target(s), { kind: 'illusion', creatorId: 'wizard-1', knownIllusionBy: ['b'] });
+  else target(s)[trait] = true;
+  expect(() => order(s, 'actor', { type: 'Spores', targetId: 'target' })).toThrow('INVALID_POWER_TARGET');
+});
+it('Spores respects Int0 immunity and accepts susceptible intelligent plants', () => {
+  const a = setup('mushroom');
+  target(a).intelligence = 0;
+  use(a, { type: 'Spores', targetId: 'target' });
+  expect(target(a).conditions).toEqual([]);
+  const b = setup('mushroom');
+  target(b).plant = true;
+  use(b, { type: 'Spores', targetId: 'target' });
+  expect(active(target(b))).toBe(false);
+});
+it('damage wakes Spore sleep, but zero damage does not', () => {
+  const s = setup('mushroom');
+  use(s, { type: 'Spores', targetId: 'target' });
+  target(s).defences = [{ type: 'physical', multiplier: 0 }];
+  applyDamage(s, target(s), [{ type: 'physical', amount: 1 }], []);
+  expect(active(target(s))).toBe(false);
+  applyDamage(s, target(s), [{ type: 'magic', amount: 1 }], []);
+  expect(active(target(s))).toBe(true);
+});
+it('an allied Wake action removes Spore sleep', () => {
+  const s = setup('mushroom');
+  use(s, { type: 'Spores', targetId: 'target' });
+  const ally = createCreature('ally', 'b', h(8));
+  s.creatures.push(ally);
+  resolveCombatAction(s, ally, { type: 'Wake', targetId: 'target' }, []);
+  expect(active(target(s))).toBe(true);
+});
+it('illusory Spores carries reversible phase expiry and cannot sleep Int0 targets', () => {
+  const s = setup('mushroom');
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  use(s, { type: 'Spores', targetId: 'target' });
+  expect(target(s).conditions[0]!.illusionId).toBe('actor');
+  expect(target(s).conditions[0]!.expiresAfterPhase).toBeDefined();
+  reverseIllusion(s, 'actor', []);
+  expect(active(target(s))).toBe(true);
+  target(s).intelligence = 0;
+  use(s, { type: 'Spores', targetId: 'target' });
+  expect(target(s).conditions).toEqual([]);
+});
+it('renewed Sleep revalidates a plan made for a known Early wake-up', () => {
+  let s = pending('mushroom', 'late');
+  s = run(advanceAtomicStep(s).state, true).state;
+  s = order(s, 'target', null, 'Defend', [h(8)]);
+  s = until(startScenarioTurn(s), s => s.phase === 'early');
+  target(s).conditions[0]!.expiresAfterPhase = { turn: 2, phase: 'late' };
+  target(s).conditions[0]!.startsTurn = 2;
+  const r = run(s, true);
+  expect(target(r.state).centre).toEqual(h(7));
+});
+it('Wail resolves five area magic damage and separate Fear with a three-turn cooldown', () => {
+  const s = setup('banshee'),
+    events = use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(7);
+  expect(target(s).conditions[0]).toEqual(
+    expect.objectContaining({ kind: 'Fear', potency: 6, resistance: 'int', endsTurn: 2, requiresDamage: false }),
+  );
+  expect(actor(s).wailReadyTurn).toBe(4);
+  expect(events.some(e => e.type === 'AttackHit')).toBe(false);
+});
+it('Wail halves five magic damage with Dex and never rolls a default critical', () => {
+  const s = setup('banshee');
+  target(s).intelligence = 0;
+  use(s, { type: 'Wail' }, 'early', 1);
+  expect(target(s).hp).toBe(9);
+  expect(target(s).conditions).toEqual([]);
+});
+it('Wail Fear does not require damage and Defend does not alter resistance', () => {
+  const a = setup('banshee'),
+    b = setup('banshee');
+  target(a).defences = [{ type: 'magic', multiplier: 0 }];
+  target(b).defences = [{ type: 'magic', multiplier: 0 }];
+  b.defending.push({ creatureId: 'target', phases: ['early', 'late'] });
+  use(a, { type: 'Wail' });
+  use(b, { type: 'Wail' });
+  expect(target(a).hp).toBe(12);
+  expect(target(a).conditions.some(e => e.kind === 'Fear')).toBe(true);
+  expect(a.random).toEqual(b.random);
+  expect(target(a).conditions).toEqual(target(b).conditions);
+});
+it.each(['undead', 'construct'] as const)('Wail damages a %s creature without applying living Fear', trait => {
+  const s = setup('banshee');
+  target(s)[trait] = true;
+  use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(7);
+  expect(target(s).conditions).toEqual([]);
+});
+it('Wail includes allies and other heights but excludes its own body', () => {
+  const s = setup('banshee');
+  target(s).controller = 'a';
+  target(s).height = 'air';
+  const events = use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(7);
+  expect(actor(s).hp).toBe(10);
+  expect(events.filter(e => e.type === 'WailResolved')).toHaveLength(1);
+});
+it('Wail radius uses minimum occupied distance and hits a large creature once', () => {
+  const s = setup('banshee');
+  Object.assign(target(s), { centre: h(10), size: 3, originalSize: 3, con: 6, maxHp: 18, hp: 18, intelligence: 0 });
+  const events = use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(13);
+  expect(events.filter(e => e.type === 'WailResolved')).toHaveLength(1);
+});
+it('Wail reaches through opaque walls and Darkness without leaking hidden events', () => {
+  const s = setup('banshee');
+  target(s).centre = h(9);
+  s.walls.push({ id: 'wall', edge: { a: h(7), b: h(8) }, material: 'stone', hp: 20, maxHp: 20, burning: null });
+  s.darkness.push({ id: 'dark', casterId: 'wizard-1', centre: h(9), level: 1, createdTurn: 1, endsTurn: 2 });
+  const events = use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(7);
+  expect(projectEvents(s, 'a', events).some(e => e.targetId === 'target' || e.creatureId === 'target')).toBe(false);
+});
+it('Wail uses area vulnerability on swarms without applying it twice', () => {
+  const s = setup('banshee');
+  Object.assign(target(s), { swarm: true, originalSize: 4, size: 4, con: 4, hp: 16, maxHp: 16, intelligence: 0 });
+  use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(8);
+});
+it('Wail cooldown survives restoration and blocks turns two and three', () => {
+  let s = run(pending('banshee'), true).state;
+  expect(actor(s).wailReadyTurn).toBe(4);
+  expect(actor(restoreSnapshot(encodeSnapshot(s))).wailReadyTurn).toBe(4);
+  expect(() => order(s, 'actor', { type: 'Wail' })).toThrow('POWER_COOLDOWN');
+  s.turn = 3;
+  expect(() => order(s, 'actor', { type: 'Wail' })).toThrow('POWER_COOLDOWN');
+  s.turn = 4;
+  expect(() => order(s, 'actor', { type: 'Wail' })).not.toThrow();
+});
+it('an empty Wail spends its cooldown without selecting new victims', () => {
+  const s = setup('banshee');
+  target(s).centre = h(15);
+  use(s, { type: 'Wail' });
+  expect(actor(s).wailReadyTurn).toBe(4);
+  expect(target(s).hp).toBe(12);
+});
+it('Double Action cannot bypass Wail cooldown between early and late slots', () => {
+  let s = setup('banshee');
+  actor(s).doubleAction = true;
+  s = order(s, 'actor', { type: 'Wail' }, { type: 'Wail' });
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  const r = run(s, true);
+  expect(r.events.filter(e => e.type === 'PowerStarted' && e.action === 'Wail')).toHaveLength(0);
+  expect(r.events.some(e => e.type === 'ActionInvalid' && e.action === 'Wail')).toBe(true);
+  expect(target(r.state).hp).toBe(7);
+});
+it('Wail checks concentration once per damaged caster at action completion', () => {
+  const s = setup('banshee');
+  Object.assign(target(s), {
+    con: 20,
+    maxHp: 40,
+    hp: 40,
+    mana: 50,
+    maxMana: 50,
+    spellbook: ['Bind'],
+    spellLevelCap: 6,
+  });
+  s.phase = 'early';
+  startCast(
+    s,
+    target(s),
+    { type: 'Cast', spell: 'Bind', level: 6, variant: 'bound', targetId: 'actor', ground: null, side: 'left' },
+    [],
+  );
+  const events = use(s, { type: 'Wail' });
+  expect(events.filter(e => e.type === 'ConcentrationChecked' && e.creatureId === 'target')).toHaveLength(1);
+  expect(events.find(e => e.type === 'ConcentrationChecked')!.amount).toBe(5);
+});
+it('zero-damage Wail does not check concentration', () => {
+  const s = setup('banshee');
+  Object.assign(target(s), {
+    mana: 50,
+    maxMana: 50,
+    spellbook: ['Bind'],
+    spellLevelCap: 6,
+    defences: [{ type: 'magic', multiplier: 0 }],
+  });
+  s.phase = 'early';
+  startCast(
+    s,
+    target(s),
+    { type: 'Cast', spell: 'Bind', level: 6, variant: 'bound', targetId: 'actor', ground: null, side: 'left' },
+    [],
+  );
+  const events = use(s, { type: 'Wail' });
+  expect(events.some(e => e.type === 'ConcentrationChecked')).toBe(false);
+  expect(s.casts).toHaveLength(1);
+});
+it('a real emitted Wail continues after its source dies, while an illusory Wail stops', () => {
+  for (const illusion of [false, true]) {
+    const s = pending('banshee');
+    if (illusion) Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+    actor(s).hp = -10;
+    cleanupDeaths(s, []);
+    const a = run(s),
+      b = run(s, true);
+    expect(b).toEqual(a);
+    expect(a.events.some(e => e.type === 'WailResolved')).toBe(!illusion);
+    expect(target(a.state).hp).toBe(illusion ? 12 : 7);
+  }
+});
+it('wizard death collapses Spirit servants, preserves ordinary unbinding, and cannot cancel an emitted real Wail', () => {
+  let s = setup('banshee');
+  s.creatures[0]!.centre = h(7, 6);
+  s.creatures[0]!.hp = -7;
+  s.creatures.push(
+    createCreature('ordinary', 'a', h(15), summonProfile('Summon Cat', 1)!),
+    createCreature('z-victim', 'b', h(6, 7), { intelligence: 0 }),
+  );
+  s = order(s, 'actor', { type: 'Wail' });
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(a.state.players[0]!.eliminated).toBe(true);
+  expect(actor(a.state).alive).toBe(false);
+  expect(a.state.creatures.find(c => c.id === 'ordinary')!.controller).toBeNull();
+  expect(a.state.creatures.find(c => c.id === 'ordinary')!.alive).toBe(true);
+  expect(a.events.some(e => e.type === 'WailResolved' && e.targetId === 'z-victim')).toBe(true);
+});
+it('illusory Wail reverses survivor damage and Fear but cannot affect Int0 bodies', () => {
+  const s = setup('banshee');
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(7);
+  expect(target(s).conditions[0]!.illusionId).toBe('actor');
+  reverseIllusion(s, 'actor', []);
+  expect(target(s).hp).toBe(12);
+  expect(target(s).conditions).toEqual([]);
+  target(s).intelligence = 0;
+  s.turn = 4;
+  use(s, { type: 'Wail' });
+  expect(target(s).hp).toBe(12);
+});
+it.each(profileRows)('%s keeps approved body attacks and loses special powers on reanimation', name => {
+  const s = setup(name);
+  target(s).incapacitated = true;
+  actor(s).attacks[0]!.shots[0]!.crit = 0;
+  s.phase = 'early';
+  beginAttack(
+    s,
+    actor(s),
+    { type: 'Attack', attackId: 'basic', targetIds: ['target'], ground: null, side: 'left' },
+    'action',
+  );
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(target(s).hp).toBe(name === 'fey' ? 8 : name === 'mushroom' ? 11 : 9);
+  const body = createCreature('body', 'a', h(15), reanimatedProfile(actor(s), false));
+  expect(body.blink).toBeUndefined();
+  expect(body.blinkUsedTurn).toBeUndefined();
+  expect(body.spores).toBeUndefined();
+  expect(body.wail).toBeUndefined();
+  expect(body.wailReadyTurn).toBeUndefined();
+});
+it('the three profiles retain their approved defences and corpse restrictions', () => {
+  const f = setup('fey');
+  expect(applyDamage(f, actor(f), [{ type: 'magic', amount: 2 }], [])).toBe(1);
+  expect(applyDamage(f, actor(f), [{ type: 'physical', amount: 2 }], [])).toBe(3);
+  const m = setup('mushroom');
+  expect(applyDamage(m, actor(m), [{ type: 'cold', amount: 2 }], [])).toBe(1);
+  expect(applyDamage(m, actor(m), [{ type: 'fire', amount: 2 }], [])).toBe(3);
+  expect(actor(m).corpseEligible).toBe(false);
+  const b = setup('banshee');
+  expect(applyDamage(b, actor(b), [{ type: 'physical', amount: 2 }], [])).toBe(0);
+  expect(applyDamage(b, actor(b), [{ type: 'cold', amount: 2 }], [])).toBe(1);
+  expect(applyDamage(b, actor(b), [{ type: 'light', amount: 2 }], [])).toBe(4);
+  expect(actor(b).corpseEligible).toBe(false);
+});
+it.each(profileRows)(
+  '%s Quick bound, unbound and illusion summons retain powers but wait for readiness',
+  (name, spell, level, species) => {
+    for (const variant of ['bound', 'unbound', 'illusion'] as const) {
+      const s = createMatch('summon-three', ['a', 'b'], 456),
+        wizard = s.creatures[0]!;
+      wizard.centre = h(5);
+      wizard.spellbook = [spell];
+      s.phase = 'early';
+      s.random.resolution = 1;
+      startCast(s, wizard, { type: 'Cast', spell, level, variant, targetId: null, ground: h(8), side: 'left' }, []);
+      completeCast(s, s.casts[0]!.id, []);
+      const summoned = s.creatures.find(c => c.species === species)!;
+      expect(summoned.readyTurn).toBe(2);
+      expect(name === 'fey' ? summoned.blink : name === 'mushroom' ? summoned.spores : summoned.wail).toBeDefined();
+      expect(summoned.kind).toBe(variant === 'illusion' ? 'illusion' : 'summon');
+    }
+  },
+);
+it('public metadata is isolated, and opponents receive no cooldown or Blink-use history', () => {
+  const s = setup('banshee');
+  actor(s).blink = { range: 3 };
+  actor(s).blinkUsedTurn = 1;
+  actor(s).wailReadyTurn = 4;
+  const own = projectView(s, 'a').creatures.find(c => c.id === 'actor')!,
+    other = projectView(s, 'b').creatures.find(c => c.id === 'actor')!;
+  expect(own.wailReadyTurn).toBe(4);
+  expect(own.blinkUsedTurn).toBe(1);
+  expect(other).not.toHaveProperty('wailReadyTurn');
+  expect(other).not.toHaveProperty('blinkUsedTurn');
+  other.wail!.damage = 99 as 5;
+  expect(actor(s).wail!.damage).toBe(5);
+  expect(JSON.parse(JSON.stringify(projectView(s, 'a')))).toEqual(projectView(s, 'a'));
+});
+it.each(['blink-before', 'blink-after', 'spores-early', 'spores-late', 'wail-middle', 'wail-cooldown'])(
+  'permanent %s fixture resumes exactly without repeating a completed effect',
+  name => {
+    const text = readFileSync(`tests/fixtures/next3-${name}.json`, 'utf8').trim();
+    let s = restoreSnapshot(text);
+    expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+    if (s.phase === 'planning') s = startScenarioTurn(s);
+    expect(run(s, true)).toEqual(run(s));
+    if (name === 'blink-after') expect(run(s).events.some(e => e.type === 'CreatureBlinked')).toBe(false);
+    if (name === 'wail-middle')
+      expect(run(s).events.some(e => e.type === 'WailResolved' && e.targetId === 'target')).toBe(false);
+  },
+);
+it('malformed Blink, Sleep expiry and Wail continuation snapshots are rejected transactionally', () => {
+  const s = pending('banshee'),
+    before = encodeSnapshot(s);
+  const mutations: ((r: GameState) => void)[] = [
+    r => {
+      delete r.pendingPower!.origin;
+    },
+    r => {
+      delete r.pendingPower!.actionId;
+    },
+    r => {
+      r.pendingPower!.damageByTarget = [{ targetId: 'target', amount: 5 }];
+    },
+    r => {
+      actor(r).blinkUsedTurn = 99;
+    },
+    r => {
+      actor(r).wailReadyTurn = 0;
+    },
+  ];
+  for (const mutate of mutations) {
+    const raw = JSON.parse(before) as GameState;
+    mutate(raw);
+    expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  }
+  const sleep = setup('mushroom');
+  use(sleep, { type: 'Spores', targetId: 'target' });
+  const raw = JSON.parse(before);
+  raw.creatures.find((c: Creature) => c.id === 'target').conditions = target(sleep).conditions;
+  raw.creatures.find((c: Creature) => c.id === 'target').conditions[0].expiresAfterPhase = { turn: 99, phase: 'late' };
+  expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it('an illusory Fey Leopard uses the same legal Blink path', () => {
+  let s = setup();
+  target(s).centre = h(20);
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  s.walls.push({ id: 'stone', edge: { a: h(7), b: h(8) }, material: 'stone', hp: 20, maxHp: 20, burning: null });
+  const ready = startScenarioTurn(order(s, 'actor', null, null, [h(9)], 0)),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).centre).toEqual(h(9));
+});
+it('dispel between Wail victims restores the first survivor and stops remaining damage', () => {
+  let s = setup('banshee');
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  s.creatures.push(createCreature('z-enemy', 'b', h(6, 7), { intelligence: 1 }));
+  s = until(startScenarioTurn(order(s, 'actor', { type: 'Wail' })), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  s = advanceAtomicStep(s).state;
+  expect(target(s).hp).toBe(7);
+  actor(s).hp = -10;
+  cleanupDeaths(s, []);
+  expect(target(s).hp).toBe(12);
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(a.events.some(e => e.type === 'WailResolved')).toBe(false);
+  expect(a.state.creatures.find(c => c.id === 'z-enemy')!.hp).toBe(10);
+});
+it('Wail keeps its emitted origin if the source is later displaced', () => {
+  let s = pending('banshee');
+  forceMove(s, actor(s), h(15), []);
+  expect(s.pendingPower!.origin).toEqual(h(6));
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(7);
+});
+it('a saved Wail damage accumulator checks concentration once before a late cast completion', () => {
+  let s = setup('banshee');
+  Object.assign(target(s), {
+    con: 20,
+    maxHp: 40,
+    hp: 40,
+    mana: 50,
+    maxMana: 50,
+    spellbook: ['Bind'],
+    spellLevelCap: 6,
+  });
+  s = order(s, 'target', {
+    type: 'Cast',
+    spell: 'Bind',
+    level: 6,
+    variant: 'bound',
+    targetId: 'actor',
+    ground: null,
+    side: 'left',
+  });
+  s = order(s, 'actor', null, { type: 'Wail' });
+  s = until(startScenarioTurn(s), s => s.phase === 'late' && s.pendingPower !== null);
+  s.random.resolution = 3;
+  s = advanceAtomicStep(s).state;
+  expect(s.pendingPower!.damageByTarget).toEqual([{ targetId: 'target', amount: 5 }]);
+  expect(s.casts).toHaveLength(1);
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(a.events.filter(e => e.type === 'ConcentrationChecked' && e.creatureId === 'target')).toHaveLength(1);
+  expect(target(a.state).mana).toBe(20);
+});
+it('schema-22 Sleep keeps its historical turn expiry without inferred phase timing', () => {
+  const old = JSON.parse(readFileSync('tests/fixtures/powers-frighten.json', 'utf8'));
+  old.creatures.find((c: Creature) => c.id === 'target').conditions = [
+    {
+      kind: 'Unconscious',
+      potency: 2,
+      resistance: 'con',
+      duration: 3,
+      requiresDamage: false,
+      startsTurn: 1,
+      endsTurn: 3,
+      activatesTurn: null,
+      active: true,
+      sourceId: 'actor',
+      illusionId: null,
+    },
+  ];
+  const s = restoreSnapshot(JSON.stringify(old));
+  expect(target(s).conditions[0]!.endsTurn).toBe(3);
+  expect(target(s).conditions[0]).not.toHaveProperty('expiresAfterPhase');
+  const r = run(s, true);
+  expect(active(target(r.state))).toBe(false);
+  expect(() => order(r.state, 'target', null, 'Defend', [h(8)])).toThrow('INELIGIBLE_CREATURE');
+});
+it('Release clears a cancelled Blink marker together with its path and preserves reloads', () => {
+  let s = setup();
+  target(s).centre = h(20);
+  s.creatures[1]!.centre = h(8);
+  s = order(s, 'actor', null, null, [h(9)], 0);
+  s = order(s, 'wizard-1', {
+    type: 'Cast',
+    spell: 'Release',
+    level: 8,
+    variant: 'bound',
+    targetId: 'actor',
+    ground: null,
+    side: 'left',
+  });
+  s = until(
+    startScenarioTurn(s),
+    s => s.phase === 'early' && s.cursor.initialized && s.cursor.entries[s.cursor.index]?.creatureId === 'wizard-1',
+  );
+  s.random.resolution = 4;
+  s = advanceAtomicStep(s).state;
+  expect(actor(s).controller).toBeNull();
+  expect(s.orders.find(o => o.creatureId === 'actor')).toEqual({
+    creatureId: 'actor',
+    path: [],
+    early: null,
+    late: null,
+  });
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  expect(run(s, true)).toEqual(run(s));
+});
+it.each([false, true])('known Early wake-up registers Late Defend before initiative (%s)', defend => {
+  let s = pending('mushroom', 'late');
+  s = run(advanceAtomicStep(s).state, true).state;
+  actor(s).dex = 10;
+  actor(s).attacks[0]!.shots[0]!.crit = 0;
+  s = order(s, 'target', null, defend ? 'Defend' : null);
+  s = order(s, 'actor', null, { type: 'Attack', attackId: 'basic', targetIds: ['target'], ground: null, side: 'left' });
+  s = startScenarioTurn(s);
+  expect(s.defending.find(d => d.creatureId === 'target')?.phases ?? []).toEqual(defend ? ['late'] : []);
+  s = until(s, s => s.phase === 'late' && s.pendingAttack !== null);
+  expect(active(target(s))).toBe(true);
+  s.random.resolution = 2;
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(defend ? 12 : 11);
+  expect(a.events.some(e => e.type === 'AttackMissed' && e.creatureId === 'actor')).toBe(defend);
+});

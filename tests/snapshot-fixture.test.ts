@@ -9,7 +9,14 @@ it('permanent foundation fixture restores and continues from its accepted comman
   const state = restoreSnapshot(fixture);
   expect(restoreSnapshot(encodeSnapshot(state))).toEqual(state);
   expect(stateFingerprint(restoreSnapshot(fixture))).toBe(stateFingerprint(state));
-  const result = applyCommand(state, { matchId: 'match', playerId: 'ai', turn: 1, commandId: 'c2', expectedRevision: 1, type: 'LockTurn' });
+  const result = applyCommand(state, {
+    matchId: 'match',
+    playerId: 'ai',
+    turn: 1,
+    commandId: 'c2',
+    expectedRevision: 1,
+    type: 'LockTurn',
+  });
   expect(result.state.phase).toBe('ready');
   expect(stateFingerprint(result.state)).not.toBe(stateFingerprint(state));
 });

@@ -1,87 +1,580 @@
-import {it,expect} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand,checkVictory} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {beginPower,stepPower} from '../packages/engine/src/powers.js';
-import {beginAttack,stepAttack,resolveCombatAction,hitModifiers} from '../packages/engine/src/combat.js';
-import {startCast,completeCast} from '../packages/engine/src/casting.js';
-import {addCondition,applyDamage} from '../packages/engine/src/damage.js';
-import {recover,expireConditions,cleanupDeaths} from '../packages/engine/src/lifecycle.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {reanimatedProfile} from '../packages/engine/src/reanimation.js';
-import {fearAllowsStep,restrained} from '../packages/engine/src/status.js';
-import {effectiveMove} from '../packages/engine/src/orders.js';
-import {projectView,projectEvents} from '../packages/views/src/index.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import type {GameState,Order,Creature} from '../packages/domain/src/state.js';
-import type {PowerAction} from '../packages/domain/src/combat.js';
-import type {Event} from '../packages/engine/src/events.js';
-const h=(q:number,r=5)=>({q,r});
-const profiles=[['Lion','Summon Cat',3,'Roar',3],['Ghost','Summon Spirit',3,'Frighten',4],['Basilisk','Summon Serpent',5,'Gaze',5]] as const;
-type Name=typeof profiles[number][0];
-const actor=(s:GameState)=>s.creatures.find(c=>c.id==='actor')!;
-const target=(s:GameState)=>s.creatures.find(c=>c.id==='target')!;
-function setup(name:Name='Lion'){
- const row=profiles.find(p=>p[0]===name)!;
- const s=createMatch('condition-actions',['a','b'],456);
- s.creatures[0]!.centre=h(2,2);s.creatures[1]!.centre=h(20,15);
- s.creatures.push(createCreature('actor','a',h(6),summonProfile(row[1],row[2])!),createCreature('target','b',h(name==='Ghost'?7:8),{intelligence:1}));
- return s;
+import { it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createMatch, createCreature, applyCommand, checkVictory } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { beginPower, stepPower } from '../packages/engine/src/powers.js';
+import { beginAttack, stepAttack, resolveCombatAction, hitModifiers } from '../packages/engine/src/combat.js';
+import { startCast, completeCast } from '../packages/engine/src/casting.js';
+import { addCondition, applyDamage } from '../packages/engine/src/damage.js';
+import { recover, expireConditions, cleanupDeaths } from '../packages/engine/src/lifecycle.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { reanimatedProfile } from '../packages/engine/src/reanimation.js';
+import { fearAllowsStep, restrained } from '../packages/engine/src/status.js';
+import { effectiveMove } from '../packages/engine/src/orders.js';
+import { projectView, projectEvents } from '../packages/views/src/index.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import type { GameState, Order, Creature } from '../packages/domain/src/state.js';
+import type { PowerAction } from '../packages/domain/src/combat.js';
+import type { Event } from '../packages/engine/src/events.js';
+const h = (q: number, r = 5) => ({ q, r });
+const profiles = [
+  ['Lion', 'Summon Cat', 3, 'Roar', 3],
+  ['Ghost', 'Summon Spirit', 3, 'Frighten', 4],
+  ['Basilisk', 'Summon Serpent', 5, 'Gaze', 5],
+] as const;
+type Name = (typeof profiles)[number][0];
+const actor = (s: GameState) => s.creatures.find(c => c.id === 'actor')!;
+const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
+function setup(name: Name = 'Lion') {
+  const row = profiles.find(p => p[0] === name)!;
+  const s = createMatch('condition-actions', ['a', 'b'], 456);
+  s.creatures[0]!.centre = h(2, 2);
+  s.creatures[1]!.centre = h(20, 15);
+  s.creatures.push(
+    createCreature('actor', 'a', h(6), summonProfile(row[1], row[2])!),
+    createCreature('target', 'b', h(name === 'Ghost' ? 7 : 8), { intelligence: 1 }),
+  );
+  return s;
 }
-function action(name:Name):PowerAction{return name==='Lion'?{type:'Roar'}:{type:name==='Ghost'?'Frighten':'Gaze',targetId:'target'};}
-function order(s:GameState,id:string,early:Order['early'],late:Order['late']=null,path:Order['path']=[]){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:s.creatures.find(c=>c.id===id)!.controller!,turn:s.turn,commandId:`order-${s.revision}`,expectedRevision:s.revision,order:{creatureId:id,path,early,late}}).state;}
-function until(s:GameState,predicate:(s:GameState)=>boolean){for(let n=0;!predicate(s);n++){if(n>1000)throw new Error('STEP_LIMIT');s=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;}return s;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-function pending(name:Name='Lion',phase:'early'|'late'='early'){
- let s=setup(name);s=order(s,'actor',phase==='early'?action(name):null,phase==='late'?action(name):null);
- s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;return s;
+function action(name: Name): PowerAction {
+  return name === 'Lion' ? { type: 'Roar' } : { type: name === 'Ghost' ? 'Frighten' : 'Gaze', targetId: 'target' };
 }
-function use(s:GameState,a:PowerAction,seed=3){s.phase='early';s.random.resolution=seed;const events:Event[]=[];beginPower(s,actor(s),a,events);while(s.pendingPower)stepPower(s,events);return events;}
-it.each(profiles)('%s applies its approved condition without damage, mana or attack rolls',(name,_spell,_level,_type,potency)=>{const s=setup(name),hp=target(s).hp,mana=actor(s).mana,events=use(s,action(name));expect(target(s).hp).toBe(hp);expect(actor(s).mana).toBe(mana);expect(target(s).conditions).toEqual([expect.objectContaining({kind:name==='Basilisk'?'Slowed':'Fear',potency,resistance:'int',startsTurn:1,endsTurn:2,sourceId:'actor',requiresDamage:false})]);expect(events.some(e=>e.type==='PowerApplied')).toBe(true);expect(events.some(e=>['AttackHit','AttackMissed','DamageApplied'].includes(e.type))).toBe(false);});
-it.each(profiles)('%s restores identically at every early and late power boundary',(name)=>{for(const phase of ['early','late'] as const){const s=pending(name,phase);expect(run(s,true)).toEqual(run(s));expect(run(s).events.some(e=>e.type==='PowerApplied')).toBe(true);}});
-it('Roar snapshots enemies once in canonical order, excluding self, allies and distant creatures',()=>{const s=setup();s.creatures.push(createCreature('z-enemy','b',h(6,7)),createCreature('ally','a',h(8,4)),createCreature('distant','b',h(15)));s.phase='early';beginPower(s,actor(s),{type:'Roar'},[]);expect(s.pendingPower!.targets).toEqual(['target','z-enemy']);});
-it('Roar resolves a large target once despite multiple in-range occupied hexes',()=>{const s=setup();Object.assign(target(s),{centre:h(9),size:3,originalSize:3,hp:15,maxHp:15});const events=use(s,{type:'Roar'});expect(events.filter(e=>e.targetId==='target'&&e.type==='PowerApplied')).toHaveLength(1);});
-it('no target joins a committed Roar, and an invalid listed victim is not replaced',()=>{let s=setup();s.creatures.push(createCreature('latecomer','b',h(15)),createCreature('z-enemy','b',h(6,7)));s=until(startScenarioTurn(order(s,'actor',{type:'Roar'})),s=>s.pendingPower!==null);s.creatures.find(c=>c.id==='latecomer')!.centre=h(8,4);s.creatures.find(c=>c.id==='z-enemy')!.controller='a';s.random.resolution=3;const r=run(s,true);expect(r.events.some(e=>e.targetId==='latecomer'&&e.type==='PowerApplied')).toBe(false);expect(r.events.some(e=>e.targetId==='z-enemy'&&e.type==='PowerInvalid')).toBe(true);});
-it('an empty Roar still consumes the selected action',()=>{const s=pending();target(s).centre=h(15);s.pendingPower!.targets=[];const r=run(s,true);expect(r.events.some(e=>e.type==='PowerFinished')).toBe(true);expect(r.events.some(e=>e.type==='PowerApplied')).toBe(false);});
-it.each(profiles)('%s is resisted with Int and can fail without applying conditions',(name)=>{const s=setup(name);target(s).intelligence=100;const events=use(s,action(name),1);expect(target(s).conditions).toEqual([]);expect(events.some(e=>e.type==='PowerResisted')).toBe(true);});
-it.each(profiles)('%s wastes an out-of-range target without substitution',(name)=>{const s=pending(name);target(s).centre=h(15);const r=run(s,true);expect(r.events.some(e=>e.type==='PowerInvalid')).toBe(true);expect(r.events.some(e=>e.type==='PowerApplied')).toBe(false);});
-it.each(['Ghost','Basilisk'] as const)('%s follows its selected identity and rechecks enemy status',(name)=>{const s=pending(name);target(s).controller='a';const r=run(s,true);expect(r.events.some(e=>e.type==='PowerInvalid')).toBe(true);expect(target(r.state).conditions).toEqual([]);});
-it.each(profiles)('%s cannot submit an unavailable power, an ally/self target or a second normal action',(name)=>{const s=setup(name);if(name!=='Lion'){for(const targetId of ['actor','wizard-0','missing'])expect(()=>order(s,'actor',{...action(name),targetId} as PowerAction)).toThrow();}expect(()=>order(s,'actor',action(name),action(name))).toThrow('ACTION_BUDGET');const ordinary=setup(name);delete actor(ordinary).fearAction;delete actor(ordinary).gaze;expect(()=>order(ordinary,'actor',action(name))).toThrow('NO_SUCH_POWER');});
-it.each(profiles)('%s never acts before its summon readiness turn',(name)=>{const s=setup(name);actor(s).readyTurn=2;expect(()=>order(s,'actor',action(name))).toThrow('INELIGIBLE_CREATURE');const events=use(s,action(name));expect(events.some(e=>e.type==='ActionInvalid')).toBe(true);expect(target(s).conditions).toEqual([]);});
-it.each(['incapacitation','death','control loss'] as const)('a committed Roar stops after actor %s',reason=>{const s=pending();if(reason==='incapacitation')actor(s).incapacitated=true;else if(reason==='death'){actor(s).hp=-actor(s).maxHp;cleanupDeaths(s,[]);}else {actor(s).controller=null;actor(s).bindingLevel=null;}const r=run(s,true);expect(r.events.some(e=>e.type==='PowerApplied')).toBe(false);expect(r.events.some(e=>e.type==='PowerFinished')).toBe(true);});
-it.each(['stone','crystal'] as const)('a %s wall obeys sight for a gaze across a solid edge',material=>{const s=setup('Basilisk');s.walls.push({id:'wall',edge:{a:h(7),b:h(8)},material,hp:20,maxHp:20,burning:null});const events=use(s,{type:'Gaze',targetId:'target'});expect(events.some(e=>e.type==='PowerApplied')).toBe(material==='crystal');});
-it.each(profiles)('%s rechecks Darkness before applying a condition',(name)=>{const s=pending(name);s.darkness.push({id:'dark',casterId:'wizard-1',centre:{...target(s).centre},level:1,createdTurn:1,endsTurn:2});const r=run(s,true);expect(r.events.some(e=>e.type==='PowerApplied')).toBe(false);});
-it('Gaze reaches four from the Basilisk footprint and does not intercept creatures',()=>{const s=setup('Basilisk');target(s).centre=h(11);s.creatures.push(createCreature('interceptor','a',h(9)));use(s,{type:'Gaze',targetId:'target'});expect(target(s).conditions.some(e=>e.kind==='Slowed')).toBe(true);expect(s.creatures.find(c=>c.id==='interceptor')!.conditions).toEqual([]);});
-it('mental powers work across heights without granting a melee attack',()=>{const s=setup('Ghost');target(s).height='air';const events=use(s,{type:'Frighten',targetId:'target'});expect(events.some(e=>e.type==='PowerApplied')).toBe(true);});
-it('Defend does not add resistance advantage or consume an extra random draw',()=>{const a=setup('Basilisk'),b=setup('Basilisk');b.defending.push({creatureId:'target',phases:['early','late']});use(a,action('Basilisk'));use(b,action('Basilisk'));expect(a.random).toEqual(b.random);expect(target(a).conditions).toEqual(target(b).conditions);});
-it('Fear prevents a preplanned legal approach after the Lion moves away',()=>{let s=setup();s=order(s,'actor',{type:'Roar'},null,[h(5)]);s=order(s,'target',null,null,[h(7)]);s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).centre).toEqual(h(8));expect(actor(a.state).centre).toEqual(h(5));expect(a.events.some(e=>e.type==='MovementBlocked'&&e.creatureId==='target')).toBe(true);});
-it('Fear permits retreat and lateral movement but imposes attack disadvantage',()=>{const s=setup('Ghost');use(s,action('Ghost'));expect(fearAllowsStep(s,target(s),h(8))).toBe(true);expect(fearAllowsStep(s,target(s),h(7,4))).toBe(true);expect(fearAllowsStep(s,target(s),h(6))).toBe(false);s.phase='early';expect(hitModifiers(s,target(s),actor(s),target(s).attacks[0]!)[1]).toBe(true);});
-it('Fear has an end-turn Int recovery check and a two-turn maximum',()=>{const s=setup('Ghost');use(s,action('Ghost'));s.random.resolution=3;recover(s,[]);expect(target(s).conditions).toHaveLength(1);expireConditions(s);expect(target(s).conditions).toHaveLength(1);s.turn=2;expireConditions(s);expect(target(s).conditions).toEqual([]);s.turn=3;use(s,action('Ghost'));s.random.resolution=1;recover(s,[]);expect(target(s).conditions).toEqual([]);});
-it.each(['Lion','Ghost'] as const)('%s respects Int0 and construct Fear immunities without consuming resistance draws',(name)=>{for(const trait of [{intelligence:0},{construct:true}]){const s=setup(name);Object.assign(target(s),trait);s.phase='early';s.random.resolution=3;const events=use(s,action(name));expect(target(s).conditions).toEqual([]);expect(s.random.resolution).toBe(3);expect(events.some(e=>e.type==='PowerUnaffected')).toBe(true);}});
-it('Gaze applies Slowed first, then D02 Int restraint without changing Slowed expiry',()=>{const s=setup('Basilisk');use(s,action('Basilisk'));const slow=structuredClone(target(s).conditions[0]!);expect(effectiveMove(target(s))).toBe(1);s.turn=2;use(s,action('Basilisk'));expect(target(s).conditions.find(e=>e.kind==='Slowed')).toEqual(slow);expect(target(s).conditions.find(e=>e.kind==='Restrained')).toEqual(expect.objectContaining({potency:5,resistance:'int',endsTurn:3}));expect(restrained(s,target(s))).toBe(true);expireConditions(s);expect(target(s).conditions.map(e=>e.kind)).toEqual(['Restrained']);});
-it('D02 Escape uses Int against five and does not remove Slowed',()=>{const s=setup('Basilisk');use(s,action('Basilisk'));use(s,action('Basilisk'));target(s).size=10;target(s).intelligence=1;s.random.resolution=3;resolveCombatAction(s,target(s),'Escape',[]);expect(restrained(s,target(s))).toBe(true);target(s).size=1;target(s).intelligence=100;s.random.resolution=1;resolveCombatAction(s,target(s),'Escape',[]);expect(restrained(s,target(s))).toBe(false);expect(target(s).conditions.map(e=>e.kind)).toEqual(['Slowed']);});
-it('real Gaze can slow Int0 constructs but an illusory Gaze cannot',()=>{for(const illusion of [false,true]){const s=setup('Basilisk');Object.assign(target(s),{intelligence:0,construct:true});if(illusion)Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});use(s,action('Basilisk'));expect(target(s).conditions.some(e=>e.kind==='Slowed')).toBe(!illusion);}});
-it('Gaze rechecks Slowed at its atomic application boundary',()=>{const s=pending('Basilisk');target(s).slowed=true;const r=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s)));expect(target(r.state).conditions.map(e=>e.kind)).toEqual(['Restrained']);});
-it('two legal Double Action Gaze slots escalate in one turn without another action cost',()=>{let s=setup('Basilisk');actor(s).doubleAction=true;s=order(s,'actor',action('Basilisk'),action('Basilisk'));s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;s=until(advanceAtomicStep(s).state,s=>s.phase==='late'&&s.pendingPower!==null);s.random.resolution=3;s=advanceAtomicStep(s).state;expect(target(s).conditions.map(e=>e.kind)).toEqual(['Slowed','Restrained']);expect(s.spentActions.filter(id=>id==='actor')).toHaveLength(2);expect(run(s,true)).toEqual(run(s));});
-it.each(profiles)('illusory %s powers keep reversible condition provenance',(name)=>{const s=setup(name);Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});use(s,action(name));expect(target(s).conditions[0]!.illusionId).toBe('actor');if(name==='Basilisk')use(s,action(name));reverseIllusion(s,'actor',[]);expect(target(s).conditions).toEqual([]);});
-it('disbelieving a committed illusory Roar prevents its remaining targets from being affected',()=>{const s=pending();Object.assign(actor(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});actor(s).hp=-actor(s).maxHp;cleanupDeaths(s,[]);const r=run(s,true);expect(r.events.some(e=>e.type==='PowerApplied')).toBe(false);});
-it.each(profiles)('%s keeps its approved body attack and power-free reanimation profile',(name)=>{const s=setup(name);target(s).incapacitated=true;actor(s).attacks[0]!.shots[0]!.crit=0;s.phase='early';beginAttack(s,actor(s),{type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'},'action');while(s.pendingAttack)stepAttack(s,[]);expect(target(s).hp).toBe(name==='Ghost'?7:6);const body=createCreature('body','a',h(15),reanimatedProfile(actor(s),false));expect(body.fearAction).toBeUndefined();expect(body.gaze).toBeUndefined();});
-it('Lion Pack tactics grants advantage from an adjacent active ally',()=>{const s=setup();s.phase='early';s.creatures.push(createCreature('ally','a',h(8,6)));expect(hitModifiers(s,actor(s),target(s),actor(s).attacks[0]!)[0]).toBe(true);s.creatures.find(c=>c.id==='ally')!.incapacitated=true;expect(hitModifiers(s,actor(s),target(s),actor(s).attacks[0]!)[0]).toBe(false);});
-it('Ghost retains incorporeality, physical/poison immunity, light vulnerability and no corpse',()=>{const s=setup('Ghost');expect(actor(s).incorporeal).toBe(true);expect(applyDamage(s,actor(s),[{type:'physical',amount:4}],[])).toBe(0);expect(applyDamage(s,actor(s),[{type:'poison',amount:4}],[])).toBe(0);expect(applyDamage(s,actor(s),[{type:'light',amount:2}],[])).toBe(3);actor(s).hp=-actor(s).maxHp;cleanupDeaths(s,[]);expect(s.corpses.some(c=>c.creatureId==='actor')).toBe(false);});
-it('Ghost moves through an ordinary solid wall but cannot finish on a creature',()=>{let s=setup('Ghost');s.walls.push({id:'wall',edge:{a:h(6),b:h(7)},material:'stone',hp:20,maxHp:20,burning:null});s=order(s,'actor',null,null,[h(7),h(8)]);const ready=startScenarioTurn(s),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(actor(a.state).centre).toEqual(h(8));});
-it('Basilisk keeps its poison resistance and cold vulnerability',()=>{const s=setup('Basilisk');expect(applyDamage(s,actor(s),[{type:'poison',amount:4}],[])).toBe(2);expect(applyDamage(s,actor(s),[{type:'cold',amount:4}],[])).toBe(6);});
-it.each(profiles)('%s exposes isolated power metadata but no private continuation',(name)=>{const s=pending(name),view=projectView(s,'b'),shown=view.creatures.find(c=>c.id==='actor')!;expect(view).not.toHaveProperty('pendingPower');if(name==='Basilisk'){expect(shown.gaze).toEqual(actor(s).gaze);shown.gaze!.potency=99;expect(actor(s).gaze!.potency).toBe(5);}else{expect(shown.fearAction).toEqual(actor(s).fearAction);shown.fearAction!.potency=99;expect(actor(s).fearAction!.potency).toBe(name==='Lion'?3:4);}});
-it.each(profiles)('%s supports all three Quick summon variants without early powers',(name,spell,level)=>{for(const variant of ['bound','unbound','illusion'] as const){const s=createMatch('summon-powers',['a','b'],456),wizard=s.creatures[0]!;wizard.centre=h(5);wizard.spellbook=[spell];s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell,level,variant,targetId:null,ground:h(8),side:'left'},[]);completeCast(s,s.casts[0]!.id,[]);const summoned=s.creatures.find(c=>c.species===name)!;expect(summoned.readyTurn).toBe(2);expect(name==='Basilisk'?summoned.gaze:summoned.fearAction).toBeDefined();expect(summoned.kind).toBe(variant==='illusion'?'illusion':'summon');}});
-it.each(['roar-middle','frighten','gaze-slow','gaze-restraint'])('permanent %s fixture continues exactly after every atomic step',name=>{const text=readFileSync(`tests/fixtures/powers-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);expect(run(s,true)).toEqual(run(s));});
-it('malformed power continuations are rejected transactionally',()=>{const s=pending(),before=encodeSnapshot(s);const mutations:((r:GameState)=>void)[]=[r=>{r.pendingPower!.index=2;},r=>{r.pendingPower!.targets.push('target');},r=>{r.pendingPower!.targets=['missing'];},r=>{r.pendingPower!.actorId='missing';},r=>{r.pendingPower!.targets=['actor'];},r=>{delete actor(r).fearAction;},r=>{r.phase='movement';}];for(const mutate of mutations){const raw=JSON.parse(before) as GameState;mutate(raw);expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();}expect(encodeSnapshot(s)).toBe(before);});
-it('malformed power definitions and unknown action shapes are rejected',()=>{const s=setup(),before=encodeSnapshot(s);for(const power of [{kind:'Roar',range:0,potency:3,duration:2},{kind:'Roar',range:1,potency:3,duration:0},{kind:'unknown',range:1,potency:3,duration:2}]){const raw=JSON.parse(before);raw.creatures.find((c:Creature)=>c.id==='actor').fearAction=power;expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();}expect(()=>order(s,'actor',{type:'Roar',targetId:'target'} as unknown as PowerAction)).toThrow();expect(encodeSnapshot(s)).toBe(before);});
-it('victory clears a power continuation just like a pending attack',()=>{const s=pending();s.creatures[1]!.hp=-10;cleanupDeaths(s,[]);expect(checkVictory(s,[])).toBe(true);expect(s.pendingPower).toBeNull();expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);});
-it('Roar saves the completed victim index and never rerolls its first victim',()=>{const s=restoreSnapshot(readFileSync('tests/fixtures/powers-roar-middle.json','utf8'));expect(s.pendingPower!.index).toBe(1);expect(target(s).conditions.some(e=>e.kind==='Fear')).toBe(true);const r=run(s,true);expect(r.events.some(e=>e.type==='PowerApplied'&&e.targetId==='target')).toBe(false);});
-it('a hidden outlying Gaze target cannot leak through an invalid-power event',()=>{const s=pending('Basilisk');target(s).centre=h(11);s.darkness.push({id:'dark',casterId:'wizard-1',centre:h(11),level:1,createdTurn:1,endsTurn:2});const r=run(s,true);expect(r.events.some(e=>e.type==='PowerInvalid')).toBe(true);expect(projectEvents(s,'a',r.events).some(e=>e.targetId==='target')).toBe(false);});
-it('revising Frighten replaces the selected identity without spending mana',()=>{let s=setup('Ghost');s.creatures.push(createCreature('other-enemy','b',h(6,6),{intelligence:1}));s=order(s,'actor',{type:'Frighten',targetId:'target'});s=order(s,'actor',{type:'Frighten',targetId:'other-enemy'});expect(s.reservations).toEqual([]);expect(actor(s).mana).toBe(0);s=until(startScenarioTurn(s),s=>s.pendingPower!==null);s.random.resolution=3;const r=run(s,true);expect(r.events.some(e=>e.type==='PowerApplied'&&e.targetId==='other-enemy')).toBe(true);expect(r.events.some(e=>e.type==='PowerApplied'&&e.targetId==='target')).toBe(false);});
-it('Ghost movement remains blocked by Energy walls',()=>{const s=setup('Ghost');s.walls.push({id:'energy',edge:{a:h(6),b:h(7)},material:'energy',hp:20,maxHp:20,burning:null});expect(()=>order(s,'actor',null,null,[h(7),h(8)])).toThrow('INVALID_PATH');});
-it('Subdued powers share the ordinary movement-or-action budget',()=>{const s=setup('Basilisk');actor(s).subdued=true;expect(()=>order(s,'actor',action('Basilisk'),null,[h(5)])).toThrow('SUBDUED_BUDGET');});
-it('a dead selected victim wastes a power without applying a replacement effect',()=>{const s=pending('Ghost');target(s).hp=-10;cleanupDeaths(s,[]);const r=run(s,true);expect(r.events.some(e=>e.type==='PowerInvalid')).toBe(true);expect(r.events.some(e=>e.type==='PowerApplied')).toBe(false);});
-it('Roar rolls independent resistance for each canonical victim',()=>{const s=setup();s.creatures.push(createCreature('z-resistant','b',h(6,7),{intelligence:100}));const events=use(s,{type:'Roar'},3);expect(events.filter(e=>e.type==='PowerApplied').map(e=>e.targetId)).toEqual(['target']);expect(events.filter(e=>e.type==='PowerResisted').map(e=>e.targetId)).toEqual(['z-resistant']);expect(s.random.resolution).toBe(201886211);});
+function order(s: GameState, id: string, early: Order['early'], late: Order['late'] = null, path: Order['path'] = []) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: s.creatures.find(c => c.id === id)!.controller!,
+    turn: s.turn,
+    commandId: `order-${s.revision}`,
+    expectedRevision: s.revision,
+    order: { creatureId: id, path, early, late },
+  }).state;
+}
+function until(s: GameState, predicate: (s: GameState) => boolean) {
+  for (let n = 0; !predicate(s); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    s = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;
+  }
+  return s;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+function pending(name: Name = 'Lion', phase: 'early' | 'late' = 'early') {
+  let s = setup(name);
+  s = order(s, 'actor', phase === 'early' ? action(name) : null, phase === 'late' ? action(name) : null);
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  return s;
+}
+function use(s: GameState, a: PowerAction, seed = 3) {
+  s.phase = 'early';
+  s.random.resolution = seed;
+  const events: Event[] = [];
+  beginPower(s, actor(s), a, events);
+  while (s.pendingPower) stepPower(s, events);
+  return events;
+}
+it.each(profiles)(
+  '%s applies its approved condition without damage, mana or attack rolls',
+  (name, _spell, _level, _type, potency) => {
+    const s = setup(name),
+      hp = target(s).hp,
+      mana = actor(s).mana,
+      events = use(s, action(name));
+    expect(target(s).hp).toBe(hp);
+    expect(actor(s).mana).toBe(mana);
+    expect(target(s).conditions).toEqual([
+      expect.objectContaining({
+        kind: name === 'Basilisk' ? 'Slowed' : 'Fear',
+        potency,
+        resistance: 'int',
+        startsTurn: 1,
+        endsTurn: 2,
+        sourceId: 'actor',
+        requiresDamage: false,
+      }),
+    ]);
+    expect(events.some(e => e.type === 'PowerApplied')).toBe(true);
+    expect(events.some(e => ['AttackHit', 'AttackMissed', 'DamageApplied'].includes(e.type))).toBe(false);
+  },
+);
+it.each(profiles)('%s restores identically at every early and late power boundary', name => {
+  for (const phase of ['early', 'late'] as const) {
+    const s = pending(name, phase);
+    expect(run(s, true)).toEqual(run(s));
+    expect(run(s).events.some(e => e.type === 'PowerApplied')).toBe(true);
+  }
+});
+it('Roar snapshots enemies once in canonical order, excluding self, allies and distant creatures', () => {
+  const s = setup();
+  s.creatures.push(
+    createCreature('z-enemy', 'b', h(6, 7)),
+    createCreature('ally', 'a', h(8, 4)),
+    createCreature('distant', 'b', h(15)),
+  );
+  s.phase = 'early';
+  beginPower(s, actor(s), { type: 'Roar' }, []);
+  expect(s.pendingPower!.targets).toEqual(['target', 'z-enemy']);
+});
+it('Roar resolves a large target once despite multiple in-range occupied hexes', () => {
+  const s = setup();
+  Object.assign(target(s), { centre: h(9), size: 3, originalSize: 3, hp: 15, maxHp: 15 });
+  const events = use(s, { type: 'Roar' });
+  expect(events.filter(e => e.targetId === 'target' && e.type === 'PowerApplied')).toHaveLength(1);
+});
+it('no target joins a committed Roar, and an invalid listed victim is not replaced', () => {
+  let s = setup();
+  s.creatures.push(createCreature('latecomer', 'b', h(15)), createCreature('z-enemy', 'b', h(6, 7)));
+  s = until(startScenarioTurn(order(s, 'actor', { type: 'Roar' })), s => s.pendingPower !== null);
+  s.creatures.find(c => c.id === 'latecomer')!.centre = h(8, 4);
+  s.creatures.find(c => c.id === 'z-enemy')!.controller = 'a';
+  s.random.resolution = 3;
+  const r = run(s, true);
+  expect(r.events.some(e => e.targetId === 'latecomer' && e.type === 'PowerApplied')).toBe(false);
+  expect(r.events.some(e => e.targetId === 'z-enemy' && e.type === 'PowerInvalid')).toBe(true);
+});
+it('an empty Roar still consumes the selected action', () => {
+  const s = pending();
+  target(s).centre = h(15);
+  s.pendingPower!.targets = [];
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerFinished')).toBe(true);
+  expect(r.events.some(e => e.type === 'PowerApplied')).toBe(false);
+});
+it.each(profiles)('%s is resisted with Int and can fail without applying conditions', name => {
+  const s = setup(name);
+  target(s).intelligence = 100;
+  const events = use(s, action(name), 1);
+  expect(target(s).conditions).toEqual([]);
+  expect(events.some(e => e.type === 'PowerResisted')).toBe(true);
+});
+it.each(profiles)('%s wastes an out-of-range target without substitution', name => {
+  const s = pending(name);
+  target(s).centre = h(15);
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerInvalid')).toBe(true);
+  expect(r.events.some(e => e.type === 'PowerApplied')).toBe(false);
+});
+it.each(['Ghost', 'Basilisk'] as const)('%s follows its selected identity and rechecks enemy status', name => {
+  const s = pending(name);
+  target(s).controller = 'a';
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerInvalid')).toBe(true);
+  expect(target(r.state).conditions).toEqual([]);
+});
+it.each(profiles)('%s cannot submit an unavailable power, an ally/self target or a second normal action', name => {
+  const s = setup(name);
+  if (name !== 'Lion') {
+    for (const targetId of ['actor', 'wizard-0', 'missing'])
+      expect(() => order(s, 'actor', { ...action(name), targetId } as PowerAction)).toThrow();
+  }
+  expect(() => order(s, 'actor', action(name), action(name))).toThrow('ACTION_BUDGET');
+  const ordinary = setup(name);
+  delete actor(ordinary).fearAction;
+  delete actor(ordinary).gaze;
+  expect(() => order(ordinary, 'actor', action(name))).toThrow('NO_SUCH_POWER');
+});
+it.each(profiles)('%s never acts before its summon readiness turn', name => {
+  const s = setup(name);
+  actor(s).readyTurn = 2;
+  expect(() => order(s, 'actor', action(name))).toThrow('INELIGIBLE_CREATURE');
+  const events = use(s, action(name));
+  expect(events.some(e => e.type === 'ActionInvalid')).toBe(true);
+  expect(target(s).conditions).toEqual([]);
+});
+it.each(['incapacitation', 'death', 'control loss'] as const)('a committed Roar stops after actor %s', reason => {
+  const s = pending();
+  if (reason === 'incapacitation') actor(s).incapacitated = true;
+  else if (reason === 'death') {
+    actor(s).hp = -actor(s).maxHp;
+    cleanupDeaths(s, []);
+  } else {
+    actor(s).controller = null;
+    actor(s).bindingLevel = null;
+  }
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerApplied')).toBe(false);
+  expect(r.events.some(e => e.type === 'PowerFinished')).toBe(true);
+});
+it.each(['stone', 'crystal'] as const)('a %s wall obeys sight for a gaze across a solid edge', material => {
+  const s = setup('Basilisk');
+  s.walls.push({ id: 'wall', edge: { a: h(7), b: h(8) }, material, hp: 20, maxHp: 20, burning: null });
+  const events = use(s, { type: 'Gaze', targetId: 'target' });
+  expect(events.some(e => e.type === 'PowerApplied')).toBe(material === 'crystal');
+});
+it.each(profiles)('%s rechecks Darkness before applying a condition', name => {
+  const s = pending(name);
+  s.darkness.push({
+    id: 'dark',
+    casterId: 'wizard-1',
+    centre: { ...target(s).centre },
+    level: 1,
+    createdTurn: 1,
+    endsTurn: 2,
+  });
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerApplied')).toBe(false);
+});
+it('Gaze reaches four from the Basilisk footprint and does not intercept creatures', () => {
+  const s = setup('Basilisk');
+  target(s).centre = h(11);
+  s.creatures.push(createCreature('interceptor', 'a', h(9)));
+  use(s, { type: 'Gaze', targetId: 'target' });
+  expect(target(s).conditions.some(e => e.kind === 'Slowed')).toBe(true);
+  expect(s.creatures.find(c => c.id === 'interceptor')!.conditions).toEqual([]);
+});
+it('mental powers work across heights without granting a melee attack', () => {
+  const s = setup('Ghost');
+  target(s).height = 'air';
+  const events = use(s, { type: 'Frighten', targetId: 'target' });
+  expect(events.some(e => e.type === 'PowerApplied')).toBe(true);
+});
+it('Defend does not add resistance advantage or consume an extra random draw', () => {
+  const a = setup('Basilisk'),
+    b = setup('Basilisk');
+  b.defending.push({ creatureId: 'target', phases: ['early', 'late'] });
+  use(a, action('Basilisk'));
+  use(b, action('Basilisk'));
+  expect(a.random).toEqual(b.random);
+  expect(target(a).conditions).toEqual(target(b).conditions);
+});
+it('Fear prevents a preplanned legal approach after the Lion moves away', () => {
+  let s = setup();
+  s = order(s, 'actor', { type: 'Roar' }, null, [h(5)]);
+  s = order(s, 'target', null, null, [h(7)]);
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).centre).toEqual(h(8));
+  expect(actor(a.state).centre).toEqual(h(5));
+  expect(a.events.some(e => e.type === 'MovementBlocked' && e.creatureId === 'target')).toBe(true);
+});
+it('Fear permits retreat and lateral movement but imposes attack disadvantage', () => {
+  const s = setup('Ghost');
+  use(s, action('Ghost'));
+  expect(fearAllowsStep(s, target(s), h(8))).toBe(true);
+  expect(fearAllowsStep(s, target(s), h(7, 4))).toBe(true);
+  expect(fearAllowsStep(s, target(s), h(6))).toBe(false);
+  s.phase = 'early';
+  expect(hitModifiers(s, target(s), actor(s), target(s).attacks[0]!)[1]).toBe(true);
+});
+it('Fear has an end-turn Int recovery check and a two-turn maximum', () => {
+  const s = setup('Ghost');
+  use(s, action('Ghost'));
+  s.random.resolution = 3;
+  recover(s, []);
+  expect(target(s).conditions).toHaveLength(1);
+  expireConditions(s);
+  expect(target(s).conditions).toHaveLength(1);
+  s.turn = 2;
+  expireConditions(s);
+  expect(target(s).conditions).toEqual([]);
+  s.turn = 3;
+  use(s, action('Ghost'));
+  s.random.resolution = 1;
+  recover(s, []);
+  expect(target(s).conditions).toEqual([]);
+});
+it.each(['Lion', 'Ghost'] as const)(
+  '%s respects Int0 and construct Fear immunities without consuming resistance draws',
+  name => {
+    for (const trait of [{ intelligence: 0 }, { construct: true }]) {
+      const s = setup(name);
+      Object.assign(target(s), trait);
+      s.phase = 'early';
+      s.random.resolution = 3;
+      const events = use(s, action(name));
+      expect(target(s).conditions).toEqual([]);
+      expect(s.random.resolution).toBe(3);
+      expect(events.some(e => e.type === 'PowerUnaffected')).toBe(true);
+    }
+  },
+);
+it('Gaze applies Slowed first, then D02 Int restraint without changing Slowed expiry', () => {
+  const s = setup('Basilisk');
+  use(s, action('Basilisk'));
+  const slow = structuredClone(target(s).conditions[0]!);
+  expect(effectiveMove(target(s))).toBe(1);
+  s.turn = 2;
+  use(s, action('Basilisk'));
+  expect(target(s).conditions.find(e => e.kind === 'Slowed')).toEqual(slow);
+  expect(target(s).conditions.find(e => e.kind === 'Restrained')).toEqual(
+    expect.objectContaining({ potency: 5, resistance: 'int', endsTurn: 3 }),
+  );
+  expect(restrained(s, target(s))).toBe(true);
+  expireConditions(s);
+  expect(target(s).conditions.map(e => e.kind)).toEqual(['Restrained']);
+});
+it('D02 Escape uses Int against five and does not remove Slowed', () => {
+  const s = setup('Basilisk');
+  use(s, action('Basilisk'));
+  use(s, action('Basilisk'));
+  target(s).size = 10;
+  target(s).intelligence = 1;
+  s.random.resolution = 3;
+  resolveCombatAction(s, target(s), 'Escape', []);
+  expect(restrained(s, target(s))).toBe(true);
+  target(s).size = 1;
+  target(s).intelligence = 100;
+  s.random.resolution = 1;
+  resolveCombatAction(s, target(s), 'Escape', []);
+  expect(restrained(s, target(s))).toBe(false);
+  expect(target(s).conditions.map(e => e.kind)).toEqual(['Slowed']);
+});
+it('real Gaze can slow Int0 constructs but an illusory Gaze cannot', () => {
+  for (const illusion of [false, true]) {
+    const s = setup('Basilisk');
+    Object.assign(target(s), { intelligence: 0, construct: true });
+    if (illusion) Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+    use(s, action('Basilisk'));
+    expect(target(s).conditions.some(e => e.kind === 'Slowed')).toBe(!illusion);
+  }
+});
+it('Gaze rechecks Slowed at its atomic application boundary', () => {
+  const s = pending('Basilisk');
+  target(s).slowed = true;
+  const r = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s)));
+  expect(target(r.state).conditions.map(e => e.kind)).toEqual(['Restrained']);
+});
+it('two legal Double Action Gaze slots escalate in one turn without another action cost', () => {
+  let s = setup('Basilisk');
+  actor(s).doubleAction = true;
+  s = order(s, 'actor', action('Basilisk'), action('Basilisk'));
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  s = until(advanceAtomicStep(s).state, s => s.phase === 'late' && s.pendingPower !== null);
+  s.random.resolution = 3;
+  s = advanceAtomicStep(s).state;
+  expect(target(s).conditions.map(e => e.kind)).toEqual(['Slowed', 'Restrained']);
+  expect(s.spentActions.filter(id => id === 'actor')).toHaveLength(2);
+  expect(run(s, true)).toEqual(run(s));
+});
+it.each(profiles)('illusory %s powers keep reversible condition provenance', name => {
+  const s = setup(name);
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  use(s, action(name));
+  expect(target(s).conditions[0]!.illusionId).toBe('actor');
+  if (name === 'Basilisk') use(s, action(name));
+  reverseIllusion(s, 'actor', []);
+  expect(target(s).conditions).toEqual([]);
+});
+it('disbelieving a committed illusory Roar prevents its remaining targets from being affected', () => {
+  const s = pending();
+  Object.assign(actor(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  actor(s).hp = -actor(s).maxHp;
+  cleanupDeaths(s, []);
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerApplied')).toBe(false);
+});
+it.each(profiles)('%s keeps its approved body attack and power-free reanimation profile', name => {
+  const s = setup(name);
+  target(s).incapacitated = true;
+  actor(s).attacks[0]!.shots[0]!.crit = 0;
+  s.phase = 'early';
+  beginAttack(
+    s,
+    actor(s),
+    { type: 'Attack', attackId: 'basic', targetIds: ['target'], ground: null, side: 'left' },
+    'action',
+  );
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(target(s).hp).toBe(name === 'Ghost' ? 7 : 6);
+  const body = createCreature('body', 'a', h(15), reanimatedProfile(actor(s), false));
+  expect(body.fearAction).toBeUndefined();
+  expect(body.gaze).toBeUndefined();
+});
+it('Lion Pack tactics grants advantage from an adjacent active ally', () => {
+  const s = setup();
+  s.phase = 'early';
+  s.creatures.push(createCreature('ally', 'a', h(8, 6)));
+  expect(hitModifiers(s, actor(s), target(s), actor(s).attacks[0]!)[0]).toBe(true);
+  s.creatures.find(c => c.id === 'ally')!.incapacitated = true;
+  expect(hitModifiers(s, actor(s), target(s), actor(s).attacks[0]!)[0]).toBe(false);
+});
+it('Ghost retains incorporeality, physical/poison immunity, light vulnerability and no corpse', () => {
+  const s = setup('Ghost');
+  expect(actor(s).incorporeal).toBe(true);
+  expect(applyDamage(s, actor(s), [{ type: 'physical', amount: 4 }], [])).toBe(0);
+  expect(applyDamage(s, actor(s), [{ type: 'poison', amount: 4 }], [])).toBe(0);
+  expect(applyDamage(s, actor(s), [{ type: 'light', amount: 2 }], [])).toBe(3);
+  actor(s).hp = -actor(s).maxHp;
+  cleanupDeaths(s, []);
+  expect(s.corpses.some(c => c.creatureId === 'actor')).toBe(false);
+});
+it('Ghost moves through an ordinary solid wall but cannot finish on a creature', () => {
+  let s = setup('Ghost');
+  s.walls.push({ id: 'wall', edge: { a: h(6), b: h(7) }, material: 'stone', hp: 20, maxHp: 20, burning: null });
+  s = order(s, 'actor', null, null, [h(7), h(8)]);
+  const ready = startScenarioTurn(s),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(actor(a.state).centre).toEqual(h(8));
+});
+it('Basilisk keeps its poison resistance and cold vulnerability', () => {
+  const s = setup('Basilisk');
+  expect(applyDamage(s, actor(s), [{ type: 'poison', amount: 4 }], [])).toBe(2);
+  expect(applyDamage(s, actor(s), [{ type: 'cold', amount: 4 }], [])).toBe(6);
+});
+it.each(profiles)('%s exposes isolated power metadata but no private continuation', name => {
+  const s = pending(name),
+    view = projectView(s, 'b'),
+    shown = view.creatures.find(c => c.id === 'actor')!;
+  expect(view).not.toHaveProperty('pendingPower');
+  if (name === 'Basilisk') {
+    expect(shown.gaze).toEqual(actor(s).gaze);
+    shown.gaze!.potency = 99;
+    expect(actor(s).gaze!.potency).toBe(5);
+  } else {
+    expect(shown.fearAction).toEqual(actor(s).fearAction);
+    shown.fearAction!.potency = 99;
+    expect(actor(s).fearAction!.potency).toBe(name === 'Lion' ? 3 : 4);
+  }
+});
+it.each(profiles)('%s supports all three Quick summon variants without early powers', (name, spell, level) => {
+  for (const variant of ['bound', 'unbound', 'illusion'] as const) {
+    const s = createMatch('summon-powers', ['a', 'b'], 456),
+      wizard = s.creatures[0]!;
+    wizard.centre = h(5);
+    wizard.spellbook = [spell];
+    s.phase = 'early';
+    s.random.resolution = 1;
+    startCast(s, wizard, { type: 'Cast', spell, level, variant, targetId: null, ground: h(8), side: 'left' }, []);
+    completeCast(s, s.casts[0]!.id, []);
+    const summoned = s.creatures.find(c => c.species === name)!;
+    expect(summoned.readyTurn).toBe(2);
+    expect(name === 'Basilisk' ? summoned.gaze : summoned.fearAction).toBeDefined();
+    expect(summoned.kind).toBe(variant === 'illusion' ? 'illusion' : 'summon');
+  }
+});
+it.each(['roar-middle', 'frighten', 'gaze-slow', 'gaze-restraint'])(
+  'permanent %s fixture continues exactly after every atomic step',
+  name => {
+    const text = readFileSync(`tests/fixtures/powers-${name}.json`, 'utf8').trim(),
+      s = restoreSnapshot(text);
+    expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+    expect(run(s, true)).toEqual(run(s));
+  },
+);
+it('malformed power continuations are rejected transactionally', () => {
+  const s = pending(),
+    before = encodeSnapshot(s);
+  const mutations: ((r: GameState) => void)[] = [
+    r => {
+      r.pendingPower!.index = 2;
+    },
+    r => {
+      r.pendingPower!.targets.push('target');
+    },
+    r => {
+      r.pendingPower!.targets = ['missing'];
+    },
+    r => {
+      r.pendingPower!.actorId = 'missing';
+    },
+    r => {
+      r.pendingPower!.targets = ['actor'];
+    },
+    r => {
+      delete actor(r).fearAction;
+    },
+    r => {
+      r.phase = 'movement';
+    },
+  ];
+  for (const mutate of mutations) {
+    const raw = JSON.parse(before) as GameState;
+    mutate(raw);
+    expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  }
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it('malformed power definitions and unknown action shapes are rejected', () => {
+  const s = setup(),
+    before = encodeSnapshot(s);
+  for (const power of [
+    { kind: 'Roar', range: 0, potency: 3, duration: 2 },
+    { kind: 'Roar', range: 1, potency: 3, duration: 0 },
+    { kind: 'unknown', range: 1, potency: 3, duration: 2 },
+  ]) {
+    const raw = JSON.parse(before);
+    raw.creatures.find((c: Creature) => c.id === 'actor').fearAction = power;
+    expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  }
+  expect(() => order(s, 'actor', { type: 'Roar', targetId: 'target' } as unknown as PowerAction)).toThrow();
+  expect(encodeSnapshot(s)).toBe(before);
+});
+it('victory clears a power continuation just like a pending attack', () => {
+  const s = pending();
+  s.creatures[1]!.hp = -10;
+  cleanupDeaths(s, []);
+  expect(checkVictory(s, [])).toBe(true);
+  expect(s.pendingPower).toBeNull();
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+});
+it('Roar saves the completed victim index and never rerolls its first victim', () => {
+  const s = restoreSnapshot(readFileSync('tests/fixtures/powers-roar-middle.json', 'utf8'));
+  expect(s.pendingPower!.index).toBe(1);
+  expect(target(s).conditions.some(e => e.kind === 'Fear')).toBe(true);
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerApplied' && e.targetId === 'target')).toBe(false);
+});
+it('a hidden outlying Gaze target cannot leak through an invalid-power event', () => {
+  const s = pending('Basilisk');
+  target(s).centre = h(11);
+  s.darkness.push({ id: 'dark', casterId: 'wizard-1', centre: h(11), level: 1, createdTurn: 1, endsTurn: 2 });
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerInvalid')).toBe(true);
+  expect(projectEvents(s, 'a', r.events).some(e => e.targetId === 'target')).toBe(false);
+});
+it('revising Frighten replaces the selected identity without spending mana', () => {
+  let s = setup('Ghost');
+  s.creatures.push(createCreature('other-enemy', 'b', h(6, 6), { intelligence: 1 }));
+  s = order(s, 'actor', { type: 'Frighten', targetId: 'target' });
+  s = order(s, 'actor', { type: 'Frighten', targetId: 'other-enemy' });
+  expect(s.reservations).toEqual([]);
+  expect(actor(s).mana).toBe(0);
+  s = until(startScenarioTurn(s), s => s.pendingPower !== null);
+  s.random.resolution = 3;
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerApplied' && e.targetId === 'other-enemy')).toBe(true);
+  expect(r.events.some(e => e.type === 'PowerApplied' && e.targetId === 'target')).toBe(false);
+});
+it('Ghost movement remains blocked by Energy walls', () => {
+  const s = setup('Ghost');
+  s.walls.push({ id: 'energy', edge: { a: h(6), b: h(7) }, material: 'energy', hp: 20, maxHp: 20, burning: null });
+  expect(() => order(s, 'actor', null, null, [h(7), h(8)])).toThrow('INVALID_PATH');
+});
+it('Subdued powers share the ordinary movement-or-action budget', () => {
+  const s = setup('Basilisk');
+  actor(s).subdued = true;
+  expect(() => order(s, 'actor', action('Basilisk'), null, [h(5)])).toThrow('SUBDUED_BUDGET');
+});
+it('a dead selected victim wastes a power without applying a replacement effect', () => {
+  const s = pending('Ghost');
+  target(s).hp = -10;
+  cleanupDeaths(s, []);
+  const r = run(s, true);
+  expect(r.events.some(e => e.type === 'PowerInvalid')).toBe(true);
+  expect(r.events.some(e => e.type === 'PowerApplied')).toBe(false);
+});
+it('Roar rolls independent resistance for each canonical victim', () => {
+  const s = setup();
+  s.creatures.push(createCreature('z-resistant', 'b', h(6, 7), { intelligence: 100 }));
+  const events = use(s, { type: 'Roar' }, 3);
+  expect(events.filter(e => e.type === 'PowerApplied').map(e => e.targetId)).toEqual(['target']);
+  expect(events.filter(e => e.type === 'PowerResisted').map(e => e.targetId)).toEqual(['z-resistant']);
+  expect(s.random.resolution).toBe(201886211);
+});

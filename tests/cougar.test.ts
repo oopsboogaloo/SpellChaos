@@ -1,52 +1,354 @@
-import {it,expect} from 'vitest';
-import {readFileSync} from 'node:fs';
-import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {beginAttack,stepAttack,pounceDamage} from '../packages/engine/src/combat.js';
-import {forceMove,startCast,completeCast} from '../packages/engine/src/casting.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {reanimatedProfile} from '../packages/engine/src/reanimation.js';
-import {projectView} from '../packages/views/src/index.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import type {GameState,Order} from '../packages/domain/src/state.js';
-import type {Event} from '../packages/engine/src/events.js';
-import type {AttackAction} from '../packages/domain/src/combat.js';
-const h=(q:number,r=5)=>({q,r});
-const bite:AttackAction={type:'Attack',attackId:'basic',targetIds:['target'],ground:null,side:'left'};
-const cat=(s:GameState)=>s.creatures.find(c=>c.id==='cougar')!;
-const target=(s:GameState)=>s.creatures.find(c=>c.id==='target')!;
-function setup(){const s=createMatch('cougar',['a','b'],456);s.creatures[0]!.centre=h(2,2);s.creatures[1]!.centre=h(20,15);s.creatures.push(createCreature('cougar','a',h(5),summonProfile('Summon Cat',2)!),createCreature('target','b',h(9),{incapacitated:true}));cat(s).attacks[0]!.shots[0]!.crit=0;return s;}
-function order(s:GameState,path:Order['path']=[h(6),h(7),h(8)],early:Order['early']=null,late:Order['late']=bite){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'a',turn:s.turn,commandId:`order-${s.revision}`,expectedRevision:s.revision,order:{creatureId:'cougar',path,early,late}}).state;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-function until(s:GameState,predicate:(s:GameState)=>boolean){for(let n=0;!predicate(s);n++){if(n>1000)throw new Error('STEP_LIMIT');s=advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;}return s;}
-function attack(s:GameState,source:'action'|'guard'='action'){beginAttack(s,cat(s),bite,source);const events:Event[]=[];while(s.pendingAttack)stepAttack(s,events);return events;}
-it('Cougar approaches three steps then bites for five with exact atomic continuation',()=>{const s=startScenarioTurn(order(setup())),a=run(s),b=run(s,true);expect(b).toEqual(a);expect(target(a.state).hp).toBe(5);expect(cat(a.state).centre).toEqual(h(8));expect(cat(a.state).pounceTrail).toBeUndefined();expect(cat(a.state).pounce).toEqual({attackId:'basic',steps:3,damage:2});});
-it('two steps do not qualify, and a new turn cannot reuse the previous approach',()=>{let s=setup();cat(s).centre=h(6);const a=run(startScenarioTurn(order(s,[h(7),h(8)]))),b=run(startScenarioTurn(order(setup())));expect(target(a.state).hp).toBe(7);s=b.state;target(s).incapacitated=true;s=run(startScenarioTurn(order(s,[])),true).state;expect(target(s).hp).toBe(2);});
-it('unresolved planned steps do not empower an early bite',()=>{const s=setup();target(s).centre=h(6);const r=run(startScenarioTurn(order(s,[],bite,null)),true);expect(target(r.state).hp).toBe(7);});
-it('blocked movement counts only its resolved prefix',()=>{let s=startScenarioTurn(order(setup()));s=until(s,s=>s.phase==='movement'&&cat(s).centre.q===7);s.creatures.push(createCreature('blocker','b',h(8)));const r=run(s,true);expect(cat(r.state).centre).toEqual(h(7));expect(target(r.state).hp).toBe(10);expect(r.events.some(e=>e.type==='MovementBlocked')).toBe(true);});
-it('a blocked path can retain three genuine approach steps for a reachable target',()=>{let s=setup();target(s).centre=h(8,6);s=startScenarioTurn(order(s,[h(6),h(7),h(8),h(9)]));s=until(s,s=>s.phase==='movement'&&cat(s).centre.q===8);s.creatures.push(createCreature('blocker','b',h(9)));const r=run(s,true);expect(cat(r.state).centre).toEqual(h(8));expect(target(r.state).hp).toBe(5);});
-it('a retreat or sideways step breaks the final approach run',()=>{for(const path of [[h(6),h(7),h(6),h(7),h(8)],[h(6),h(7),h(7,6),h(8)]]){const r=run(startScenarioTurn(order(setup(),path)),true);expect(target(r.state).hp).toBe(7);}});
-it('terrain cost is not extra approach distance',()=>{const s=setup();cat(s).centre=h(6);s.walls.push({id:'thorns',edge:{a:h(6),b:h(7)},material:'thorns',hp:20,maxHp:20,burning:null});const r=run(startScenarioTurn(order(s,[h(7),h(8)])),true);expect(target(r.state).hp).toBe(7);expect(cat(r.state).hp).toBe(5);});
-it('Pounce rechecks the selected target at its current footprint without substitution',()=>{let s=startScenarioTurn(order(setup()));s=until(s,s=>s.phase==='late'&&s.pendingAttack!==null);target(s).centre=h(7,6);const a=run(s,true);expect(target(a.state).hp).toBe(7);target(s).centre=h(12);expect(target(run(s,true).state).hp).toBe(10);});
-it('large target distances use occupied footprints',()=>{let s=setup();target(s).centre=h(10);target(s).size=3;target(s).originalSize=3;target(s).maxHp=target(s).con*3;const r=run(startScenarioTurn(order(s)),true);expect(target(r.state).hp).toBe(5);});
-it.each([0,0.5,1.5] as const)('Pounce base damage respects physical defence %s',multiplier=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null);target(s).defences=[{type:'physical',multiplier}];const r=run(s,true);expect(target(r.state).hp).toBe(10-Math.ceil(5*multiplier));});
-it('critical Pounce doubles the whole base bite',()=>{const s=setup();cat(s).attacks[0]!.shots[0]!.crit=100;const r=run(startScenarioTurn(order(s)),true);expect(target(r.state).hp).toBe(0);});
-it('Guard never gains Pounce even with a completed approach',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null);s.pendingAttack=null;attack(s,'guard');expect(target(s).hp).toBe(7);});
-it('Pounce does not empower another attack or structure damage',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null);expect(pounceDamage(cat(s),target(s),'other','action')).toBe(0);s.pendingAttack=null;s.walls.push({id:'wall',edge:{a:h(8),b:h(9)},material:'stone',hp:20,maxHp:20,burning:null});beginAttack(s,cat(s),{...bite,targetIds:[],structure:{kind:'wall',id:'wall'}},'action');while(s.pendingAttack)stepAttack(s,[]);expect(s.walls[0]!.hp).toBe(17);});
-it('forced movement clears approach history',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null);s.pendingAttack=null;forceMove(s,cat(s),h(8,6),[]);expect(cat(s).pounceTrail).toBeUndefined();expect(pounceDamage(cat(s),target(s),'basic','action')).toBe(0);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);});
-it('illusory Pounce damage reverses for survivors',()=>{const s=setup();Object.assign(cat(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});const r=run(startScenarioTurn(order(s)),true);expect(target(r.state).hp).toBe(5);reverseIllusion(r.state,'cougar',[]);expect(target(r.state).hp).toBe(10);});
-it.each([false,true])('reanimation retains bite and removes Pounce (%s)',skeletal=>{const s=setup(),body=cat(s),reborn=createCreature('reborn','a',h(5),reanimatedProfile(body,skeletal));expect(reborn.attacks).toEqual(body.attacks);expect(reborn.pounce).toBeUndefined();expect(reborn.pounceTrail).toBeUndefined();});
-it('public Pounce data is isolated and does not expose authoritative history',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null),view=projectView(s,'b'),shown=view.creatures.find(c=>c.id==='cougar')!;expect(shown.pounce).toEqual(cat(s).pounce);shown.pounce!.damage=999;expect(cat(s).pounce!.damage).toBe(2);expect(shown).not.toHaveProperty('pounceTrail');});
-it.each(['movement','bite'])('permanent %s fixture resumes identically at every atomic boundary',name=>{const text=readFileSync(`tests/fixtures/cougar-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);expect(cat(s).pounceTrail!.length).toBe(name==='movement'?3:4);expect(run(s,true)).toEqual(run(s));expect(target(run(s).state).hp).toBe(5);});
-it('invalid ability and trail snapshots are rejected transactionally',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null),before=encodeSnapshot(s);for(const mutate of [(c:typeof s.creatures[number])=>{c.pounce!.attackId='missing';},(c:typeof s.creatures[number])=>{c.pounce!.steps=0;},(c:typeof s.creatures[number])=>{c.pounceTrail![1]=h(15);},(c:typeof s.creatures[number])=>{c.pounceTrail!.pop();},(c:typeof s.creatures[number])=>{delete c.pounce;}]){const raw=JSON.parse(before) as GameState;mutate(cat(raw));expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();}expect(encodeSnapshot(s)).toBe(before);});
+import { it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createMatch, createCreature, applyCommand } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { beginAttack, stepAttack, pounceDamage } from '../packages/engine/src/combat.js';
+import { forceMove, startCast, completeCast } from '../packages/engine/src/casting.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { reanimatedProfile } from '../packages/engine/src/reanimation.js';
+import { projectView } from '../packages/views/src/index.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import type { GameState, Order } from '../packages/domain/src/state.js';
+import type { Event } from '../packages/engine/src/events.js';
+import type { AttackAction } from '../packages/domain/src/combat.js';
+const h = (q: number, r = 5) => ({ q, r });
+const bite: AttackAction = { type: 'Attack', attackId: 'basic', targetIds: ['target'], ground: null, side: 'left' };
+const cat = (s: GameState) => s.creatures.find(c => c.id === 'cougar')!;
+const target = (s: GameState) => s.creatures.find(c => c.id === 'target')!;
+function setup() {
+  const s = createMatch('cougar', ['a', 'b'], 456);
+  s.creatures[0]!.centre = h(2, 2);
+  s.creatures[1]!.centre = h(20, 15);
+  s.creatures.push(
+    createCreature('cougar', 'a', h(5), summonProfile('Summon Cat', 2)!),
+    createCreature('target', 'b', h(9), { incapacitated: true }),
+  );
+  cat(s).attacks[0]!.shots[0]!.crit = 0;
+  return s;
+}
+function order(
+  s: GameState,
+  path: Order['path'] = [h(6), h(7), h(8)],
+  early: Order['early'] = null,
+  late: Order['late'] = bite,
+) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'a',
+    turn: s.turn,
+    commandId: `order-${s.revision}`,
+    expectedRevision: s.revision,
+    order: { creatureId: 'cougar', path, early, late },
+  }).state;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+function until(s: GameState, predicate: (s: GameState) => boolean) {
+  for (let n = 0; !predicate(s); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    s = advanceAtomicStep(restoreSnapshot(encodeSnapshot(s))).state;
+  }
+  return s;
+}
+function attack(s: GameState, source: 'action' | 'guard' = 'action') {
+  beginAttack(s, cat(s), bite, source);
+  const events: Event[] = [];
+  while (s.pendingAttack) stepAttack(s, events);
+  return events;
+}
+it('Cougar approaches three steps then bites for five with exact atomic continuation', () => {
+  const s = startScenarioTurn(order(setup())),
+    a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(target(a.state).hp).toBe(5);
+  expect(cat(a.state).centre).toEqual(h(8));
+  expect(cat(a.state).pounceTrail).toBeUndefined();
+  expect(cat(a.state).pounce).toEqual({ attackId: 'basic', steps: 3, damage: 2 });
+});
+it('two steps do not qualify, and a new turn cannot reuse the previous approach', () => {
+  let s = setup();
+  cat(s).centre = h(6);
+  const a = run(startScenarioTurn(order(s, [h(7), h(8)]))),
+    b = run(startScenarioTurn(order(setup())));
+  expect(target(a.state).hp).toBe(7);
+  s = b.state;
+  target(s).incapacitated = true;
+  s = run(startScenarioTurn(order(s, [])), true).state;
+  expect(target(s).hp).toBe(2);
+});
+it('unresolved planned steps do not empower an early bite', () => {
+  const s = setup();
+  target(s).centre = h(6);
+  const r = run(startScenarioTurn(order(s, [], bite, null)), true);
+  expect(target(r.state).hp).toBe(7);
+});
+it('blocked movement counts only its resolved prefix', () => {
+  let s = startScenarioTurn(order(setup()));
+  s = until(s, s => s.phase === 'movement' && cat(s).centre.q === 7);
+  s.creatures.push(createCreature('blocker', 'b', h(8)));
+  const r = run(s, true);
+  expect(cat(r.state).centre).toEqual(h(7));
+  expect(target(r.state).hp).toBe(10);
+  expect(r.events.some(e => e.type === 'MovementBlocked')).toBe(true);
+});
+it('a blocked path can retain three genuine approach steps for a reachable target', () => {
+  let s = setup();
+  target(s).centre = h(8, 6);
+  s = startScenarioTurn(order(s, [h(6), h(7), h(8), h(9)]));
+  s = until(s, s => s.phase === 'movement' && cat(s).centre.q === 8);
+  s.creatures.push(createCreature('blocker', 'b', h(9)));
+  const r = run(s, true);
+  expect(cat(r.state).centre).toEqual(h(8));
+  expect(target(r.state).hp).toBe(5);
+});
+it('a retreat or sideways step breaks the final approach run', () => {
+  for (const path of [
+    [h(6), h(7), h(6), h(7), h(8)],
+    [h(6), h(7), h(7, 6), h(8)],
+  ]) {
+    const r = run(startScenarioTurn(order(setup(), path)), true);
+    expect(target(r.state).hp).toBe(7);
+  }
+});
+it('terrain cost is not extra approach distance', () => {
+  const s = setup();
+  cat(s).centre = h(6);
+  s.walls.push({ id: 'thorns', edge: { a: h(6), b: h(7) }, material: 'thorns', hp: 20, maxHp: 20, burning: null });
+  const r = run(startScenarioTurn(order(s, [h(7), h(8)])), true);
+  expect(target(r.state).hp).toBe(7);
+  expect(cat(r.state).hp).toBe(5);
+});
+it('Pounce rechecks the selected target at its current footprint without substitution', () => {
+  let s = startScenarioTurn(order(setup()));
+  s = until(s, s => s.phase === 'late' && s.pendingAttack !== null);
+  target(s).centre = h(7, 6);
+  const a = run(s, true);
+  expect(target(a.state).hp).toBe(7);
+  target(s).centre = h(12);
+  expect(target(run(s, true).state).hp).toBe(10);
+});
+it('large target distances use occupied footprints', () => {
+  let s = setup();
+  target(s).centre = h(10);
+  target(s).size = 3;
+  target(s).originalSize = 3;
+  target(s).maxHp = target(s).con * 3;
+  const r = run(startScenarioTurn(order(s)), true);
+  expect(target(r.state).hp).toBe(5);
+});
+it.each([0, 0.5, 1.5] as const)('Pounce base damage respects physical defence %s', multiplier => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null);
+  target(s).defences = [{ type: 'physical', multiplier }];
+  const r = run(s, true);
+  expect(target(r.state).hp).toBe(10 - Math.ceil(5 * multiplier));
+});
+it('critical Pounce doubles the whole base bite', () => {
+  const s = setup();
+  cat(s).attacks[0]!.shots[0]!.crit = 100;
+  const r = run(startScenarioTurn(order(s)), true);
+  expect(target(r.state).hp).toBe(0);
+});
+it('Guard never gains Pounce even with a completed approach', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null);
+  s.pendingAttack = null;
+  attack(s, 'guard');
+  expect(target(s).hp).toBe(7);
+});
+it('Pounce does not empower another attack or structure damage', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null);
+  expect(pounceDamage(cat(s), target(s), 'other', 'action')).toBe(0);
+  s.pendingAttack = null;
+  s.walls.push({ id: 'wall', edge: { a: h(8), b: h(9) }, material: 'stone', hp: 20, maxHp: 20, burning: null });
+  beginAttack(s, cat(s), { ...bite, targetIds: [], structure: { kind: 'wall', id: 'wall' } }, 'action');
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(s.walls[0]!.hp).toBe(17);
+});
+it('forced movement clears approach history', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null);
+  s.pendingAttack = null;
+  forceMove(s, cat(s), h(8, 6), []);
+  expect(cat(s).pounceTrail).toBeUndefined();
+  expect(pounceDamage(cat(s), target(s), 'basic', 'action')).toBe(0);
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+});
+it('illusory Pounce damage reverses for survivors', () => {
+  const s = setup();
+  Object.assign(cat(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  const r = run(startScenarioTurn(order(s)), true);
+  expect(target(r.state).hp).toBe(5);
+  reverseIllusion(r.state, 'cougar', []);
+  expect(target(r.state).hp).toBe(10);
+});
+it.each([false, true])('reanimation retains bite and removes Pounce (%s)', skeletal => {
+  const s = setup(),
+    body = cat(s),
+    reborn = createCreature('reborn', 'a', h(5), reanimatedProfile(body, skeletal));
+  expect(reborn.attacks).toEqual(body.attacks);
+  expect(reborn.pounce).toBeUndefined();
+  expect(reborn.pounceTrail).toBeUndefined();
+});
+it('public Pounce data is isolated and does not expose authoritative history', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null),
+    view = projectView(s, 'b'),
+    shown = view.creatures.find(c => c.id === 'cougar')!;
+  expect(shown.pounce).toEqual(cat(s).pounce);
+  shown.pounce!.damage = 999;
+  expect(cat(s).pounce!.damage).toBe(2);
+  expect(shown).not.toHaveProperty('pounceTrail');
+});
+it.each(['movement', 'bite'])('permanent %s fixture resumes identically at every atomic boundary', name => {
+  const text = readFileSync(`tests/fixtures/cougar-${name}.json`, 'utf8').trim(),
+    s = restoreSnapshot(text);
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  expect(cat(s).pounceTrail!.length).toBe(name === 'movement' ? 3 : 4);
+  expect(run(s, true)).toEqual(run(s));
+  expect(target(run(s).state).hp).toBe(5);
+});
+it('invalid ability and trail snapshots are rejected transactionally', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null),
+    before = encodeSnapshot(s);
+  for (const mutate of [
+    (c: (typeof s.creatures)[number]) => {
+      c.pounce!.attackId = 'missing';
+    },
+    (c: (typeof s.creatures)[number]) => {
+      c.pounce!.steps = 0;
+    },
+    (c: (typeof s.creatures)[number]) => {
+      c.pounceTrail![1] = h(15);
+    },
+    (c: (typeof s.creatures)[number]) => {
+      c.pounceTrail!.pop();
+    },
+    (c: (typeof s.creatures)[number]) => {
+      delete c.pounce;
+    },
+  ]) {
+    const raw = JSON.parse(before) as GameState;
+    mutate(cat(raw));
+    expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  }
+  expect(encodeSnapshot(s)).toBe(before);
+});
 
-it('a damaging Guard can interrupt the approach before a bite',()=>{let s=setup();s.creatures.push(createCreature('guard','b',h(8,6),{dex:10,attacks:[{id:'stop',name:'Stop',mode:'melee',range:1,minRange:0,radius:0,shots:[{skill:100,crit:0,components:[{type:'physical',amount:20}],secondary:[]}]}]}));s=order(s);s=applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'b',turn:1,commandId:'guard',expectedRevision:s.revision,order:{creatureId:'guard',path:[],early:{type:'Guard',attackId:'stop',targetId:'cougar',area:[]},late:null}}).state;const r=run(startScenarioTurn(s),true);expect(target(r.state).hp).toBe(10);expect(cat(r.state).alive).toBe(false);expect(r.events.some(e=>e.type==='AttackHit'&&e.creatureId==='guard')).toBe(true);});
-it('a missed Pounce deals no damage',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null);target(s).incapacitated=false;target(s).dex=100;s.random.resolution=123456;const r=run(s,true);expect(target(r.state).hp).toBe(10);expect(r.events.some(e=>e.type==='AttackMissed'&&e.creatureId==='cougar')).toBe(true);});
-it('teleport clears a completed approach rather than adding movement steps',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null);s.pendingAttack=null;Object.assign(cat(s),{spellbook:['Teleport'],spellLevelCap:1,mana:10,maxMana:10});s.random.resolution=1;const events:Event[]=[];startCast(s,cat(s),{type:'Cast',spell:'Teleport',level:1,variant:'bound',targetId:null,ground:h(8,6),side:'left'},events);expect(events.some(e=>e.type==='CreatureTeleported')).toBe(true);expect(cat(s).pounceTrail).toBeUndefined();expect(pounceDamage(cat(s),target(s),'basic','action')).toBe(0);});
-it('planned movement alone never creates a Pounce trail',()=>{const s=order(setup());expect(cat(s).pounceTrail).toBeUndefined();expect(pounceDamage(cat(s),target(s),'basic','action')).toBe(0);});
-it.each(['bound','unbound','illusion'] as const)('new %s Cougar summons copy Pounce and wait until the next turn',variant=>{const s=createMatch('summon-cougar',['a','b'],456),wizard=s.creatures[0]!;wizard.centre=h(5);wizard.spellbook=['Summon Cat'];s.phase='early';s.random.resolution=1;startCast(s,wizard,{type:'Cast',spell:'Summon Cat',level:2,variant,targetId:null,ground:h(7),side:'left'},[]);expect(s.casts[0]!.timing).toBe('quick');completeCast(s,s.casts[0]!.id,[]);const summoned=s.creatures.find(c=>c.species==='Cougar')!;expect(summoned.pounce).toEqual({attackId:'basic',steps:3,damage:2});expect(summoned.readyTurn).toBe(2);expect(summoned.pounceTrail).toBeUndefined();expect(summoned.kind).toBe(variant==='illusion'?'illusion':'summon');expect(summoned.controller).toBe(variant==='unbound'?null:'a');summoned.pounce!.damage=999;expect(summonProfile('Summon Cat',2)!.pounce!.damage).toBe(2);});
-it('an invalid forced destination leaves the completed approach untouched',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null),before=encodeSnapshot(s);expect(()=>forceMove(s,cat(s),target(s).centre,[])).toThrow('INVALID_FORCED_DESTINATION');expect(encodeSnapshot(s)).toBe(before);});
+it('a damaging Guard can interrupt the approach before a bite', () => {
+  let s = setup();
+  s.creatures.push(
+    createCreature('guard', 'b', h(8, 6), {
+      dex: 10,
+      attacks: [
+        {
+          id: 'stop',
+          name: 'Stop',
+          mode: 'melee',
+          range: 1,
+          minRange: 0,
+          radius: 0,
+          shots: [{ skill: 100, crit: 0, components: [{ type: 'physical', amount: 20 }], secondary: [] }],
+        },
+      ],
+    }),
+  );
+  s = order(s);
+  s = applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'b',
+    turn: 1,
+    commandId: 'guard',
+    expectedRevision: s.revision,
+    order: {
+      creatureId: 'guard',
+      path: [],
+      early: { type: 'Guard', attackId: 'stop', targetId: 'cougar', area: [] },
+      late: null,
+    },
+  }).state;
+  const r = run(startScenarioTurn(s), true);
+  expect(target(r.state).hp).toBe(10);
+  expect(cat(r.state).alive).toBe(false);
+  expect(r.events.some(e => e.type === 'AttackHit' && e.creatureId === 'guard')).toBe(true);
+});
+it('a missed Pounce deals no damage', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null);
+  target(s).incapacitated = false;
+  target(s).dex = 100;
+  s.random.resolution = 123456;
+  const r = run(s, true);
+  expect(target(r.state).hp).toBe(10);
+  expect(r.events.some(e => e.type === 'AttackMissed' && e.creatureId === 'cougar')).toBe(true);
+});
+it('teleport clears a completed approach rather than adding movement steps', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null);
+  s.pendingAttack = null;
+  Object.assign(cat(s), { spellbook: ['Teleport'], spellLevelCap: 1, mana: 10, maxMana: 10 });
+  s.random.resolution = 1;
+  const events: Event[] = [];
+  startCast(
+    s,
+    cat(s),
+    { type: 'Cast', spell: 'Teleport', level: 1, variant: 'bound', targetId: null, ground: h(8, 6), side: 'left' },
+    events,
+  );
+  expect(events.some(e => e.type === 'CreatureTeleported')).toBe(true);
+  expect(cat(s).pounceTrail).toBeUndefined();
+  expect(pounceDamage(cat(s), target(s), 'basic', 'action')).toBe(0);
+});
+it('planned movement alone never creates a Pounce trail', () => {
+  const s = order(setup());
+  expect(cat(s).pounceTrail).toBeUndefined();
+  expect(pounceDamage(cat(s), target(s), 'basic', 'action')).toBe(0);
+});
+it.each(['bound', 'unbound', 'illusion'] as const)(
+  'new %s Cougar summons copy Pounce and wait until the next turn',
+  variant => {
+    const s = createMatch('summon-cougar', ['a', 'b'], 456),
+      wizard = s.creatures[0]!;
+    wizard.centre = h(5);
+    wizard.spellbook = ['Summon Cat'];
+    s.phase = 'early';
+    s.random.resolution = 1;
+    startCast(
+      s,
+      wizard,
+      { type: 'Cast', spell: 'Summon Cat', level: 2, variant, targetId: null, ground: h(7), side: 'left' },
+      [],
+    );
+    expect(s.casts[0]!.timing).toBe('quick');
+    completeCast(s, s.casts[0]!.id, []);
+    const summoned = s.creatures.find(c => c.species === 'Cougar')!;
+    expect(summoned.pounce).toEqual({ attackId: 'basic', steps: 3, damage: 2 });
+    expect(summoned.readyTurn).toBe(2);
+    expect(summoned.pounceTrail).toBeUndefined();
+    expect(summoned.kind).toBe(variant === 'illusion' ? 'illusion' : 'summon');
+    expect(summoned.controller).toBe(variant === 'unbound' ? null : 'a');
+    summoned.pounce!.damage = 999;
+    expect(summonProfile('Summon Cat', 2)!.pounce!.damage).toBe(2);
+  },
+);
+it('an invalid forced destination leaves the completed approach untouched', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null),
+    before = encodeSnapshot(s);
+  expect(() => forceMove(s, cat(s), target(s).centre, [])).toThrow('INVALID_FORCED_DESTINATION');
+  expect(encodeSnapshot(s)).toBe(before);
+});
 
-it('a no-op forced move preserves the resolved approach',()=>{const s=until(startScenarioTurn(order(setup())),s=>s.phase==='late'&&s.pendingAttack!==null),trail=structuredClone(cat(s).pounceTrail);forceMove(s,cat(s),cat(s).centre,[]);expect(cat(s).pounceTrail).toEqual(trail);expect(pounceDamage(cat(s),target(s),'basic','action')).toBe(2);});
+it('a no-op forced move preserves the resolved approach', () => {
+  const s = until(startScenarioTurn(order(setup())), s => s.phase === 'late' && s.pendingAttack !== null),
+    trail = structuredClone(cat(s).pounceTrail);
+  forceMove(s, cat(s), cat(s).centre, []);
+  expect(cat(s).pounceTrail).toEqual(trail);
+  expect(pounceDamage(cat(s), target(s), 'basic', 'action')).toBe(2);
+});

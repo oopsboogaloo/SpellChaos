@@ -8,12 +8,20 @@ import { ManualClock, deadlineReached } from '../packages/engine/src/clock.js';
 
 const fresh = () => createMatch('match', ['human', 'ai'], 1);
 const lock = (playerId = 'human', expectedRevision = 0, commandId = 'c1') => ({
-  matchId: 'match', playerId, expectedRevision, commandId, turn: 1, type: 'LockTurn',
+  matchId: 'match',
+  playerId,
+  expectedRevision,
+  commandId,
+  turn: 1,
+  type: 'LockTurn',
 });
 describe('portable foundation', () => {
   it('matches published xorshift32 seed-1 vectors', () => {
     let state = 1;
-    const values = Array.from({ length: 5 }, () => { state = nextRandom(state).state; return state; });
+    const values = Array.from({ length: 5 }, () => {
+      state = nextRandom(state).state;
+      return state;
+    });
     expect(values).toEqual([270369, 67634689, 2647435461, 307599695, 2398689233]);
   });
   it('rejects invalid random states and bounds', () => {
@@ -21,12 +29,15 @@ describe('portable foundation', () => {
     for (const b of [0, -1, NaN, 1.5, 2 ** 32]) expect(() => randomBelow(1, b)).toThrow();
   });
   it('bounds draws and reproduces them from serialized state', () => {
-    fc.assert(fc.property(fc.integer({ min: 1, max: 0xffffffff }), fc.integer({ min: 1, max: 10000 }), (seed, bound) => {
-      const a = randomBelow(seed, bound);
-      expect(a.value).toBeGreaterThanOrEqual(0);
-      expect(a.value).toBeLessThan(bound);
-      expect(randomBelow(JSON.parse(JSON.stringify(seed)), bound)).toEqual(a);
-    }), { seed: 12345, numRuns: 1000 });
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 0xffffffff }), fc.integer({ min: 1, max: 10000 }), (seed, bound) => {
+        const a = randomBelow(seed, bound);
+        expect(a.value).toBeGreaterThanOrEqual(0);
+        expect(a.value).toBeLessThan(bound);
+        expect(randomBelow(JSON.parse(JSON.stringify(seed)), bound)).toEqual(a);
+      }),
+      { seed: 12345, numRuns: 1000 },
+    );
   });
   it('roundtrips and continues identically at each current command boundary', () => {
     let uninterrupted = fresh();
@@ -49,7 +60,14 @@ describe('portable foundation', () => {
   it('rejects invalid commands without changing state', () => {
     const state = fresh();
     const before = encodeSnapshot(state);
-    for (const command of [null, {}, { ...lock(), matchId: 'wrong' }, { ...lock(), turn: 2 }, lock('missing'), lock('human', 2)]) {
+    for (const command of [
+      null,
+      {},
+      { ...lock(), matchId: 'wrong' },
+      { ...lock(), turn: 2 },
+      lock('missing'),
+      lock('human', 2),
+    ]) {
       expect(() => applyCommand(state, command)).toThrow();
       expect(encodeSnapshot(state)).toBe(before);
     }
@@ -59,11 +77,15 @@ describe('portable foundation', () => {
   it('rejects unsupported versions, broken references and inconsistent histories', () => {
     const state = fresh();
     for (const candidate of [
-      { ...state, schemaVersion: 999 }, { ...state, rulesVersion: 'other' },
+      { ...state, schemaVersion: 999 },
+      { ...state, rulesVersion: 'other' },
       { ...state, players: [state.players[0], state.players[0]] },
-      { ...state, phase: 'ready' }, { ...state, revision: 2 },
-      { ...state, extra: true }, { ...state, random: { ...state.random, resolution: 0 } },
-    ]) expect(() => restoreSnapshot(JSON.stringify(candidate))).toThrow('INVALID_OR_UNSUPPORTED_SNAPSHOT');
+      { ...state, phase: 'ready' },
+      { ...state, revision: 2 },
+      { ...state, extra: true },
+      { ...state, random: { ...state.random, resolution: 0 } },
+    ])
+      expect(() => restoreSnapshot(JSON.stringify(candidate))).toThrow('INVALID_OR_UNSUPPORTED_SNAPSHOT');
     expect(() => restoreSnapshot('{')).toThrow();
   });
   it('validates stored command references and locks', () => {

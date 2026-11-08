@@ -1,30 +1,224 @@
-import {it,expect} from 'vitest';
-import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
-import {summonProfile} from '../packages/content/src/summons.js';
-import {startScenarioTurn} from '../packages/scenario/src/casting.js';
-import {advanceAtomicStep} from '../packages/engine/src/resolver.js';
-import {encodeSnapshot,restoreSnapshot} from '../packages/persistence/src/snapshot.js';
-import {applyDamage} from '../packages/engine/src/damage.js';
-import {beginAttack,stepAttack} from '../packages/engine/src/combat.js';
-import {expireConditions} from '../packages/engine/src/lifecycle.js';
-import {reverseIllusion} from '../packages/engine/src/illusions.js';
-import {effectiveMove} from '../packages/engine/src/orders.js';
-import type {GameState,Order} from '../packages/domain/src/state.js';
-import type {Event} from '../packages/engine/src/events.js';
-function setup(){const s=createMatch('shade',['a','b'],456);s.creatures[0]!.centre={q:2,r:2};s.creatures[1]!.centre={q:20,r:15};s.creatures.push(createCreature('shade','a',{q:6,r:5},summonProfile('Summon Spirit',2)!),createCreature('blocker','b',{q:7,r:5}));return s;}
-const shade=(s:GameState)=>s.creatures.find(c=>c.id==='shade')!;
-const blocker=(s:GameState)=>s.creatures.find(c=>c.id==='blocker')!;
-function order(s:GameState,path:Order['path']){return applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'a',turn:1,commandId:'move',expectedRevision:s.revision,order:{creatureId:'shade',path,early:null,late:null}}).state;}
-function run(s:GameState,restore=false){const events:Event[]=[];for(let n=0;!['planning','ended'].includes(s.phase);n++){if(n>1000)throw new Error('STEP_LIMIT');const r=advanceAtomicStep(restore?restoreSnapshot(encodeSnapshot(s)):s);s=r.state;events.push(...r.events);}return {state:s,events};}
-it.each(['a','b',null])('Shade crosses %s bodies with exact per-step restoration',controller=>{const s=setup();blocker(s).controller=controller;blocker(s).bindingLevel=controller?1:null;const ready=startScenarioTurn(order(s,[{q:7,r:5},{q:8,r:5}])),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(shade(a.state).centre).toEqual({q:8,r:5});});
-it('Shade cannot finish inside another creature',()=>{const r=run(startScenarioTurn(order(setup(),[{q:7,r:5}])),true);expect(shade(r.state).centre).toEqual({q:6,r:5});});
-it.each(['stone','energy'] as const)('Shade cannot cross %s walls',material=>{const s=setup();s.walls.push({id:'wall',edge:{a:{q:6,r:5},b:{q:7,r:5}},material,hp:20,maxHp:20,burning:null});expect(()=>order(s,[{q:7,r:5},{q:8,r:5}])).toThrow('INVALID_PATH');});
-it('ordinary creatures do not gain Shade passage',()=>{const s=setup();delete shade(s).passCreatures;const r=run(startScenarioTurn(order(s,[{q:7,r:5},{q:8,r:5}])),true);expect(shade(r.state).centre).toEqual({q:6,r:5});});
-it('voluntary passage still triggers Guard on entry into range',()=>{let s=setup();s.creatures.push(createCreature('guard','b',{q:8,r:6},{dex:10}));s=order(s,[{q:7,r:5},{q:8,r:5}]);s=applyCommand(s,{type:'SetOrder',matchId:s.matchId,playerId:'b',turn:1,commandId:'guard',expectedRevision:s.revision,order:{creatureId:'guard',path:[],early:{type:'Guard',attackId:'staff',targetId:'shade',area:[]},late:null}}).state;const ready=startScenarioTurn(s),a=run(ready),b=run(ready,true);expect(b).toEqual(a);expect(a.events.some(e=>e.creatureId==='guard'&&['AttackHit','AttackMissed'].includes(e.type))).toBe(true);});
-it('major physical resistance rounds up and light vulnerability remains distinct',()=>{const s=setup();expect(applyDamage(s,shade(s),[{type:'physical',amount:3}],[])).toBe(1);expect(applyDamage(s,shade(s),[{type:'light',amount:2}],[])).toBe(3);expect(shade(s).incorporeal).toBe(false);});
-it.each([false,true])('damaging Chill uses Int resistance and reversible illusion provenance (%s)',illusion=>{const s=setup();s.phase='early';blocker(s).incapacitated=true;blocker(s).intelligence=0;if(illusion){Object.assign(shade(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});blocker(s).intelligence=1;}shade(s).attacks[0]!.shots[0]!.crit=0;s.random.resolution=4;beginAttack(s,shade(s),{type:'Attack',attackId:'basic',targetIds:['blocker'],ground:null,side:'left'},'action');while(s.pendingAttack)stepAttack(s,[]);expect(blocker(s).conditions.some(c=>c.kind==='Slowed')).toBe(true);expect(effectiveMove(blocker(s))).toBe(1);if(illusion){reverseIllusion(s,'shade',[]);expect(blocker(s).conditions).toEqual([]);expect(blocker(s).hp).toBe(10);}else{expireConditions(s);expect(blocker(s).conditions).toEqual([]);}});
-it('zero damage does not inject Chill',()=>{const s=setup();s.phase='early';blocker(s).defences=[{type:'magic',multiplier:0}];blocker(s).incapacitated=true;beginAttack(s,shade(s),{type:'Attack',attackId:'basic',targetIds:['blocker'],ground:null,side:'left'},'action');while(s.pendingAttack)stepAttack(s,[]);expect(blocker(s).conditions).toEqual([]);});
-it('interruption while passing through a body returns to the last legal resting hex',()=>{let s=startScenarioTurn(order(setup(),[{q:7,r:5},{q:8,r:5}]));for(let n=0;shade(s).centre.q!==7;n++){if(n>100)throw new Error('NO_TRANSIT');s=advanceAtomicStep(s).state;}shade(s).restrained=true;const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(shade(a.state).centre).toEqual({q:6,r:5});expect(a.events.some(e=>e.type==='MovementInterrupted')).toBe(true);});
-it('illusory Shade copies creature passage without gaining wall passage',()=>{const s=setup();Object.assign(shade(s),{kind:'illusion',creatorId:'wizard-0',knownIllusionBy:['a']});const r=run(startScenarioTurn(order(s,[{q:7,r:5},{q:8,r:5}])),true);expect(shade(r.state).centre).toEqual({q:8,r:5});expect(shade(r.state).incorporeal).toBe(false);});
-it('permanent mid-transit fixture restores overlap and continues to a legal endpoint',async()=>{const {readFileSync}=await import('node:fs');const text=readFileSync('tests/fixtures/shade-transit.json','utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);expect(shade(s).centre).toEqual(blocker(s).centre);const a=run(s),b=run(s,true);expect(b).toEqual(a);expect(shade(a.state).centre).toEqual({q:8,r:5});});
-it('malformed passage flags are rejected without mutating the live game',()=>{const s=setup(),before=encodeSnapshot(s),raw=JSON.parse(before);raw.creatures.find((c:{id:string})=>c.id==='shade').passCreatures='yes';expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow();expect(encodeSnapshot(s)).toBe(before);});
+import { it, expect } from 'vitest';
+import { createMatch, createCreature, applyCommand } from '../packages/engine/src/index.js';
+import { summonProfile } from '../packages/content/src/summons.js';
+import { startScenarioTurn } from '../packages/scenario/src/casting.js';
+import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
+import { encodeSnapshot, restoreSnapshot } from '../packages/persistence/src/snapshot.js';
+import { applyDamage } from '../packages/engine/src/damage.js';
+import { beginAttack, stepAttack } from '../packages/engine/src/combat.js';
+import { expireConditions } from '../packages/engine/src/lifecycle.js';
+import { reverseIllusion } from '../packages/engine/src/illusions.js';
+import { effectiveMove } from '../packages/engine/src/orders.js';
+import type { GameState, Order } from '../packages/domain/src/state.js';
+import type { Event } from '../packages/engine/src/events.js';
+function setup() {
+  const s = createMatch('shade', ['a', 'b'], 456);
+  s.creatures[0]!.centre = { q: 2, r: 2 };
+  s.creatures[1]!.centre = { q: 20, r: 15 };
+  s.creatures.push(
+    createCreature('shade', 'a', { q: 6, r: 5 }, summonProfile('Summon Spirit', 2)!),
+    createCreature('blocker', 'b', { q: 7, r: 5 }),
+  );
+  return s;
+}
+const shade = (s: GameState) => s.creatures.find(c => c.id === 'shade')!;
+const blocker = (s: GameState) => s.creatures.find(c => c.id === 'blocker')!;
+function order(s: GameState, path: Order['path']) {
+  return applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'a',
+    turn: 1,
+    commandId: 'move',
+    expectedRevision: s.revision,
+    order: { creatureId: 'shade', path, early: null, late: null },
+  }).state;
+}
+function run(s: GameState, restore = false) {
+  const events: Event[] = [];
+  for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    if (n > 1000) throw new Error('STEP_LIMIT');
+    const r = advanceAtomicStep(restore ? restoreSnapshot(encodeSnapshot(s)) : s);
+    s = r.state;
+    events.push(...r.events);
+  }
+  return { state: s, events };
+}
+it.each(['a', 'b', null])('Shade crosses %s bodies with exact per-step restoration', controller => {
+  const s = setup();
+  blocker(s).controller = controller;
+  blocker(s).bindingLevel = controller ? 1 : null;
+  const ready = startScenarioTurn(
+      order(s, [
+        { q: 7, r: 5 },
+        { q: 8, r: 5 },
+      ]),
+    ),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(shade(a.state).centre).toEqual({ q: 8, r: 5 });
+});
+it('Shade cannot finish inside another creature', () => {
+  const r = run(startScenarioTurn(order(setup(), [{ q: 7, r: 5 }])), true);
+  expect(shade(r.state).centre).toEqual({ q: 6, r: 5 });
+});
+it.each(['stone', 'energy'] as const)('Shade cannot cross %s walls', material => {
+  const s = setup();
+  s.walls.push({
+    id: 'wall',
+    edge: { a: { q: 6, r: 5 }, b: { q: 7, r: 5 } },
+    material,
+    hp: 20,
+    maxHp: 20,
+    burning: null,
+  });
+  expect(() =>
+    order(s, [
+      { q: 7, r: 5 },
+      { q: 8, r: 5 },
+    ]),
+  ).toThrow('INVALID_PATH');
+});
+it('ordinary creatures do not gain Shade passage', () => {
+  const s = setup();
+  delete shade(s).passCreatures;
+  const r = run(
+    startScenarioTurn(
+      order(s, [
+        { q: 7, r: 5 },
+        { q: 8, r: 5 },
+      ]),
+    ),
+    true,
+  );
+  expect(shade(r.state).centre).toEqual({ q: 6, r: 5 });
+});
+it('voluntary passage still triggers Guard on entry into range', () => {
+  let s = setup();
+  s.creatures.push(createCreature('guard', 'b', { q: 8, r: 6 }, { dex: 10 }));
+  s = order(s, [
+    { q: 7, r: 5 },
+    { q: 8, r: 5 },
+  ]);
+  s = applyCommand(s, {
+    type: 'SetOrder',
+    matchId: s.matchId,
+    playerId: 'b',
+    turn: 1,
+    commandId: 'guard',
+    expectedRevision: s.revision,
+    order: {
+      creatureId: 'guard',
+      path: [],
+      early: { type: 'Guard', attackId: 'staff', targetId: 'shade', area: [] },
+      late: null,
+    },
+  }).state;
+  const ready = startScenarioTurn(s),
+    a = run(ready),
+    b = run(ready, true);
+  expect(b).toEqual(a);
+  expect(a.events.some(e => e.creatureId === 'guard' && ['AttackHit', 'AttackMissed'].includes(e.type))).toBe(true);
+});
+it('major physical resistance rounds up and light vulnerability remains distinct', () => {
+  const s = setup();
+  expect(applyDamage(s, shade(s), [{ type: 'physical', amount: 3 }], [])).toBe(1);
+  expect(applyDamage(s, shade(s), [{ type: 'light', amount: 2 }], [])).toBe(3);
+  expect(shade(s).incorporeal).toBe(false);
+});
+it.each([false, true])('damaging Chill uses Int resistance and reversible illusion provenance (%s)', illusion => {
+  const s = setup();
+  s.phase = 'early';
+  blocker(s).incapacitated = true;
+  blocker(s).intelligence = 0;
+  if (illusion) {
+    Object.assign(shade(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+    blocker(s).intelligence = 1;
+  }
+  shade(s).attacks[0]!.shots[0]!.crit = 0;
+  s.random.resolution = 4;
+  beginAttack(
+    s,
+    shade(s),
+    { type: 'Attack', attackId: 'basic', targetIds: ['blocker'], ground: null, side: 'left' },
+    'action',
+  );
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(blocker(s).conditions.some(c => c.kind === 'Slowed')).toBe(true);
+  expect(effectiveMove(blocker(s))).toBe(1);
+  if (illusion) {
+    reverseIllusion(s, 'shade', []);
+    expect(blocker(s).conditions).toEqual([]);
+    expect(blocker(s).hp).toBe(10);
+  } else {
+    expireConditions(s);
+    expect(blocker(s).conditions).toEqual([]);
+  }
+});
+it('zero damage does not inject Chill', () => {
+  const s = setup();
+  s.phase = 'early';
+  blocker(s).defences = [{ type: 'magic', multiplier: 0 }];
+  blocker(s).incapacitated = true;
+  beginAttack(
+    s,
+    shade(s),
+    { type: 'Attack', attackId: 'basic', targetIds: ['blocker'], ground: null, side: 'left' },
+    'action',
+  );
+  while (s.pendingAttack) stepAttack(s, []);
+  expect(blocker(s).conditions).toEqual([]);
+});
+it('interruption while passing through a body returns to the last legal resting hex', () => {
+  let s = startScenarioTurn(
+    order(setup(), [
+      { q: 7, r: 5 },
+      { q: 8, r: 5 },
+    ]),
+  );
+  for (let n = 0; shade(s).centre.q !== 7; n++) {
+    if (n > 100) throw new Error('NO_TRANSIT');
+    s = advanceAtomicStep(s).state;
+  }
+  shade(s).restrained = true;
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(shade(a.state).centre).toEqual({ q: 6, r: 5 });
+  expect(a.events.some(e => e.type === 'MovementInterrupted')).toBe(true);
+});
+it('illusory Shade copies creature passage without gaining wall passage', () => {
+  const s = setup();
+  Object.assign(shade(s), { kind: 'illusion', creatorId: 'wizard-0', knownIllusionBy: ['a'] });
+  const r = run(
+    startScenarioTurn(
+      order(s, [
+        { q: 7, r: 5 },
+        { q: 8, r: 5 },
+      ]),
+    ),
+    true,
+  );
+  expect(shade(r.state).centre).toEqual({ q: 8, r: 5 });
+  expect(shade(r.state).incorporeal).toBe(false);
+});
+it('permanent mid-transit fixture restores overlap and continues to a legal endpoint', async () => {
+  const { readFileSync } = await import('node:fs');
+  const text = readFileSync('tests/fixtures/shade-transit.json', 'utf8').trim(),
+    s = restoreSnapshot(text);
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+  expect(shade(s).centre).toEqual(blocker(s).centre);
+  const a = run(s),
+    b = run(s, true);
+  expect(b).toEqual(a);
+  expect(shade(a.state).centre).toEqual({ q: 8, r: 5 });
+});
+it('malformed passage flags are rejected without mutating the live game', () => {
+  const s = setup(),
+    before = encodeSnapshot(s),
+    raw = JSON.parse(before);
+  raw.creatures.find((c: { id: string }) => c.id === 'shade').passCreatures = 'yes';
+  expect(() => restoreSnapshot(JSON.stringify(raw))).toThrow();
+  expect(encodeSnapshot(s)).toBe(before);
+});

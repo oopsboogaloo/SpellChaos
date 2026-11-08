@@ -18,7 +18,11 @@ export const STREAM_KEYS = { setup: 0x5e7a9b01, resolution: 0x2c1f4d63, ai: 0x7a
 export function streamSeed(seed: number, stream: keyof typeof STREAM_KEYS): number {
   if (!Number.isInteger(seed) || seed <= 0 || seed > 0xffffffff) throw new Error('INVALID_RNG_STATE');
   let h = (seed ^ STREAM_KEYS[stream]) >>> 0;
-  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
   h >>>= 0;
   return h === 0 ? 0x9e3779b9 : h;
 }
