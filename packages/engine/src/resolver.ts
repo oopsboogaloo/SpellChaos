@@ -89,6 +89,7 @@ function finishTurn(state: GameState, events: Event[]): void {
   state.turn++;
   state.phase = 'planning';
   state.orders = [];
+  state.intents = [];
   state.dashed = [];
   state.reservations = [];
   state.defending = [];

@@ -159,3 +159,65 @@ it('#16: a passable invisible creature is not revealed when a later visible bloc
   expect(types).not.toContain('InvisibleRevealed');
   expect(types).not.toContain('PathTruncated');
 });
+
+it('Tangleweed over an invisible creature looks the same as over empty ground', () => {
+  const a = base(),
+    b = base();
+  for (const s of [a, b]) s.creatures[0]!.spellbook.push('Tangleweed');
+  a.creatures.push(hidden(8));
+  b.creatures.push(hidden(20));
+  sameForA(a, b, {
+    early: {
+      type: 'Cast',
+      spell: 'Tangleweed',
+      level: 1,
+      variant: 'bound',
+      targetId: null,
+      ground: h(8),
+      side: 'left',
+      hexes: [h(8)],
+    } as Order['early'],
+  });
+});
+
+it('a Blink path ending on an invisible creature looks the same as one ending on empty ground', () => {
+  const a = base(),
+    b = base();
+  for (const s of [a, b]) s.creatures.push(createCreature('leopard', 'a', h(10, 14), summonProfile('Summon Cat', 5)!));
+  a.creatures.push(createCreature('ghost', 'b', h(12, 14), { invisible: true }));
+  b.creatures.push(hidden(20));
+  expect(projectView(a, 'a')).toEqual(projectView(b, 'a'));
+  const probe = (s: GameState) => {
+    try {
+      applyCommand(s, {
+        type: 'SetOrder',
+        matchId: s.matchId,
+        playerId: 'a',
+        turn: 1,
+        commandId: 'bl',
+        expectedRevision: s.revision,
+        order: { creatureId: 'leopard', path: [h(12, 14)], early: null, late: null, blinkIndex: 0 },
+      });
+      return 'OK';
+    } catch (e) {
+      return (e as Error).message;
+    }
+  };
+  expect(probe(a)).toBe(probe(b));
+});
+
+it('a planned CancelCast is invisible to opponents until resolution (D26)', () => {
+  const s = base();
+  const before = projectView(s, 'b');
+  const after = applyCommand(s, {
+    type: 'CancelCast',
+    matchId: s.matchId,
+    playerId: 'a',
+    turn: 1,
+    commandId: 'cc',
+    expectedRevision: s.revision,
+    creatureId: 'wizard-0',
+  });
+  expect(projectView(after.state, 'b')).toEqual(before);
+  expect(after.events).toEqual([]);
+});

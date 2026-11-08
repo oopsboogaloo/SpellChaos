@@ -1,3 +1,4 @@
+import { projectView } from '../packages/views/src/index.js';
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
@@ -359,15 +360,21 @@ describe('Guard and grapples', () => {
     expect(s.holds.map(h => h.limb)).toEqual([0, 1].filter(i => !results[i]));
     expect(s.random.resolution).toBe(copy.random.resolution);
   });
-  it('releases holds freely through an owned, replayable command', () => {
+  it('releases holds freely at turn resolution through an owned, replayable command (D26)', () => {
     let s = fresh();
     s.creatures[0]!.grappleLimbs = 1;
     s.holds = [{ grapplerId: 'wizard-0', targetId: 'wizard-1', limb: 0 }];
     const release = command(s, 'a', { type: 'ReleaseHold', creatureId: 'wizard-0', targetId: null });
     s = applyCommand(s, release).state;
-    expect(s.holds).toEqual([]);
+    // Planned privately: the hold stays in place and opponents see nothing until resolution.
+    expect(s.holds).toHaveLength(1);
+    expect(projectView(s, 'b').intents).toEqual([]);
+    expect(projectView(s, 'a').intents).toEqual([{ creatureId: 'wizard-0', kind: 'ReleaseHold', targetId: null }]);
     expect(applyCommand(s, release).state).toEqual(s);
     expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+    s = start(s);
+    expect(s.holds).toEqual([]);
+    expect(s.intents).toEqual([]);
   });
 });
 

@@ -175,6 +175,8 @@ These resolve open details, not changes to approved mechanics.
 | D22 | Reanimated default binding | Binding level equals Reanimate level; later control uses ordinary rules; creature-equivalent level remains original. |
 | D23 | Same condition from several sources | **Owner ruling 8 Nov 2026 (#35):** never doubly affected; re-application from any source keeps only the longest-lasting instance (no fixed end counts as longest; ties keep the existing one). Real and illusion-sourced instances stay separate for reversal. |
 | D24 | Late-phase Guard | **Owner ruling 8 Nov 2026 (#37):** Guard may only be ordered Early; a Late Guard is rejected (`GUARD_EARLY_ONLY`). |
+| D25 | Sweep versus an overlapping swarm | **Owner ruling 8 Nov 2026 (#36):** cleave sweeps (Walking Forest Branches, World Serpent Tail Sweep) hit a swarm overlapping the attacker (`minRange` 0). |
+| D26 | Timing of ReleaseHold and CancelCast | **Owner ruling 8 Nov 2026 (#18):** both are private planned intents, revisable until lock (ClearOrder removes them), and applied at StartResolution. |
 
 Other unresolved details encountered during implementation must enter a decision record before coding behaviour. Do not silently treat a proposed ruling as a locked rule. In particular, wall/area boundary geometries, grapple reach, spell-origin footprint ray selection and condition duration counting need explicit examples in the plan's acceptance scenarios.
 

@@ -177,6 +177,9 @@ export function projectView(state: GameState, playerId: string) {
     reservations: structuredClone(
       state.reservations.filter(r => state.creatures.find(c => c.id === r.creatureId)?.controller === playerId),
     ),
+    intents: structuredClone(
+      state.intents.filter(i => state.creatures.find(c => c.id === i.creatureId)?.controller === playerId),
+    ),
     result: structuredClone(state.result),
   };
 }
