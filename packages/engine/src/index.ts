@@ -9,7 +9,7 @@ export { emit, type Event, type Transition } from './events.js';
 import { startingBook } from './spellbooks.js';
 import { manaCost } from '../../content/src/spells.js';
 import { interruptCast } from './casting.js';
-import { nextRandom } from './random.js';
+import { streamSeed } from '../../domain/src/random.js';
 import { startingPositions } from '../../geometry/src/spawn.js';
 import { defaultOrder, validateOrder, replaceReservation } from './orders.js';
 
@@ -25,7 +25,7 @@ export function createCreature(id: string, controller: string | null, centre: Cr
     reload:null,canMarkQuarry:false,quarryTargetId:null,bristles:0,lifeDrain:0,packTactics: false, regeneration: 0, regenerationBlockedTurn: null, fireAcidDamage: 0, grappleLimbs: 0, grappleEqualSize: false, corpseEligible: true, restorationUsed: overrides.kind === 'reanimated', reanimationAttackIds: null, ...overrides };
 }
 export function createMatch(matchId: string, playerIds: string[], seed: number): GameState {
-  const setup = nextRandom(seed).state, resolution = nextRandom(setup).state, ai = nextRandom(resolution).state;
+  const setup = streamSeed(seed, 'setup'), resolution = streamSeed(seed, 'resolution'), ai = streamSeed(seed, 'ai');
   const starts = startingPositions(playerIds.length, setup);
   let bookSeed=starts.randomState;
   const books=playerIds.map(()=>{const draw=startingBook(bookSeed);bookSeed=draw.state;return draw.book;});
