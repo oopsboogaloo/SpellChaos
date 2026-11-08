@@ -130,3 +130,42 @@ export function routeTowards(
     reached,
   };
 }
+/** Every centre the creature could legally end on this turn, within its movement allowance (planning aid). */
+export function reachableCells(s: GameState, c: Creature, allowance: number): Hex[] {
+  const arena = arenaOf(s),
+    best = new Map<string, number>(),
+    key = (h: Hex, height: Creature['height']) => `${h.q},${h.r},${height}`,
+    ends = new Map<string, Hex>();
+  const open: { centre: Hex; height: Creature['height']; cost: number }[] = [
+    { centre: c.centre, height: c.height, cost: 0 },
+  ];
+  best.set(key(c.centre, c.height), 0);
+  while (open.length) {
+    open.sort((a, b) => a.cost - b.cost);
+    const n = open.shift()!;
+    if (n.cost !== best.get(key(n.centre, n.height))) continue;
+    const body = { ...c, centre: n.centre, height: n.height };
+    if (n.cost > 0 && placement(arena, body, n.centre).legal) ends.set(`${n.centre.q},${n.centre.r}`, n.centre);
+    const choices = [
+      ...DIRECTIONS.map(d => ({ centre: add(n.centre, d), height: n.height })),
+      ...(c.flight ? [{ centre: n.centre, height: n.height === 'air' ? ('ground' as const) : ('air' as const) }] : []),
+    ];
+    for (const to of choices) {
+      const vertical = to.height !== n.height;
+      if (
+        !fearAllowsStep(s, body, to.centre) ||
+        !(vertical
+          ? placement(arena, { ...body, height: to.height }, to.centre).legal
+          : stepLegality(arena, body, n.centre, to.centre, true).legal)
+      )
+        continue;
+      const cost =
+        n.cost +
+        (vertical ? 1 : Math.max(weedStepCost(s, body, to.centre), wallStepCost(s, body, n.centre, to.centre)));
+      if (cost > allowance || (best.get(key(to.centre, to.height)) ?? Infinity) <= cost) continue;
+      best.set(key(to.centre, to.height), cost);
+      open.push({ ...to, cost });
+    }
+  }
+  return [...ends.values()];
+}

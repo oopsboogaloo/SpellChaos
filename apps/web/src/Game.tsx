@@ -1,10 +1,11 @@
 import { TacticalOrders } from './TacticalOrders.js';
 import { SpellEditor } from './SpellEditor.js';
 import { Board } from './Board.js';
-import { EventLog, type TurnLog } from './EventLog.js';
+import { EventLog, LastTurn, type Seen, type TurnLog } from './EventLog.js';
+import { selectable as selectableFor, hexKey } from './targeting.js';
 import { CommandPanel, InspectCard, type Pending } from './CommandPanel.js';
 import type { Hex } from '../../../packages/geometry/src/hex.js';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 import type { Order } from '../../../packages/domain/src/state.js';
 export function Game() {
@@ -34,6 +35,8 @@ export function Game() {
     [remaining, setRemaining] = useState<number | null>(null),
     [attackId, setAttackId] = useState(''),
     [attackSide, setAttackSide] = useState<'left' | 'right'>('left');
+  const seen = useRef<Seen>(new Map());
+  for (const c of view?.creatures ?? []) seen.current.set(c.id, { species: c.species, controller: c.controller });
   const send = (data: object) => {
     setError('');
     worker.current?.postMessage(data);
@@ -130,9 +133,29 @@ export function Game() {
     setPending(null);
     setCells([]);
   }
+  // What the pending command may use, so the board can grey out everything else.
+  const options = useMemo(
+    () => (view && unit && pending ? selectableFor(view, unit.id, savedOrder, pending, timing, cells) : null),
+    [view, unit?.id, savedOrder, pending, timing, cells],
+  );
   /** Board click: carry out the pending command, or select / inspect. */
   function boardClick(h: Hex, creatureId: string | undefined) {
     const clicked = view?.creatures.find(c => c.id === creatureId);
+    if (pending && options && unit) {
+      const corpse = view?.corpses.find(c => c.centre.q === h.q && c.centre.r === h.r);
+      const allowed =
+        options.hexes.some(x => hexKey(x) === hexKey(h)) ||
+        (clicked && options.creatures.includes(clicked.id)) ||
+        (corpse && options.corpses.includes(corpse.id));
+      if (!allowed) {
+        setNotice(
+          pending.kind === 'move'
+            ? 'That hex is out of reach this turn. Pick one of the bright hexes.'
+            : 'That is out of range or sight. Pick something bright on the board.',
+        );
+        return;
+      }
+    }
     if (!pending) {
       if (clicked && clicked.controller === view?.self.id) choose(clicked.id);
       else if (clicked) {
@@ -298,9 +321,14 @@ export function Game() {
               onPath={h => setPath(p => [...p, h])}
               onCommand={boardClick}
               marked={cells}
+              selectable={options}
+              results={view.phase === 'planning' ? (log.at(-1)?.turn === view.turn - 1 ? log.at(-1)!.events : []) : []}
             />
             <aside aria-label="Order editor">
               {notice && <p className="notice">{notice}</p>}
+              {view.phase === 'planning' && log.at(-1)?.turn === view.turn - 1 && (
+                <LastTurn view={view} log={log} seen={seen.current} />
+              )}
               {unit && unit.controller === view.self.id ? (
                 <CommandPanel
                   view={view}
@@ -503,7 +531,7 @@ export function Game() {
               <option value="1">Fast</option>
             </select>
           </label>
-          <EventLog view={view} log={log} />
+          <EventLog view={view} log={log} seen={seen.current} />
           <button onClick={() => send({ type: 'save' })}>Export private save</button>
           <label>
             Load private save{' '}

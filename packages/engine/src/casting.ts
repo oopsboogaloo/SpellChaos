@@ -193,6 +193,17 @@ export function validateCast(s: GameState, c: Creature, a: CastAction): void {
     if (!legalSummonPlacement(known, body)) throw new Error('INVALID_SUMMON_PLACEMENT');
   }
 }
+/** Planning aid: would this cast reach a legal target from where the caster stands in `s`?
+ * Range, sight, target legality, and summon or teleport placement; mana and timing are checked elsewhere. */
+export function castReachable(s: GameState, c: Creature, a: CastAction): boolean {
+  if (!selectOrigin(s, c, a)) return false;
+  if (isSummon(a)) {
+    const profile = summonProfile(a.spell, a.level);
+    return !!profile && legalSummonPlacement(s, createCreature('$preview', c.controller, a.ground!, profile));
+  }
+  if (a.spell === 'Teleport') return placement(arenaOf(s), c, a.ground!).legal;
+  return true;
+}
 export function reservedMana(order: Order): number {
   return [order.early, order.late].reduce(
     (n, a) => n + (a && typeof a === 'object' && a.type === 'Cast' ? manaCost(a) : 0),

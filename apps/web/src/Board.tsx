@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 import { fromOffset, distance, inside, disk, type Hex } from '../../../packages/geometry/src/hex.js';
+import type { Order } from '../../../packages/domain/src/state.js';
+import type { LogEvent } from './EventLog.js';
+import { hexKey, type Selectable } from './targeting.js';
 const radius = 18;
 const point = (h: Hex) => ({ x: 32 + Math.sqrt(3) * radius * (h.q + h.r / 2), y: 32 + radius * 1.5 * h.r });
 export function Board({
@@ -12,6 +15,8 @@ export function Board({
   onPath,
   onCommand,
   marked = [],
+  selectable = null,
+  results = [],
 }: {
   view: PlayerView;
   selected: string;
@@ -23,6 +28,10 @@ export function Board({
   onCommand?: (h: Hex, creatureId: string | undefined) => void;
   /** Hexes to highlight, such as Tangleweed cells being chosen. */
   marked?: Hex[];
+  /** While a command is pending, only these are bright; everything else is greyed out. */
+  selectable?: Selectable | null;
+  /** Events from the turn just resolved, shown as marks beside the creatures involved. */
+  results?: LogEvent[];
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     [mode, setMode] = useState('select'),
@@ -86,6 +95,7 @@ export function Board({
     }
     const colours = ['#e0b44c', '#5aa9e6', '#e0605a', '#7bc96f', '#b58be0', '#e08bc4', '#5fd0c0', '#d0d0d0'];
     const healthColour: Record<string, string> = { healthy: '#6fd36f', wounded: '#e7c34a', critical: '#e5604f' };
+    plans(true);
     for (const c of view.creatures) {
       const index = view.players.findIndex(p => p.id === c.controller),
         colour = index < 0 ? '#9a9a9a' : colours[index % colours.length]!;
@@ -120,8 +130,165 @@ export function Board({
       ctx.fillStyle = healthColour[c.health] ?? '#888';
       ctx.fillRect(p.x - r * 0.7, p.y + r * 0.45, r * 1.4 * share, 4);
     }
+    // Planned orders: an arrow along each move, a line to each target, and a badge for each action.
+    function arrow(points: { x: number; y: number }[], colour: string, dashed: boolean, width: number) {
+      if (points.length < 2) return;
+      ctx.beginPath();
+      points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = width;
+      if (dashed) ctx.setLineDash([7, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const a = points.at(-2)!,
+        b = points.at(-1)!,
+        angle = Math.atan2(b.y - a.y, b.x - a.x),
+        size = 6 + width * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y);
+      ctx.lineTo(b.x - size * Math.cos(angle - 0.45), b.y - size * Math.sin(angle - 0.45));
+      ctx.lineTo(b.x - size * Math.cos(angle + 0.45), b.y - size * Math.sin(angle + 0.45));
+      ctx.closePath();
+      ctx.fillStyle = colour;
+      ctx.fill();
+      ctx.lineWidth = 1;
+    }
+    const savedPath = (o: Order | undefined) => o?.path ?? [];
+    // Drawn twice: lines under the tokens, badges on top of them.
+    function plans(lines: boolean) {
+      for (const o of view.orders) {
+        const c = view.creatures.find(x => x.id === o.creatureId);
+        if (!c) continue;
+        const mine = c.id === selected,
+          teleport =
+            typeof o.early === 'object' && o.early?.type === 'Cast' && o.early.spell === 'Teleport'
+              ? o.early.ground
+              : null,
+          start = teleport ?? c.centre,
+          end = o.path.at(-1) ?? start;
+        if (lines && o.path.length) {
+          arrow([start, ...o.path].map(point), mine ? '#ffd26c' : '#ffd26c99', false, mine ? 3.5 : 2.5);
+          // A faint outline where the creature will end its move.
+          const e = point(end);
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, radius * (0.8 + Math.floor((c.size - 1) / 2) * 1.5), 0, Math.PI * 2);
+          ctx.setLineDash([4, 4]);
+          ctx.strokeStyle = '#ffd26c';
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        const badges: string[] = [];
+        for (const [action, from] of [
+          [o.early, c.centre],
+          [o.late, end],
+        ] as const) {
+          if (action === null) continue;
+          if (typeof action === 'string') {
+            badges.push(action === 'Defend' ? '⛉' : action === 'TotalDefence' ? '⛨' : action === 'Dash' ? '»' : '•');
+            continue;
+          }
+          const isCast = action.type === 'Cast';
+          badges.push(isCast ? '✦' : action.type === 'Attack' ? '⚔' : '•');
+          const targetId = 'targetIds' in action ? action.targetIds[0] : 'targetId' in action ? action.targetId : null;
+          const target = targetId
+            ? (view.creatures.find(x => x.id === targetId) ?? view.corpses.find(x => x.id === targetId))
+            : null;
+          const to = target?.centre ?? ('ground' in action ? action.ground : null);
+          if (lines && to && !(to.q === from.q && to.r === from.r)) {
+            const colour = isCast ? '#c58bff' : '#ff6b5a';
+            arrow([point(from), point(to)], mine ? colour : `${colour}99`, true, mine ? 3 : 2);
+            const t = point(to);
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, radius * 0.55, 0, Math.PI * 2);
+            ctx.strokeStyle = colour;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.lineWidth = 1;
+          }
+        }
+        // Badges sit at the creature's top right: before-moving action first, then after-moving.
+        const p = point(c.centre),
+          r = radius * (0.8 + Math.floor((c.size - 1) / 2) * 1.5);
+        if (!lines)
+          badges.forEach((b, i) => {
+            const x = p.x + r * 0.75 + i * 15,
+              y = p.y - r * 0.75;
+            ctx.beginPath();
+            ctx.arc(x, y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = '#1b2433';
+            ctx.fill();
+            ctx.strokeStyle = '#e8e2d0';
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(b, x, y + 4);
+          });
+      }
+    }
+    plans(false);
+    // What happened last turn, beside each creature involved.
+    if (!selectable) {
+      const marks = new Map<string, { text: string; colour: string }[]>();
+      const note = (id: string | undefined, text: string, colour: string) => {
+        if (!id) return;
+        marks.set(id, [...(marks.get(id) ?? []), { text, colour }]);
+      };
+      const damage = new Map<string, number>(),
+        healed = new Map<string, number>();
+      for (const e of results) {
+        if (e.type === 'DamageApplied' && e.creatureId)
+          damage.set(e.creatureId, (damage.get(e.creatureId) ?? 0) + (e.amount ?? 0));
+        if (e.type === 'Healed' && e.creatureId)
+          healed.set(e.creatureId, (healed.get(e.creatureId) ?? 0) + (e.amount ?? 0));
+        if (e.type === 'AttackMissed') note(e.targetId, 'missed', '#c8c8c8');
+        if (e.type === 'CastFailed') note(e.creatureId, 'spell failed', '#ff8a7a');
+        if (e.type === 'CastInvalid') note(e.creatureId, 'spell fizzled', '#ff8a7a');
+        if (e.type === 'CastInterrupted') note(e.creatureId, 'interrupted', '#ff8a7a');
+        if (e.type === 'CreatureSummoned') note(e.creatureId, 'new', '#9be29a');
+      }
+      for (const [id, n] of damage) note(id, n > 0 ? `−${n}` : 'no damage', n > 0 ? '#ff6b5a' : '#c8c8c8');
+      for (const [id, n] of healed) note(id, `+${n}`, '#7be07b');
+      for (const [id, list] of marks) {
+        const c = view.creatures.find(x => x.id === id);
+        if (!c) continue;
+        const p = point(c.centre),
+          r = radius * (0.8 + Math.floor((c.size - 1) / 2) * 1.5);
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        list.forEach((m, i) => {
+          const x = p.x,
+            y = p.y - r - 4 - i * 13;
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#000';
+          ctx.strokeText(m.text, x, y);
+          ctx.fillStyle = m.colour;
+          ctx.fillText(m.text, x, y);
+        });
+        ctx.lineWidth = 1;
+        ctx.textAlign = 'center';
+      }
+    }
+    // Pending command: grey out everything that cannot be chosen and outline what can.
+    if (selectable) {
+      const open = new Set(selectable.hexes.map(hexKey));
+      for (const c of view.creatures)
+        if (selectable.creatures.includes(c.id) || c.id === selected) for (const h of c.occupied) open.add(hexKey(h));
+      for (const corpse of view.corpses) if (selectable.corpses.includes(corpse.id)) open.add(hexKey(corpse.centre));
+      for (let row = 0; row < view.board.rows; row++)
+        for (let column = 0; column < view.board.columns; column++) {
+          const h = fromOffset({ row, column });
+          if (!open.has(hexKey(h))) hex(h, '#05080dc0', '#05080dc0');
+        }
+      for (const h of selectable.hexes) hex(h, '#9be29a1a', '#9be29a');
+      for (const c of view.creatures)
+        if (selectable.creatures.includes(c.id)) for (const h of c.occupied) hex(h, '#ff6b5a22', '#ff8a7a');
+      for (const corpse of view.corpses)
+        if (selectable.corpses.includes(corpse.id)) hex(corpse.centre, '#c58bff22', '#c58bff');
+    }
     const actor = view.creatures.find(c => c.id === selected);
-    if (actor && path.length) {
+    const saved = view.orders.find(o => o.creatureId === selected);
+    if (actor && path.length && JSON.stringify(path) !== JSON.stringify(savedPath(saved))) {
       ctx.beginPath();
       [actor.centre, ...path].forEach((h, i) => {
         const p = point(h);
@@ -138,7 +305,7 @@ export function Board({
       }
     }
     ctx.restore();
-  }, [view, selected, path, zoom, pan, marked]);
+  }, [view, selected, path, zoom, pan, marked, selectable, results]);
   function location(e: React.PointerEvent<HTMLCanvasElement>) {
     const box = e.currentTarget.getBoundingClientRect();
     return { x: ((e.clientX - box.left) * width) / box.width, y: ((e.clientY - box.top) * height) / box.height };
