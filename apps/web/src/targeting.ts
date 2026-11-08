@@ -6,7 +6,7 @@ import { reachableCells } from '../../../packages/engine/src/navigation.js';
 import { inReach } from '../../../packages/engine/src/combat.js';
 import { castReachable } from '../../../packages/engine/src/casting.js';
 import { eligibleTarget } from '../../../packages/engine/src/powers.js';
-import { visibleTo } from '../../../packages/engine/src/visibility.js';
+import { sight, visibleTo } from '../../../packages/engine/src/visibility.js';
 import { footprint, fromOffset, inside, distance, nearestPair, type Hex } from '../../../packages/geometry/src/hex.js';
 import type { CastAction } from '../../../packages/domain/src/spells.js';
 
@@ -97,7 +97,15 @@ export function selectable(
   if (pending.kind === 'power') {
     const body = footprint(from.centre, from.size),
       a = pending.action;
-    if (a === 'Haunt') result.hexes = boardHexes(known).filter(h => nearestPair(body, [h]).distance <= pending.range);
+    if (a === 'Haunt')
+      // Same test as executeHaunt: in range, and in sight along either ray from the acting position.
+      result.hexes = boardHexes(known).filter(h => {
+        const p = nearestPair(body, [h]);
+        return (
+          p.distance <= pending.range &&
+          (sight(known, from, p.from, h, 'left') || sight(known, from, p.from, h, 'right'))
+        );
+      });
     else
       result.creatures = known.creatures
         .filter(t => {
