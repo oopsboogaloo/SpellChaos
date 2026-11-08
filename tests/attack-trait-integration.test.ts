@@ -8,7 +8,7 @@ import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snap
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 function setup(){const s=createMatch('traits',['a','b'],123);s.creatures[0]!.centre={q:2,r:2};s.creatures[1]!.centre={q:20,r:15};return startScenarioTurn(s);}
 it('Brace deals two additional Guard damage through the production attack resolver and restore',()=>{
- const s=setup(),a=createCreature('hob','a',{q:10,r:10},summonProfile('Summon Goblin',4)!),b=createCreature('victim','b',{q:11,r:10},{hp:30,maxHp:30,incapacitated:true});s.creatures.push(a,b);a.attacks[0]!.shots[0]!.crit=0;
+ const s=setup(),a=createCreature('hob','a',{q:10,r:10},summonProfile('Summon Goblin',4)!),b=createCreature('victim','b',{q:11,r:10},{con:15,hp:30,maxHp:30,incapacitated:true});s.creatures.push(a,b);a.attacks[0]!.shots[0]!.crit=0;
  beginAttack(s,a,{type:'Attack',attackId:'basic',targetIds:[b.id],ground:null,side:'left'},'guard');
  const restored=restoreSnapshot(encodeSnapshot(s));stepAttack(s,[]);stepAttack(restored,[]);
  expect(b.hp).toBe(24);expect(encodeSnapshot(restored)).toBe(encodeSnapshot(s));
