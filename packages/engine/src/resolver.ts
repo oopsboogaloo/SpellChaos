@@ -107,7 +107,8 @@ export function advanceAtomicStep(state: GameState): Transition {
       if (next.cursor.activePath === null) {
         next.cursor.lastRestingCentre = {...c.centre};if(order.flightSteps)next.cursor.lastRestingHeight=c.height;
         next.cursor.activePath = prepareMovementPath(next,c,order,allowance);
-        emit(next, events, { type: next.cursor.activePath.length < order.path.length ? 'PathTruncated' : 'PathPrepared', creatureId: c.id });
+        // One event type whatever the prepared length, so it reveals neither hidden blockers nor planned path length (#16).
+        emit(next, events, { type: 'PathPrepared', creatureId: c.id });
       } else if (next.cursor.pathIndex >= next.cursor.activePath.length) {if(next.cursor.pathIndex<order.path.length)revealContact(order.path[next.cursor.pathIndex]!);advanceActor();}
       else {
         const to = next.cursor.activePath[next.cursor.pathIndex]!;

@@ -1,3 +1,4 @@
+import { knownState } from './visibility.js';
 import {carryingLocked,carryingFearAllows} from './mounts.js';
 import {flightHeight,flightStepLegal} from './flight.js';
 import {canDrag,dragStepLegal,planningDragState} from './drag.js';
@@ -64,11 +65,13 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if(reservedMana(order)>c.mana)throw new Error('INSUFFICIENT_MANA');
   // Static terrain is known; moving creatures are rechecked at resolution.
   const arena = { ...arenaOf(state), creatures: [] };
+  // Fear sources and Blink checks use only what this player can perceive (#15).
+  const known = knownState(state, playerId);
   let from = order.early && typeof order.early==='object' && order.early.type==='Cast' && order.early.spell==='Teleport' ? order.early.ground! : c.centre;
   const pathActor={...c};
   for (const [i,to] of order.path.entries()) {
-    if ((!fearAllowsStep(state,{...c,centre:from},to)||!carryingFearAllows(state,{...c,centre:from},to))) throw new Error('FEAR_APPROACH');
-    if (!(order.flightSteps?flightStepLegal(state,pathActor,order,i,from,to,true,true):order.dragTargetId!==undefined?dragStepLegal(movementState,c,order,from,to,true):order.blinkIndex===i?blinkLegal(state,c,from,to,true):stepLegality(arena,c,from,to,true).legal)) throw new Error('INVALID_PATH');
+    if ((!fearAllowsStep(known,{...c,centre:from},to)||!carryingFearAllows(known,{...c,centre:from},to))) throw new Error('FEAR_APPROACH');
+    if (!(order.flightSteps?flightStepLegal(state,pathActor,order,i,from,to,true,true):order.dragTargetId!==undefined?dragStepLegal(movementState,c,order,from,to,true):order.blinkIndex===i?blinkLegal(known,c,from,to,true):stepLegality(arena,c,from,to,true).legal)) throw new Error('INVALID_PATH');
     pathActor.height=flightHeight(pathActor,order,i);from = to;
   }
   if (order.path.length && !placement(arena, pathActor, from).legal) throw new Error('INVALID_DESTINATION');

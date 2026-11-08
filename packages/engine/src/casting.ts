@@ -3,7 +3,7 @@ import {bodyFootprint} from './bodies.js';
 import {pruneDisplacedHolds,pruneRootNetworks} from './ground-traits.js';
 import { legalCastWall,wallOriginValid,createWall,structureCells,strikeStructure,damageStructure,crossWallHazards } from './walls.js';
 import { legalWeedLayout,createWeed,contactWeed,damageWeed } from './tangleweed.js';
-import { sight,darkRay,visibleTo,clearNearestPair } from './visibility.js';
+import { sight,darkRay,visibleTo,clearNearestPair,knownState } from './visibility.js';
 import { knowsIllusion } from './illusions.js';
 import { canReanimate, reanimate } from './reanimation.js';
 import { randomBelow } from '../../domain/src/random.js';
@@ -68,15 +68,16 @@ export function validateCast(s:GameState,c:Creature,a:CastAction):void {
  if(!isSummon(a)&&a.variant!=='bound')throw new Error('INVALID_SPELL_VARIANT');
  const groundOnly=isSummon(a)||['Teleport','Darkness','Tangleweed','Wall'].includes(a.spell),projectile=['Magic Bolt','Fire Bolt'].includes(a.spell);
  if(groundOnly?(a.ground===null||a.targetId!==null):projectile?(Number(a.ground!==null)+Number(a.targetId!==null)+Number(a.structure!==undefined)!==1):(a.targetId===null||a.ground!==null))throw new Error('INVALID_SPELL_TARGET');
- if((a.targetId!==null&&!(a.spell==='Reanimate'?s.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
- if(!legalTarget(s,c,a))throw new Error('INVALID_SPELL_TARGET');
+ const known=knownState(s,c.controller!);
+ if((a.targetId!==null&&!(a.spell==='Reanimate'?known.corpses.some(t=>t.id===a.targetId):s.creatures.some(t=>t.id===a.targetId)))||(a.ground&&!inside(a.ground,s.board)))throw new Error('INVALID_SPELL_TARGET');
+ if(!legalTarget(known,c,a))throw new Error('INVALID_SPELL_TARGET');
  if(a.targetId&&a.spell!=='Reanimate'&&!visibleTo(s,s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
- if(a.spell==='Teleport' && (c.mountId!==undefined||carryingLocked(s,c)||restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(s,c,a.ground!)||!placement(arenaOf(s),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
+ if(a.spell==='Teleport' && (c.mountId!==undefined||carryingLocked(s,c)||restrained(s,c)||castingLocksMovement(s,c)||!fearAllowsStep(known,c,a.ground!)||!placement(arenaOf(known),c,a.ground!).legal))throw new Error('INVALID_TELEPORT_DESTINATION');
  if(a.spell==='Healing Bolt'&&knowsIllusion(s.creatures.find(t=>t.id===a.targetId)!,c.controller!))throw new Error('INVALID_SPELL_TARGET');
  if(isSummon(a)){
   const profile=summonProfile(a.spell,a.level);if(!profile)throw new Error('CONTENT_NOT_AVAILABLE');
   const body=createCreature('$preview',c.controller,a.ground!,profile);
-  if(!legalSummonPlacement(s,body))throw new Error('INVALID_SUMMON_PLACEMENT');
+  if(!legalSummonPlacement(known,body))throw new Error('INVALID_SUMMON_PLACEMENT');
  }
 }
 export function reservedMana(order:Order):number {return [order.early,order.late].reduce((n,a)=>n+(a&&typeof a==='object'&&a.type==='Cast'?manaCost(a):0),0);}
