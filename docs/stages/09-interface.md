@@ -52,3 +52,14 @@ Browser coverage checks exported orders for illusion summons, Darkness, Wall and
 Tangleweed, alongside the existing pointer, turn and save workflows.
 Full special-action editing, structure targeting, richer preview/inspection,
 autosave, timers, event/replay controls and full-match acceptance remain pending.
+
+## Phase revision and action controls
+
+PR #45 continuation preserves the other saved phase when a basic action or spell
+is revised. Users can inspect saved Early/Late actions, clear one phase, or clear
+the whole order. Selecting a creature restores its saved path. Rejected edits leave
+the prior accepted order intact. Attack controls expose the creature's attack
+variants, ray side and area impact coordinates. Capability-based action choices
+include aid, grappling, mounting, reload and named powers; normal validation remains
+authoritative. Multi-target attacks, Guard-area editing and the remaining movement
+specials still require further UI work.

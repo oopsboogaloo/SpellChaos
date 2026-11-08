@@ -13,9 +13,12 @@ onmessage=({data})=>{try{
  if(data.type==='new')state=createMatch('local',['human',...Array.from({length:Math.max(1,Math.min(7,Number(data.opponents)||1))},(_,i)=>`ai-${i+1}`)],Number(data.seed)||123);
  if(data.type==='order'){
   // Validate only observed facts before the authoritative submission. Never return private rejection details.
-  validateOrder(knowledgeState(projectView(state,'human')),data.order,'human');
-  state=command('SetOrder',data.order);
+  const previous=state.orders.find(o=>o.creatureId===data.order.creatureId);
+  const order=data.phase==='early'||data.phase==='late'?{...previous,...data.order,early:data.phase==='early'?data.order.early:previous?.early??null,late:data.phase==='late'?data.order.late:previous?.late??null}:data.order;
+  validateOrder(knowledgeState(projectView(state,'human')),order,'human');
+  state=command('SetOrder',order);
  }
+ if(data.type==='clear')state=applyCommand(state,{matchId:state.matchId,playerId:'human',turn:state.turn,commandId:`ui-${state.revision}`,expectedRevision:state.revision,type:'ClearOrder',creatureId:data.creatureId}).state;
  if(data.type==='suggest')state=submitAiTurn(state,['human']).state;
  if(data.type==='lock'){
   let next=state;
