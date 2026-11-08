@@ -51,16 +51,29 @@ export function immuneTo(c:Creature,kind:Condition['kind']):boolean {
  if((c.intelligence===0||c.construct)&&['Fear','Unconscious'].includes(kind))return true;
  return false;
 }
-export function addCondition(s:GameState,c:Creature,kind:Condition['kind'],sourceId:string|null,potency:number,duration:number|null,resistance:Condition['resistance']='int',requiresDamage=true):boolean {
+const PHASE_ORDER=['planning','ready','early','movement','late','end','ended'] as const;
+/** Comparable end of a condition: phase-scoped expiry, end of its last turn, or never. */
+function conditionEnd(e:Condition):number {
+ if(e.expiresAfterPhase)return e.expiresAfterPhase.turn*10+PHASE_ORDER.indexOf(e.expiresAfterPhase.phase);
+ return e.endsTurn===null?Number.POSITIVE_INFINITY:e.endsTurn*10+9;
+}
+/**
+ * Owner ruling (8 Nov 2026, #35/#39): a creature is never doubly affected by one kind of condition.
+ * Re-application from any source keeps only the longest-lasting instance; no fixed end counts as longest
+ * and ties keep the existing instance. Real and illusion-sourced instances stay separate so illusion
+ * removal can still reverse its own effects. Returns true only when the new instance was kept.
+ */
+export function addCondition(s:GameState,c:Creature,kind:Condition['kind'],sourceId:string|null,potency:number,duration:number|null,resistance:Condition['resistance']='int',requiresDamage=true,extra:Pick<Condition,'rootNetwork'|'expiresAfterPhase'>={}):boolean {
  const illusionId=s.creatures.find(x=>x.id===sourceId)?.kind==='illusion'?sourceId:null;
  if(!c.alive||immuneTo(c,kind)||(illusionId!==null&&c.intelligence===0))return false;
  const startsTurn=s.turn+(['Burning','Acid'].includes(kind)?1:0);
  const turns=kind==='Poisoned'?3:kind==='Burning'||kind==='Acid'?2:duration;
  const existing=c.conditions.find(e=>e.kind===kind&&e.illusionId===illusionId);
  const condition:Condition={kind,illusionId,sourceId,potency,duration:turns,resistance,requiresDamage,startsTurn,
-  endsTurn:turns===null?null:startsTurn+turns-1,activatesTurn:kind==='Disease'?s.turn+2:null,active:kind!=='Disease'};
+  endsTurn:turns===null?null:startsTurn+turns-1,activatesTurn:kind==='Disease'?s.turn+2:null,active:kind!=='Disease',...extra};
  if(kind==='Burning'&&existing&&existing.endsTurn!==null&&existing.endsTurn>=s.turn)condition.startsTurn=Math.min(existing.startsTurn,startsTurn);
  if(kind==='Disease' && existing){condition.activatesTurn=existing.activatesTurn;condition.active=existing.active;}
+ if(existing&&conditionEnd(existing)>=conditionEnd(condition))return false;
  c.conditions=c.conditions.filter(e=>e.kind!==kind||e.illusionId!==illusionId);c.conditions.push(condition);return true;
 }
 export function heal(s:GameState,c:Creature,amount:number,events:Event[],mode:'ordinary'|'necromantic'|'regeneration'='ordinary',sourceId:string|null=null):number {

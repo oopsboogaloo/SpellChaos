@@ -104,7 +104,7 @@ export function planWizardTurn(view:PlayerView,seed:number,options:PolicyOptions
     if(c.spores&&!t.undead&&!t.construct&&distance(world,body,t)<=1)offer({type:'Spores',targetId:t.id},5+targetBonus(t));
     if(c.canMarkQuarry&&c.quarryTargetId!==t.id)offer({type:'MarkQuarry',targetId:t.id},distance(world,body,t)<=2?5:1);
    }
-   if(c.attacks[0])offer({type:'Guard',attackId:c.attacks[0].id,targetId:null,area:[]},1);
+   if(c.attacks[0]&&phase==='early')offer({type:'Guard',attackId:c.attacks[0].id,targetId:null,area:[]},1);
    if(c.haunt)for(const ground of disk(body.centre,2).slice(1,4))offer({type:'Haunt',ground},.3);
    if(c.canRide&&!c.mountId)for(const m of s.creatures.filter(t=>t.controller===c.controller&&t.mountable&&t.height==='ground'&&t.size>c.size&&distance(world,body,t)<=1))offer({type:'Mount',targetId:m.id},2+Math.max(0,m.move-c.move));
    if(c.mountId){const carrier=s.creatures.find(t=>t.id===c.mountId)!;for(const ground of disk(carrier.centre,2).sort(compareHex).slice(0,12))offer({type:'Dismount',ground},carrier.hp<=0?6:-1);}
