@@ -4,6 +4,7 @@ import { castActionSchema, castSchema, occupiedSlotSchema, spellSchema, summonFa
 import { z } from 'zod';
 import { powerActionSchema, validAttackTargets, attackDefinitionSchema, combatActionSchema, conditionSchema, damageTypeSchema, guardSchema, holdSchema, reactionSchema, pendingAttackSchema, corpseSchema, damageRecordSchema } from './combat.js';
 import { distance, inside } from '../../geometry/src/hex.js';
+import { placement } from '../../geometry/src/occupancy.js';
 
 export const VERSION = { schema: 27, rules: 'autonomy-0.1', content: 'gryphon-shepherd-0.1', rng: 'xorshift32-v2' } as const;
 export const id = z.string().min(1).max(128);
@@ -269,4 +270,21 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   if(state.castOccupied.some(slot=>!creatures.includes(slot.creatureId)||slot.turn!==state.turn))invalid('INVALID_CAST_SLOT');
   if(state.quickQueue && (!['early','late'].includes(state.phase) || !unique(state.quickQueue) || state.quickQueue.some(id=>!creatures.includes(id))))invalid('INVALID_QUICK_QUEUE');
   if (state.walls.some(w => w.hp>w.maxHp || distance(w.edge.a, w.edge.b) !== 1)) invalid('INVALID_WALL');
+  // #23: physical and bookkeeping invariants, so a corrupt snapshot cannot replace a running match.
+  // Riders share their mount's footprint, and the active mover may be mid-transit through others.
+  const bodies = state.creatures.filter(c => c.alive && !c.mountId);
+  const moverId = state.phase === 'movement' && state.cursor.activePath ? state.cursor.entries[state.cursor.index]?.creatureId : undefined;
+  const occupant = (o: (typeof bodies)[number]) => ({ ...o, illusion: o.kind === 'illusion' });
+  // Only bodies at the same height can conflict: a flyer may rest above a ground creature.
+  const arenaWithout = (ids: (string | undefined)[], height?: string) => ({ board: state.board, walls: state.walls, creatures: bodies.filter(o => !ids.includes(o.id) && (height === undefined || o.height === height)).map(occupant) });
+  const mover = bodies.find(c => c.id === moverId);
+  const moverInTransit = !!mover && !placement(arenaWithout([mover.id]), occupant(mover), mover.centre).legal && placement(arenaWithout([mover.id]), occupant(mover), mover.centre, true).legal;
+  for (const c of bodies) {
+    if (c.id === moverId && moverInTransit) continue;
+    if (!placement(arenaWithout([c.id, moverInTransit ? moverId : undefined], c.height), occupant(c), c.centre).legal) invalid('ILLEGAL_PLACEMENT');
+  }
+  for (const c of state.creatures) if (c.alive && c.maxHp !== c.con * (c.swarm ? c.originalSize : c.size)) invalid('INVALID_MAX_HP');
+  const sequences = [...state.damageLedger.map(d => d.sequence)];
+  for (const id of [state.pendingAttack?.actionId, state.pendingPower?.actionId]) { const n = Number(id?.split('-').at(-1)); if (Number.isInteger(n)) sequences.push(n); }
+  if (sequences.some(n => n >= state.nextEntityId)) invalid('STALE_ENTITY_COUNTER');
 });
