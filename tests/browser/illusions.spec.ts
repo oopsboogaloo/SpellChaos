@@ -15,7 +15,7 @@ test('Node and Chromium agree on illusion reversal, shock deaths and permitted v
     state = result.state;
     events.push(...result.events);
   }
-  await page.goto('/');
+  await page.goto('/?dev');
   const actual = await page.evaluate(
     async ({ root, initial }) => {
       const persistence = await import(root + '/packages/persistence/src/snapshot.ts');

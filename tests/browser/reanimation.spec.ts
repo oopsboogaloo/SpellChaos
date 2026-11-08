@@ -19,7 +19,7 @@ for (const skeletal of [false, true])
       }
     }
     expect(state.creatures.some(c => c.kind === 'reanimated')).toBe(true);
-    await page.goto('/');
+    await page.goto('/?dev');
     const actual = await page.evaluate(
       async ({ root, initial }) => {
         const persistence = await import(root + '/packages/persistence/src/snapshot.ts');

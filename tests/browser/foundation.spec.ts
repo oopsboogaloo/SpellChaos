@@ -3,7 +3,7 @@ import { createMatch, applyCommand } from '../../packages/engine/src/index.js';
 import { encodeSnapshot } from '../../packages/persistence/src/snapshot.js';
 
 test('browser shell locks, restores and resets its demo state', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?dev');
   await expect(page.getByRole('heading', { name: 'Spell Chaos', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Lock demo order' }).click();
   await expect(page.getByText('Turn 1 · planning · revision 1')).toBeVisible();
@@ -23,7 +23,7 @@ test('browser and Node produce identical serialized state after restore and cont
     type: 'LockTurn',
   };
   const expected = encodeSnapshot(applyCommand(createMatch('match', ['human', 'ai'], 1), command).state);
-  await page.goto('/');
+  await page.goto('/?dev');
   const actual = await page.evaluate(
     async ({ root, command }) => {
       const engine = await import(root + '/packages/engine/src/index.ts');

@@ -1,6 +1,7 @@
 import { TacticalOrders } from './TacticalOrders.js';
 import { SpellEditor } from './SpellEditor.js';
 import { Board } from './Board.js';
+import { EventLog, type TurnLog } from './EventLog.js';
 import { useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 import type { Order } from '../../../packages/domain/src/state.js';
@@ -8,6 +9,7 @@ export function Game() {
   const worker = useRef<Worker | null>(null),
     [view, setView] = useState<PlayerView | null>(null),
     [error, setError] = useState(''),
+    [log, setLog] = useState<TurnLog[]>([]),
     [saveStatus, setSaveStatus] = useState(''),
     [selected, setSelected] = useState('wizard-0'),
     [target, setTarget] = useState(''),
@@ -20,6 +22,10 @@ export function Game() {
     [speed, setSpeed] = useState(80),
     [opponents, setOpponents] = useState(1),
     [seed, setSeed] = useState(123),
+    [difficulty, setDifficulty] = useState('standard'),
+    [timerSeconds, setTimerSeconds] = useState(90),
+    [settings, setSettings] = useState<{ difficulty: string; timerSeconds: number } | null>(null),
+    [remaining, setRemaining] = useState<number | null>(null),
     [attackId, setAttackId] = useState(''),
     [attackSide, setAttackSide] = useState<'left' | 'right'>('left');
   const send = (data: object) => {
@@ -31,6 +37,8 @@ export function Game() {
     worker.current = w;
     w.onmessage = ({ data }) => {
       setView(data.view);
+      setLog(data.log ?? []);
+      if (data.settings) setSettings(data.settings);
       setSaveStatus(data.saveStatus ?? '');
       setError(data.error ?? '');
       if (data.save) {
@@ -50,6 +58,23 @@ export function Game() {
     const timer = setTimeout(() => send({ type: 'step' }), speed);
     return () => clearTimeout(timer);
   }, [running, view, speed]);
+  // Planning timer: restarts each planning turn; on expiry the worker applies the deadline rules.
+  const timerKey = view && view.phase === 'planning' && !view.self.locked ? `${view.turn}` : '';
+  useEffect(() => {
+    if (!timerKey || !settings?.timerSeconds) return setRemaining(null);
+    const end = Date.now() + settings.timerSeconds * 1000;
+    setRemaining(settings.timerSeconds);
+    const tick = setInterval(() => {
+      const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      setRemaining(left);
+      if (left === 0) {
+        clearInterval(tick);
+        send({ type: 'deadline' });
+        setRunning(true);
+      }
+    }, 250);
+    return () => clearInterval(tick);
+  }, [timerKey, settings?.timerSeconds]);
   const unit = view?.creatures.find(c => c.id === selected),
     planning = view?.phase === 'planning' && !view.self.locked;
   const choose = (id: string) => {
@@ -102,7 +127,7 @@ export function Game() {
   return (
     <section className="game" aria-label="Local match">
       <header>
-        <p className="eyebrow">SPELL CHAOS · LOCAL MATCH</p>
+        <p className="eyebrow">SPELL CHAOS · LOCAL MATCH · PREVIEW BUILD</p>
         <h1>The arena awaits</h1>
         <p>Plan your creatures’ orders, then lock your turn.</p>
       </header>
@@ -132,11 +157,29 @@ export function Game() {
         <label>
           Seed <input aria-label="Seed" type="number" value={seed} onChange={e => setSeed(+e.target.value)} />
         </label>
+        <label>
+          AI difficulty{' '}
+          <select aria-label="AI difficulty" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+            <option value="easy">Easy</option>
+            <option value="standard">Standard</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
+        <label>
+          Planning timer{' '}
+          <select aria-label="Planning timer" value={timerSeconds} onChange={e => setTimerSeconds(+e.target.value)}>
+            <option value="0">Off</option>
+            <option value="30">30 seconds</option>
+            <option value="60">60 seconds</option>
+            <option value="90">90 seconds</option>
+            <option value="180">3 minutes</option>
+          </select>
+        </label>
         <button
           onClick={() => {
             setRunning(false);
             setPath([]);
-            send({ type: 'new', opponents, seed });
+            send({ type: 'new', opponents, seed, difficulty, timerSeconds });
           }}
         >
           Start new match
@@ -148,6 +191,11 @@ export function Game() {
             Turn {view.turn} · {view.phase} · Balance {view.balance}
             {view.result ? ` · ${view.result.type === 'winner' ? view.result.playerId + ' wins' : 'Draw'}` : ''}
           </p>
+          {remaining !== null && (
+            <p aria-label="Planning time left" className={remaining <= 10 ? 'timer urgent' : 'timer'}>
+              Time left {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
+            </p>
+          )}
           <div className="game-layout">
             <aside aria-label="Roster">
               <h2>Your creatures</h2>
@@ -329,6 +377,15 @@ export function Game() {
           >
             Step
           </button>
+          <button
+            disabled={['planning', 'ended'].includes(view.phase)}
+            onClick={() => {
+              setRunning(false);
+              send({ type: 'resolve' });
+            }}
+          >
+            Resolve turn
+          </button>
           <label>
             Playback{' '}
             <select value={speed} onChange={e => setSpeed(+e.target.value)}>
@@ -337,6 +394,7 @@ export function Game() {
               <option value="1">Fast</option>
             </select>
           </label>
+          <EventLog view={view} log={log} />
           <button onClick={() => send({ type: 'save' })}>Export private save</button>
           <label>
             Load private save{' '}

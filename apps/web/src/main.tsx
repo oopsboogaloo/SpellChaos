@@ -1,4 +1,5 @@
 import { Game } from './Game.js';
+import type { GameState } from '../../../packages/domain/src/state.js';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createMatch, applyCommand } from '../../../packages/engine/src/index.js';
@@ -13,7 +14,14 @@ function App() {
   return (
     <main>
       <Game />
-
+      {/* Developer demos stay available at ?dev but are hidden from players. */}
+      {new URLSearchParams(location.search).has('dev') && <DevPanels state={state} setState={setState} />}
+    </main>
+  );
+}
+function DevPanels({ state, setState }: { state: GameState; setState: (s: GameState) => void }) {
+  return (
+    <>
       <p className="eyebrow">DEVELOPMENT BUILD · FOUNDATION</p>
       <h1>Spell Chaos</h1>
       <p>The first engine foundation is running in your browser. The game is under construction.</p>
@@ -45,7 +53,7 @@ function App() {
       <TurnPreview />
       <CastingPreview />
       <GeometryPreview />
-    </main>
+    </>
   );
 }
 createRoot(document.getElementById('root')!).render(<App />);

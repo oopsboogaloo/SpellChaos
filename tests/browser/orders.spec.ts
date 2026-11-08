@@ -4,7 +4,7 @@ import { advanceAtomicStep } from '../../packages/engine/src/resolver.js';
 import { encodeSnapshot } from '../../packages/persistence/src/snapshot.js';
 
 test('plans a Dash and resumes a saved checkpoint mid-movement', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?dev');
   const preview = page.getByRole('region', { name: 'Turn resolution preview' });
   await preview.getByRole('button', { name: 'Plan Dash', exact: true }).click();
   await expect(preview.getByText('Dash planned', { exact: true })).toBeVisible();
@@ -61,7 +61,7 @@ test('Node and Chromium resolve the same restored whole turn', async ({ page }) 
     state = result.state;
     events.push(...result.events);
   }
-  await page.goto('/');
+  await page.goto('/?dev');
   const actual = await page.evaluate(
     async ({ root, initial }) => {
       const persistence = await import(root + '/packages/persistence/src/snapshot.ts');

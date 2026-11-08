@@ -5,7 +5,7 @@ import { encodeSnapshot } from '../../packages/persistence/src/snapshot.js';
 
 test('steps a remote Slow cast and restores it between turns on a phone viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/?dev');
   const panel = page.getByRole('region', { name: 'Casting preview' }),
     status = page.getByTestId('casting-status');
   await panel.getByRole('button', { name: 'Commit casting turn' }).click();
@@ -36,7 +36,7 @@ test('Node and Chromium agree on two turns of remote casting with save/restore a
       events.push(...r.events);
     }
   }
-  await page.goto('/');
+  await page.goto('/?dev');
   const actual = await page.evaluate(
     async ({ root, initial }) => {
       const persistence = await import(root + '/packages/persistence/src/snapshot.ts');

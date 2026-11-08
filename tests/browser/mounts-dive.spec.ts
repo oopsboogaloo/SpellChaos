@@ -32,7 +32,7 @@ for (const name of [
       fingerprints.push(stateFingerprint(s));
       permitted.push(s.players.map(p => projectEvents(s, p.id, r.events)));
     }
-    await page.goto('/');
+    await page.goto('/?dev');
     const actual = await page.evaluate(
       async ({ root, initial }) => {
         const persistence = await import(root + '/packages/persistence/src/snapshot.ts');
