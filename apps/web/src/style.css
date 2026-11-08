@@ -414,3 +414,8 @@ button.primary {
     font-size: 0.85rem;
   }
 }
+
+.slot.past.hurt {
+  border-color: #e5604f;
+  color: #ff9a8a;
+}

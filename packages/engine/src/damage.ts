@@ -81,7 +81,14 @@ export function applyDamage(
   c.hp = Math.max(-1000000, c.hp - total);
   c.conditions = c.conditions.filter(e => e.kind !== 'Unconscious');
   resizeSwarm(s, c, events, false);
-  emit(s, events, { type: 'DamageApplied', creatureId: c.id, amount: total, critical: !!options.critical });
+  emit(s, events, {
+    type: 'DamageApplied',
+    creatureId: c.id,
+    amount: total,
+    critical: !!options.critical,
+    ...(options.sourceId && options.sourceId !== c.id ? { sourceId: options.sourceId } : {}),
+    action: [...new Set(components.map(component => component.type))].join('+'),
+  });
   return total;
 }
 export function immuneTo(c: Creature, kind: Condition['kind']): boolean {
