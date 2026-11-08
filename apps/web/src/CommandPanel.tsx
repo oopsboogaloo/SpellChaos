@@ -131,6 +131,7 @@ export function LastTurnRow({
           <span className="slot past">{s.late}</span>
         </>
       )}
+      {s?.took && <span className="slot past hurt">{s.took}</span>}
     </div>
   );
 }

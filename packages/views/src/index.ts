@@ -198,6 +198,11 @@ export function projectEvents(
     .map(event => {
       const { sequence: _authoritativeSequence, audience: _audience, ...copy } = structuredClone(event);
       if (!owned(event.creatureId)) delete copy.amount;
+      // Name a damage source only if this player can see it.
+      if (copy.sourceId) {
+        const source = state.creatures.find(c => c.id === copy.sourceId);
+        if (!source || !(source.controller === playerId || visibleTo(state, source, playerId))) delete copy.sourceId;
+      }
       if (copy.damageByTarget) copy.damageByTarget = copy.damageByTarget.filter(d => owned(d.targetId));
       return copy;
     });

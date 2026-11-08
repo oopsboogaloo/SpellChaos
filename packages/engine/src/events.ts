@@ -8,6 +8,8 @@ export interface Event {
   phase: GameState['phase'];
   creatureId?: string;
   targetId?: string;
+  /** The creature that caused damage, when there is one (DamageApplied). */
+  sourceId?: string;
   playerId?: string;
   from?: Creature['centre'];
   to?: Creature['centre'];
