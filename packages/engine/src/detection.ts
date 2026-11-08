@@ -29,7 +29,8 @@ export function revealBlockedContact(s:GameState,actor:Creature,to:Hex,height:Cr
  const mover={...actor,height},arena=arenaOf(s);
  const terrain={...arena,creatures:[]};
  if(!(distance(actor.centre,to)===0?placement(terrain,mover,to):stepLegality(terrain,mover,actor.centre,to,false)).legal)return;
- const legality=distance(actor.centre,to)===0?placement(arena,mover,to):stepLegality(arena,mover,actor.centre,to,false);
+ // Transit-aware: a creature the mover could legally pass through is not the contact that stopped it (#16).
+ const legality=distance(actor.centre,to)===0?placement(arena,mover,to):stepLegality(arena,mover,actor.centre,to,true);
  if(legality.legal||legality.reason!=='CREATURE')return;
  for(const target of s.creatures.filter(c=>c.id!==actor.id&&c.alive&&c.invisible&&!c.swarm&&!(c.kind==='illusion'&&actor.intelligence===0)&&overlap(bodyFootprint(s,actor,to),bodyFootprint(s,c))))revealInvisible(s,target,actor.controller,events);
 }

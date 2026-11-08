@@ -34,7 +34,8 @@ export function legalWallPlacement(arena: ArenaGeometry, wall: Wall): boolean {
   const id = edgeKey(wall.edge);
   if (!inside(wall.edge.a, arena.board) && !inside(wall.edge.b, arena.board)) return false;
   if (arena.walls.some(w => edgeKey(w.edge) === id)) return false;
-  return !solid(wall.material) || !arena.creatures.some(c => straddles(occupiedFootprint(c, arena.creatures), wall));
+  // Same rule as placement(): an airborne body may sit across an ordinary solid wall, but never across Energy (#28).
+  return !solid(wall.material) || !arena.creatures.some(c => (wall.material === 'energy' || c.height !== 'air') && straddles(occupiedFootprint(c, arena.creatures), wall));
 }
 
 export function placement(arena: ArenaGeometry, mover: Occupant, centre: Hex, transit = false): Legality {

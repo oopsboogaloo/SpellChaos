@@ -42,3 +42,10 @@ export function perceives(s:GameState,observer:Creature,target:Creature):boolean
  return seesCreature(s,observer,target);
 }
 export const targetVisible=(s:GameState,observer:Creature,target:Creature)=>observer.controller===null?perceives(s,observer,target):visibleTo(s,target,observer.controller);
+/**
+ * #15: what a player can perceive. Planning-time validators check against this, so an error code never
+ * reveals invisible creatures, Darkness occupants or hidden corpses; resolution re-checks full state.
+ */
+export function knownState(s:GameState,playerId:string):GameState {
+ return {...s,creatures:s.creatures.filter(c=>visibleTo(s,c,playerId)),corpses:s.corpses.filter(b=>{const body=s.creatures.find(c=>c.id===b.creatureId);return !!body&&visibleTo(s,{...body,centre:b.centre,size:b.size},playerId);})};
+}

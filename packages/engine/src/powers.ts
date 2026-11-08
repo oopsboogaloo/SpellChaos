@@ -32,8 +32,9 @@ export function validatePowerAction(s:GameState,actor:Creature,action:PowerActio
  if(action.type==='Wail'&&(actor.wailReadyTurn??1)>s.turn)throw new Error('POWER_COOLDOWN');
  if(!('targetId' in action))return;
  const target=s.creatures.find(c=>c.id===action.targetId);
- if(!target?.alive||!enemy(actor,target)||(action.type==='Spores'&&!sporesLiving(target)))throw new Error('INVALID_POWER_TARGET');
- if(!actor.controller||!visibleTo(s,target,actor.controller))throw new Error('UNKNOWN_TARGET');
+ // Visibility first, with one code for hidden and missing targets, so hidden state is never revealed (#15).
+ if(!target||!actor.controller||!visibleTo(s,target,actor.controller))throw new Error('UNKNOWN_TARGET');
+ if(!target.alive||!enemy(actor,target)||(action.type==='Spores'&&!sporesLiving(target)))throw new Error('INVALID_POWER_TARGET');
  // Range and the actor's sight are rechecked after planned movement, like attacks.
 }
 export function beginPower(s:GameState,actor:Creature,action:PowerAction,events:Event[]):void {

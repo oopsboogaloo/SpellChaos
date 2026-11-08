@@ -229,7 +229,7 @@ export function stepAttack(s:GameState,events:Event[]):boolean {
 export function resolveCombatAction(s:GameState,c:Creature,action:Order['early'],events:Event[]):void {
  if(action==='Escape'){
   escapeWeed(s,c);
-  s.holds=s.holds.filter(h=>h.targetId!==c.id||!roll(s,escapeChance(c.size,s.creatures.find(x=>x.id===h.grapplerId)!.size)));
+  s.holds=s.holds.filter(h=>{if(h.targetId!==c.id)return true;const freed=roll(s,escapeChance(c.size,s.creatures.find(x=>x.id===h.grapplerId)!.size));if(freed)emit(s,events,{type:'HoldReleased',creatureId:h.grapplerId,targetId:c.id});return !freed;});
   c.conditions=c.conditions.filter(e=>e.kind!=='Restrained'||roll(s,effectChance(e.potency,e.resistance==='physical'?2*c.size:c.intelligence)));
   emit(s,events,{type:'EscapeAttempted',creatureId:c.id});return;
  }
@@ -253,20 +253,25 @@ export function resolveCombatAction(s:GameState,c:Creature,action:Order['early']
   s.guards.push({creatureId:c.id,attackId:action.attackId,targetId:action.targetId,area:action.area,attacked:[],spent:false});return;
  }
  const wall=action.type==='Extinguish'?s.walls.find(w=>w.id===action.targetId):undefined;
- if(wall){if(nearestPair(bodyFootprint(s,c),[wall.edge.a,wall.edge.b]).distance<=1)wall.burning=null;return;}
+ if(wall){if(nearestPair(bodyFootprint(s,c),[wall.edge.a,wall.edge.b]).distance<=1){wall.burning=null;emit(s,events,{type:'WallExtinguished',creatureId:c.id,action:wall.id});}else emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
  const target=s.creatures.find(x=>x.id===action.targetId);
  const reach=action.type==='Grapple'?Math.max(1,...c.attacks.filter(a=>a.mode==='melee').map(a=>a.range)):1;
  if(!target?.alive || pair(s,c,target).distance>reach || c.height!==target.height || !clearProjectile(pair(s,c,target).from,pair(s,c,target).to,'left',s.walls)){emit(s,events,{type:'ActionInvalid',creatureId:c.id});return;}
  if(action.type==='Grapple'){
   if(c.kind==='illusion'&&target.intelligence===0)return;
   const limb=Array.from({length:c.grappleLimbs},(_,i)=>i).find(i=>!s.holds.some(h=>h.grapplerId===c.id&&h.limb===i));
-  if(limb===undefined||target.id===c.id||target.size>c.size||(target.size===c.size&&!c.grappleEqualSize))return;
+  if(limb===undefined||target.id===c.id||target.size>c.size||(target.size===c.size&&!c.grappleEqualSize)){emit(s,events,{type:'GrappleIneligible',creatureId:c.id,targetId:target.id});return;}
   const skill=c.attacks.find(a=>a.mode==='melee')?.shots[0]?.skill??c.dex;
   const modifiers=hitModifiers(s,c,target,{id:'grapple',name:'Grapple',mode:'melee',range:1,minRange:0,radius:0,shots:[]});
-  if((!active(target)||roll(s,hitChance(skill,target.dex),...modifiers))&&roll(s,effectChance(2*c.size,2*target.size)))s.holds.push({grapplerId:c.id,targetId:target.id,limb});
+  // #38: report each outcome; roll order is unchanged.
+  if(!(!active(target)||roll(s,hitChance(skill,target.dex),...modifiers))){emit(s,events,{type:'GrappleMissed',creatureId:c.id,targetId:target.id});return;}
+  if(!roll(s,effectChance(2*c.size,2*target.size))){emit(s,events,{type:'GrappleResisted',creatureId:c.id,targetId:target.id});return;}
+  s.holds.push({grapplerId:c.id,targetId:target.id,limb});emit(s,events,{type:'HoldFormed',creatureId:c.id,targetId:target.id});
  }else if(action.type==='Extinguish'||target.controller===c.controller){
   const kind=action.type==='Treat'?'Bleeding':action.type==='Wake'?'Unconscious':'Burning';
+  const had=target.conditions.some(e=>e.kind===kind);
   target.conditions=target.conditions.filter(e=>e.kind!==kind);
+  emit(s,events,{type:had?'ConditionRemoved':'ActionWasted',creatureId:c.id,targetId:target.id,action:kind});
  }
 }
 /** Only voluntary steps call this; teleport, summoning and forced movement do not. */
