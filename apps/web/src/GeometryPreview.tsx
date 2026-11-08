@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { footprint, fromOffset, key, worldPoint } from '../../../packages/geometry/src/hex.js';
-import { startingPositions } from '../../../packages/geometry/src/spawn.js';
+import { startingPositions } from '../../../packages/engine/src/spawn.js';
 import { emptyArena, placement } from '../../../packages/geometry/src/occupancy.js';
 
 export function GeometryPreview() {

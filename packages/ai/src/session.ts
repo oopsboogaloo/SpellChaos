@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { stateSchema, type GameState } from '../../domain/src/state.js';
-import { canonical, encodeSnapshot } from '../../persistence/src/snapshot.js';
+import { type GameState } from '../../domain/src/state.js';
+import { canonical, encodeSnapshot, snapshotSchema } from '../../persistence/src/snapshot.js';
 import { stateFingerprint } from '../../persistence/src/digest.js';
 import { applySystemCommand, systemCommand } from '../../engine/src/index.js';
 import { advanceAtomicStep } from '../../engine/src/resolver.js';
@@ -11,7 +11,7 @@ export const sessionSchema = z
   .strictObject({
     sessionVersion: z.literal(1),
     policyVersion: z.literal(POLICY_VERSION),
-    state: stateSchema,
+    state: snapshotSchema,
     options: z.strictObject({
       difficulty: z.enum(['easy', 'standard', 'hard']),
       maxTurns: uint.min(1).max(10000),
@@ -123,7 +123,7 @@ export function advanceMatchSession(session: MatchSession): MatchSession {
       next.state = advanceAtomicStep(next.state).state;
       next.atomicSteps++;
     }
-    if (['planning', 'ended'].includes(next.state.phase)) stateSchema.parse(next.state);
+    if (['planning', 'ended'].includes(next.state.phase)) snapshotSchema.parse(next.state);
     if (next.state.result) next.outcome = structuredClone(next.state.result);
   } catch (error) {
     next.state = session.state;

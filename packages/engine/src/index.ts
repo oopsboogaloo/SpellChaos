@@ -17,7 +17,7 @@ import { startingBook } from './spellbooks.js';
 import { manaCost } from '../../content/src/spells.js';
 import { interruptCast } from './casting.js';
 import { streamSeed } from '../../domain/src/random.js';
-import { startingPositions } from '../../geometry/src/spawn.js';
+import { startingPositions } from './spawn.js';
 import { defaultOrder, validateOrder, replaceReservation } from './orders.js';
 
 export function createCreature(

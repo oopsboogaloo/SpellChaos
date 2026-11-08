@@ -1,5 +1,3 @@
-import { implementedSpells } from '../../content/src/spells.js';
-import { summonProfile } from '../../content/src/summons.js';
 import { castActionSchema, castSchema, occupiedSlotSchema, spellSchema, summonFamilies } from './spells.js';
 import { z } from 'zod';
 import {
@@ -943,11 +941,6 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   }
   if (!unique(state.casts.map(c => c.id)) || !unique(state.casts.map(c => c.casterId))) invalid('DUPLICATE_CAST');
   for (const cast of state.casts) {
-    if (
-      !implementedSpells.includes(cast.action.spell) ||
-      (cast.action.spell.startsWith('Summon ') && !summonProfile(cast.action.spell, cast.action.level))
-    )
-      invalid('UNAVAILABLE_CAST_CONTENT');
     if (cast.action.hexes?.some(h => !inside(h, state.board))) invalid('INVALID_CAST_LAYOUT');
     if (
       !creatures.includes(cast.casterId) ||

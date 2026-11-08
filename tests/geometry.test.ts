@@ -30,7 +30,7 @@ import {
   traceProjectile,
   type Occupant,
 } from '../packages/geometry/src/occupancy.js';
-import { insetPerimeter, startingPositions } from '../packages/geometry/src/spawn.js';
+import { insetPerimeter, startingPositions } from '../packages/engine/src/spawn.js';
 
 const h = (q: number, r: number) => ({ q, r });
 const unit = (id = 'u', centre = h(10, 10), overrides: Partial<Occupant> = {}): Occupant => ({

@@ -1,4 +1,4 @@
-import { assertBoard, fromOffset, type Board, type Hex, ARENA } from './hex.js';
+import { assertBoard, fromOffset, type Board, type Hex, ARENA } from '../../geometry/src/hex.js';
 import { randomBelow } from '../../domain/src/random.js';
 
 /** Clockwise inset perimeter, corners included once. Offset-grid inset is exactly two rows/columns. */
