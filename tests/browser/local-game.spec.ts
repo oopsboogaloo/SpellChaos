@@ -1,11 +1,13 @@
 /// <reference lib="dom" />
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu.js';
 for (const width of [390, 768, 1280])
   test(`local match loop at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
     const game = page.getByRole('region', { name: 'Local match' });
     await expect(game.getByRole('status')).toContainText('Turn 1');
+    await openMenu(page);
     await game.getByRole('button', { name: 'Save draft', exact: true }).click();
     await expect(game.getByText('Draft saved', { exact: true })).toBeVisible();
     const download = page.waitForEvent('download');
@@ -26,6 +28,7 @@ test('invalid imports preserve the current match', async ({ page }) => {
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game
     .getByLabel('Load private save')
     .setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
@@ -40,14 +43,15 @@ for (const pointerType of ['mouse', 'touch', 'pen'])
     await page.goto('/');
     const game = page.getByRole('region', { name: 'Local match' });
     await expect(game.getByRole('status')).toContainText('Turn 1');
+    await openMenu(page);
     await game
       .getByLabel('Load private save')
       .setInputFiles({ name: 'board.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state)) });
     await game.getByRole('button', { name: 'Draw path', exact: true }).click();
     const canvas = game.getByLabel('Tactical hex arena');
     const box = (await canvas.boundingBox())!;
-    const x = box.x + ((32 + Math.sqrt(3) * 18 * (6 + 5 / 2)) * 0.65 * box.width) / 960,
-      y = box.y + ((32 + 5 * 27) * 0.65 * box.height) / 640;
+    const x = box.x + ((32 + Math.sqrt(3) * 18 * (6 + 5 / 2)) * box.width) / 984,
+      y = box.y + ((32 + 5 * 27) * box.height) / 848;
     await canvas.dispatchEvent('pointerdown', { pointerId: 1, pointerType, clientX: x, clientY: y, buttons: 1 });
     await canvas.dispatchEvent('pointerup', { pointerId: 1, pointerType, clientX: x, clientY: y });
     await expect(game.getByText('Added 6, 5', { exact: true })).toBeVisible();
@@ -67,14 +71,15 @@ test('pinch and remaining finger never edit a path', async ({ page }) => {
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game
     .getByLabel('Load private save')
     .setInputFiles({ name: 'pinch.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(s)) });
   await game.getByRole('button', { name: 'Draw path', exact: true }).click();
   const c = game.getByLabel('Tactical hex arena'),
     b = (await c.boundingBox())!,
-    x = b.x + ((32 + Math.sqrt(3) * 18 * 8.5) * 0.65 * b.width) / 960,
-    y = b.y + (167 * 0.65 * b.height) / 640;
+    x = b.x + ((32 + Math.sqrt(3) * 18 * 8.5) * b.width) / 984,
+    y = b.y + (167 * b.height) / 848;
   for (const id of [1, 2])
     await c.dispatchEvent('pointerdown', {
       pointerId: id,
@@ -96,13 +101,14 @@ test('overlapping tokens select the last painted creature', async ({ page }) => 
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game
     .getByLabel('Load private save')
     .setInputFiles({ name: 'stack.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(s)) });
   const c = game.getByLabel('Tactical hex arena'),
     b = (await c.boundingBox())!,
-    x = b.x + ((32 + Math.sqrt(3) * 18 * 7.5) * 0.65 * b.width) / 960,
-    y = b.y + (167 * 0.65 * b.height) / 640;
+    x = b.x + ((32 + Math.sqrt(3) * 18 * 7.5) * b.width) / 984,
+    y = b.y + (167 * b.height) / 848;
   await expect(game.getByRole('button', { name: /Top creature/ })).toBeVisible();
   await c.dispatchEvent('pointerdown', { pointerId: 1, pointerType: 'mouse', clientX: x, clientY: y });
   await c.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'mouse', clientX: x, clientY: y });
@@ -116,6 +122,7 @@ test('spell editor saves summon variants and connected terrain drafts', async ({
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game
     .getByLabel('Load private save')
     .setInputFiles({ name: 'spells.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(s)) });
@@ -148,6 +155,7 @@ test('phase revision preserves the other phase and clears explicitly', async ({ 
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game.getByLabel('Load private save').setInputFiles({
     name: 'double-action.json',
     mimeType: 'application/json',
@@ -177,6 +185,7 @@ test('autosave resumes after refresh and recovers a corrupt latest checkpoint', 
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game.getByRole('combobox', { name: 'Action', exact: true }).selectOption('Dash');
   await game.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(game.getByLabel('Local save status')).toHaveText('Saved locally.');
@@ -184,6 +193,7 @@ test('autosave resumes after refresh and recovers a corrupt latest checkpoint', 
   await game.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(game.getByLabel('Saved order')).toContainText('Early: Defend');
   await page.reload();
+  await openMenu(page);
   await game.getByRole('button', { name: 'Continue local match', exact: true }).click();
   await expect(game.getByLabel('Saved order')).toContainText('Early: Defend');
   // An aborted write must not replace the committed record.
@@ -205,6 +215,7 @@ test('autosave resumes after refresh and recovers a corrupt latest checkpoint', 
       }),
   );
   await page.reload();
+  await openMenu(page);
   await game.getByRole('button', { name: 'Continue local match', exact: true }).click();
   await expect(game.getByLabel('Saved order')).toContainText('Early: Defend');
   await page.evaluate(
@@ -225,6 +236,7 @@ test('autosave resumes after refresh and recovers a corrupt latest checkpoint', 
       }),
   );
   await page.reload();
+  await openMenu(page);
   await game.getByRole('button', { name: 'Continue local match', exact: true }).click();
   await expect(game.getByLabel('Saved order')).toContainText('Early: Dash');
   await expect(game.getByLabel('Local save status')).toHaveText('Recovered the previous local checkpoint.');
@@ -233,6 +245,7 @@ test('autosave restores an atomic resolution checkpoint exactly', async ({ page 
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   await game.getByRole('button', { name: 'Lock turn', exact: true }).click();
   await game.getByRole('button', { name: 'Pause', exact: true }).click();
   await game.getByRole('button', { name: 'Step', exact: true }).click();
@@ -246,6 +259,7 @@ test('autosave restores an atomic resolution checkpoint exactly', async ({ page 
   }
   const before = await snapshot();
   await page.reload();
+  await openMenu(page);
   await game.getByRole('button', { name: 'Continue local match', exact: true }).click();
   await expect(game.getByLabel('Local save status')).toHaveText('Continued local match.');
   expect(await snapshot()).toBe(before);

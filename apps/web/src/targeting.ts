@@ -5,6 +5,8 @@ import { movementAllowance } from '../../../packages/engine/src/orders.js';
 import { reachableCells } from '../../../packages/engine/src/navigation.js';
 import { inReach } from '../../../packages/engine/src/combat.js';
 import { castReachable } from '../../../packages/engine/src/casting.js';
+import { eligibleTarget } from '../../../packages/engine/src/powers.js';
+import { visibleTo } from '../../../packages/engine/src/visibility.js';
 import { footprint, fromOffset, inside, distance, nearestPair, type Hex } from '../../../packages/geometry/src/hex.js';
 import type { CastAction } from '../../../packages/domain/src/spells.js';
 
@@ -14,7 +16,10 @@ export type Pending =
   | { kind: 'move' }
   | { kind: 'attack'; attack: Attack }
   | { kind: 'cast'; cast: CastAction; aim: 'creature' | 'ground' | 'either' | 'corpse' | 'cells' }
+  | { kind: 'power'; action: PowerAction; label: string; range: number }
   | null;
+/** Targeted creature abilities chosen from the action menu. */
+export type PowerAction = 'Frighten' | 'Gaze' | 'Spores' | 'Grapple' | 'MarkQuarry' | 'Haunt';
 
 /** What the player may click while a board command is pending. */
 export interface Selectable {
@@ -86,6 +91,22 @@ export function selectable(
     } else
       result.creatures = known.creatures
         .filter(t => t.id !== from.id && t.alive && inReach(known, from, t, attack))
+        .map(t => t.id);
+    return result;
+  }
+  if (pending.kind === 'power') {
+    const body = footprint(from.centre, from.size),
+      a = pending.action;
+    if (a === 'Haunt') result.hexes = boardHexes(known).filter(h => nearestPair(body, [h]).distance <= pending.range);
+    else
+      result.creatures = known.creatures
+        .filter(t => {
+          if (t.id === from.id || !t.alive || !visibleTo(known, t, from.controller!)) return false;
+          if (a === 'MarkQuarry') return true;
+          if (a === 'Grapple')
+            return t.controller !== from.controller && nearestPair(body, footprint(t.centre, t.size)).distance <= 1;
+          return eligibleTarget(known, from, t, { type: a, targetId: t.id }, pending.range);
+        })
         .map(t => t.id);
     return result;
   }

@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu.js';
 import { createMatch, createCreature } from '../../packages/engine/src/index.js';
 import { summonProfile } from '../../packages/content/src/summons.js';
 import { readFileSync } from 'node:fs';
@@ -32,6 +33,7 @@ for (const mode of ['blink', 'flight', 'drag', 'multi', 'guard', 'structure'])
     await page.goto('/');
     const game = page.getByRole('region', { name: 'Local match' });
     await expect(game.getByRole('status')).toContainText('Turn 1');
+    await openMenu(page);
     await game
       .getByLabel('Load private save')
       .setInputFiles({ name: 'tactical.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(s)) });
