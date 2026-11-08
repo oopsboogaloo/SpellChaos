@@ -53,6 +53,8 @@ export function describeEvent(e: LogEvent, name: (id?: string) => string): strin
       return `${who}'s spell succeeds`;
     case 'CastFailed':
       return `${who}'s spell fails`;
+    case 'CastInvalid':
+      return `${who}'s spell fizzles: no valid target in range and sight`;
     case 'CastInterrupted':
       return `${who}'s spell is interrupted`;
     case 'CreatureSummoned':
@@ -83,16 +85,67 @@ export function describeEvent(e: LogEvent, name: (id?: string) => string): strin
   }
 }
 
+/** Creatures the player has seen, so events about creatures that have since died can still be named. */
+export type Seen = Map<string, { species: string; controller: string | null }>;
+export function creatureName(view: PlayerView, seen?: Seen) {
+  return (id?: string) => {
+    if (!id) return 'Someone';
+    const c = view.creatures.find(c => c.id === id) ?? seen?.get(id);
+    if (!c) return 'A creature';
+    const owner =
+      c.controller === view.self.id ? '' : view.players.some(p => p.id === c.controller) ? ' (enemy)' : ' (unbound)';
+    return `${c.species}${owner}`;
+  };
+}
+
+// Events worth a line in the short summary of the turn just resolved.
+const HEADLINE = new Set([
+  'AttackHit',
+  'AttackMissed',
+  'DamageApplied',
+  'Healed',
+  'CreatureDied',
+  'CastSucceeded',
+  'CastFailed',
+  'CastInvalid',
+  'CastInterrupted',
+  'CreatureSummoned',
+  'HoldFormed',
+  'HoldReleased',
+  'PowerApplied',
+  'PowerResisted',
+  'MovementBlocked',
+  'MatchEnded',
+]);
+/** Short summary of what happened in the most recent resolved turn. */
+export function LastTurn({ view, log, seen }: { view: PlayerView; log: TurnLog[]; seen?: Seen }) {
+  const last = log.at(-1);
+  if (!last) return null;
+  const name = creatureName(view, seen),
+    lines = last.events.filter(e => HEADLINE.has(e.type)).map(e => describeEvent(e, name));
+  return (
+    <section aria-label="Last turn" className="last-turn">
+      <h3>What happened in turn {last.turn}</h3>
+      {lines.length === 0 ? (
+        <p>Nothing notable: creatures moved or held position.</p>
+      ) : (
+        <ul>
+          {lines.slice(0, 10).map((l, i) => (
+            <li key={i}>{l}</li>
+          ))}
+          {lines.length > 10 && <li>…and {lines.length - 10} more in the event log.</li>}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** Filtered per-turn event log with review of earlier turns. */
-export function EventLog({ view, log }: { view: PlayerView; log: TurnLog[] }) {
+export function EventLog({ view, log, seen }: { view: PlayerView; log: TurnLog[]; seen?: Seen }) {
   const [reviewTurn, setReviewTurn] = useState<number | null>(null),
     [showAll, setShowAll] = useState(false);
   const shown = log.find(t => t.turn === reviewTurn) ?? log.at(-1);
-  const name = (id?: string) => {
-    if (!id) return 'Someone';
-    const c = view.creatures.find(c => c.id === id);
-    return c ? `${c.species}${c.controller === view.self.id ? '' : ' (enemy)'}` : 'A creature';
-  };
+  const name = creatureName(view, seen);
   const events = (shown?.events ?? []).filter(e => showAll || !QUIET.has(e.type));
   return (
     <section aria-label="Event log" className="event-log">

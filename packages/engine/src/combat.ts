@@ -120,7 +120,8 @@ function reachPair(s: GameState, a: Creature, b: Creature, attack: AttackDefinit
     [side],
   );
 }
-function inReach(
+/** Whether attacker `a` could legally strike `b` with `attack` from where it stands. */
+export function inReach(
   s: GameState,
   a: Creature,
   b: Creature,

@@ -2,17 +2,14 @@ import { useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 import type { Order } from '../../../packages/domain/src/state.js';
 import type { CastAction, SpellFamily } from '../../../packages/domain/src/spells.js';
-import { manaCost, successChance, castingTime } from '../../../packages/content/src/spells.js';
+import { manaCost, successChance, castingTime, spellRange } from '../../../packages/content/src/spells.js';
+import { describeCreature } from '../../../packages/content/src/descriptions.js';
 import { footprint, nearestPair, type Hex } from '../../../packages/geometry/src/hex.js';
 
 type Creature = PlayerView['creatures'][number];
 type Attack = Creature['attacks'][number];
-/** What the next board click means. */
-export type Pending =
-  | { kind: 'move' }
-  | { kind: 'attack'; attack: Attack }
-  | { kind: 'cast'; cast: CastAction; aim: 'creature' | 'ground' | 'either' | 'corpse' | 'cells' }
-  | null;
+export type { Pending } from './targeting.js';
+import type { Pending } from './targeting.js';
 
 export const GROUND_SPELLS = ['Teleport', 'Darkness', 'Tangleweed', 'Wall'];
 export function spellAim(spell: SpellFamily): Exclude<Pending, null | { kind: 'move' | 'attack' }>['aim'] {
@@ -24,11 +21,15 @@ export function spellAim(spell: SpellFamily): Exclude<Pending, null | { kind: 'm
 }
 export function pendingHint(p: Pending): string {
   if (!p) return '';
-  if (p.kind === 'move') return 'Click a hex to move there. The route is planned for you.';
-  if (p.kind === 'attack') return p.attack.mode === 'area' ? 'Click the hex to strike.' : 'Click a creature to attack.';
+  if (p.kind === 'move') return 'Click a bright hex to move there. The route is planned for you.';
+  if (p.kind === 'attack')
+    return p.attack.mode === 'area' ? 'Click a bright hex to strike.' : 'Click a highlighted creature to attack.';
   if (p.aim === 'cells')
     return `Click ${p.cast.level} connected ${p.cast.level === 1 ? 'hex' : 'hexes'} for Tangleweed, then press Done.`;
-  if (p.aim === 'ground') return `Click a hex for ${p.cast.spell}.`;
+  if (p.aim === 'ground')
+    return p.cast.spell.startsWith('Summon ')
+      ? `Click a bright hex to place the ${p.cast.spell.slice(7).toLowerCase()}. It must be empty and within ${spellRange(p.cast)} hexes.`
+      : `Click a bright hex for ${p.cast.spell}.`;
   if (p.aim === 'corpse') return 'Click a corpse to reanimate.';
   if (p.aim === 'either') return `Click a creature or a hex for ${p.cast.spell}.`;
   return `Click a creature for ${p.cast.spell}.`;
@@ -127,6 +128,7 @@ export function CommandPanel({
         HP {unit.hp}/{unit.maxHp} · Mana {unit.mana}/{unit.maxMana} · Move {unit.stats.move}
         {unit.restrained ? ' · Restrained' : ''}
       </p>
+      {describeCreature(unit.species) && <p className="description">{describeCreature(unit.species)}</p>}
       <div aria-label="Planned order" className="summary">
         <p>Move: {order?.path.length ? `${order.path.length} hexes` : 'stay put'}</p>
         <p>Before moving: {describeAction(order?.early ?? null, unit, view)}</p>
@@ -212,14 +214,14 @@ export function CommandPanel({
                         onChange={e => setVariant(e.target.value as CastAction['variant'])}
                       >
                         <option value="bound">Bound (full cost)</option>
-                        <option value="unbound">Summon only (half cost, easier)</option>
+                        <option value="unbound">Unbound (half cost, easier, but it will not obey you)</option>
                         <option value="illusion">Illusion (half cost, always works)</option>
                       </select>
                     </label>
                   )}
                   <p>
-                    {manaCost(cast)} mana · {castingTime(cast.spell)} · about {successChance(cast, view.balance * 2)}%
-                    chance now
+                    {manaCost(cast)} mana · {castingTime(cast.spell)} · about{' '}
+                    {Math.round(successChance(cast, view.balance * 2))}% chance now
                     {manaCost(cast) > (unit.mana ?? 0) ? ' · not enough mana' : ''}
                   </p>
                   {chosen === 'Wall' ? (
@@ -229,7 +231,13 @@ export function CommandPanel({
                       aria-pressed={pending?.kind === 'cast'}
                       onClick={() => setPending({ kind: 'cast', cast, aim: spellAim(cast.spell) })}
                     >
-                      Choose target for {cast.spell}
+                      {spellAim(cast.spell) === 'ground' && cast.spell.startsWith('Summon ')
+                        ? `Choose where to summon`
+                        : spellAim(cast.spell) === 'cells'
+                          ? 'Choose hexes for Tangleweed'
+                          : spellAim(cast.spell) === 'ground'
+                            ? `Choose where to cast ${cast.spell}`
+                            : `Choose target for ${cast.spell}`}
                     </button>
                   )}
                 </div>
@@ -273,6 +281,7 @@ export function InspectCard({ view, creature }: { view: PlayerView; creature: Cr
       <p>
         Size {creature.size} · Move {creature.stats.move} · Dex {creature.stats.dex} · Int {creature.stats.intelligence}
       </p>
+      {describeCreature(creature.species) && <p className="description">{describeCreature(creature.species)}</p>}
       <ul>
         {creature.attacks.map(a => (
           <li key={a.id}>

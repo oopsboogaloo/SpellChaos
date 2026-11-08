@@ -187,3 +187,21 @@ button[aria-pressed='true'] {
 .summary .warning {
   color: #e0b44c;
 }
+.description {
+  font-style: italic;
+  color: #cfc8b8;
+}
+.last-turn {
+  border: 1px solid #5aa9e6;
+  border-radius: 8px;
+  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.last-turn h3 {
+  margin: 0.4rem 0;
+  font-size: 1rem;
+}
+.last-turn ul {
+  margin: 0.25rem 0;
+  padding-left: 1.1rem;
+}
