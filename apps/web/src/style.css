@@ -122,3 +122,65 @@ main {
     display: inline-block;
   }
 }
+
+/* Click-driven command panel */
+.commands {
+  border: 1px solid #3b4b60;
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.commands h2 {
+  margin: 0 0 0.25rem;
+}
+.commands .vitals,
+.muted {
+  color: #9fb0c4;
+  font-size: 0.9rem;
+}
+.commands .summary {
+  background: #0f1722;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.5rem 0;
+}
+.commands .summary p {
+  margin: 0.15rem 0;
+  font-size: 0.9rem;
+}
+.command-buttons,
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+.command-buttons button,
+.segmented button {
+  min-height: 44px;
+}
+button[aria-pressed='true'] {
+  outline: 2px solid #ffda7e;
+}
+.hint {
+  background: #2b3a1f;
+  border: 1px solid #7bc96f;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+.notice {
+  background: #3a2f1a;
+  border: 1px solid #e0b44c;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+.inspect {
+  border: 1px dashed #5aa9e6;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.timer.urgent {
+  color: #e5604f;
+  font-weight: bold;
+}

@@ -2,6 +2,8 @@ import { TacticalOrders } from './TacticalOrders.js';
 import { SpellEditor } from './SpellEditor.js';
 import { Board } from './Board.js';
 import { EventLog, type TurnLog } from './EventLog.js';
+import { CommandPanel, InspectCard, reachNote, type Pending } from './CommandPanel.js';
+import type { Hex } from '../../../packages/geometry/src/hex.js';
 import { useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 import type { Order } from '../../../packages/domain/src/state.js';
@@ -9,6 +11,10 @@ export function Game() {
   const worker = useRef<Worker | null>(null),
     [view, setView] = useState<PlayerView | null>(null),
     [error, setError] = useState(''),
+    [notice, setNotice] = useState(''),
+    [pending, setPending] = useState<Pending>(null),
+    [inspect, setInspect] = useState(''),
+    [cells, setCells] = useState<Hex[]>([]),
     [log, setLog] = useState<TurnLog[]>([]),
     [saveStatus, setSaveStatus] = useState(''),
     [selected, setSelected] = useState('wizard-0'),
@@ -41,6 +47,7 @@ export function Game() {
       if (data.settings) setSettings(data.settings);
       setSaveStatus(data.saveStatus ?? '');
       setError(data.error ?? '');
+      setNotice(data.notice ?? '');
       if (data.save) {
         const url = URL.createObjectURL(new Blob([data.save], { type: 'application/json' })),
           a = document.createElement('a');
@@ -75,10 +82,14 @@ export function Game() {
     }, 250);
     return () => clearInterval(tick);
   }, [timerKey, settings?.timerSeconds]);
+  const inspected = view?.creatures.find(c => c.id === inspect && c.controller !== view.self.id);
   const unit = view?.creatures.find(c => c.id === selected),
     planning = view?.phase === 'planning' && !view.self.locked;
   const choose = (id: string) => {
     setSelected(id);
+    setPending(null);
+    setCells([]);
+    setTiming(view?.orders.find(o => o.creatureId === id)?.path.length ? 'late' : 'early');
     setPath(view?.orders.find(o => o.creatureId === id)?.path ?? []);
     setAttackId('');
     const c = view?.creatures.find(c => c.id === id);
@@ -88,6 +99,80 @@ export function Game() {
     }
   };
   const savedOrder = view?.orders.find(o => o.creatureId === selected);
+  // Keep the drawn path in step with the saved order (click-to-move saves on the worker side).
+  const savedPathKey = JSON.stringify(savedOrder?.path ?? []);
+  useEffect(() => setPath(savedOrder?.path ?? []), [savedPathKey, selected]);
+  // Esc cancels the pending board command.
+  useEffect(() => {
+    const cancel = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPending(null);
+        setCells([]);
+      }
+    };
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, []);
+  /** Save one action for the current phase, keeping the saved path and the other phase. */
+  function act(a: Order['early']) {
+    if (!unit) return;
+    send({
+      type: 'order',
+      phase: timing,
+      order: {
+        creatureId: unit.id,
+        path: savedOrder?.path ?? [],
+        ...(savedOrder?.flightSteps ? { flightSteps: savedOrder.flightSteps } : {}),
+        early: timing === 'early' ? a : null,
+        late: timing === 'late' ? a : null,
+      },
+    });
+    setPending(null);
+    setCells([]);
+  }
+  /** Board click: carry out the pending command, or select / inspect. */
+  function boardClick(h: Hex, creatureId: string | undefined) {
+    const clicked = view?.creatures.find(c => c.id === creatureId);
+    if (!pending) {
+      if (clicked && clicked.controller === view?.self.id) choose(clicked.id);
+      else if (clicked) {
+        setInspect(clicked.id);
+        setTarget(clicked.id);
+      } else setInspect('');
+      Q(h.q);
+      R(h.r);
+      return;
+    }
+    if (!unit) return;
+    if (pending.kind === 'move') {
+      send({ type: 'moveTo', creatureId: unit.id, to: h });
+      setPending(null);
+      return;
+    }
+    if (pending.kind === 'attack') {
+      const a = pending.attack;
+      if (a.mode === 'area') return act({ type: 'Attack', attackId: a.id, targetIds: [], ground: h, side: 'left' });
+      if (!clicked || clicked.id === unit.id) return setNotice('Click a creature to attack.');
+      const warning = reachNote(unit, savedOrder, clicked, a);
+      act({ type: 'Attack', attackId: a.id, targetIds: [clicked.id], ground: null, side: 'left' });
+      if (warning) setNotice(warning);
+      return;
+    }
+    const cast = pending.cast;
+    if (pending.aim === 'cells') {
+      setCells(c => (c.some(x => x.q === h.q && x.r === h.r) || c.length >= cast.level ? c : [...c, h]));
+      return;
+    }
+    if (pending.aim === 'corpse') {
+      const corpse = view?.corpses.find(c => c.centre.q === h.q && c.centre.r === h.r);
+      if (!corpse) return setNotice('Click a corpse to reanimate.');
+      return act({ ...cast, targetId: corpse.id });
+    }
+    if (pending.aim === 'ground') return act({ ...cast, ground: h });
+    if (clicked) return act({ ...cast, targetId: clicked.id });
+    if (pending.aim === 'either') return act({ ...cast, ground: h });
+    setNotice(`Click a creature for ${cast.spell}.`);
+  }
   const attack = unit?.attacks.find(a => a.id === attackId) ?? unit?.attacks[0];
   function saveOrder(order: Order) {
     send({ type: 'order', phase: timing, order });
@@ -203,7 +288,7 @@ export function Game() {
                 .filter(c => c.controller === 'human')
                 .map(c => (
                   <button key={c.id} aria-pressed={selected === c.id} onClick={() => choose(c.id)}>
-                    ◆ {c.species} · {c.health}
+                    {view.orders.some(o => o.creatureId === c.id) ? '✓' : '○'} {c.species} · {c.health}
                   </button>
                 ))}
             </aside>
@@ -214,9 +299,36 @@ export function Game() {
               onSelect={choose}
               onTarget={setTarget}
               onPath={h => setPath(p => [...p, h])}
+              onCommand={boardClick}
+              marked={cells}
             />
             <aside aria-label="Order editor">
-              <h2>{unit?.species ?? 'Select a creature'}</h2>
+              {notice && <p className="notice">{notice}</p>}
+              {unit && unit.controller === view.self.id ? (
+                <CommandPanel
+                  view={view}
+                  unit={unit}
+                  order={savedOrder}
+                  timing={timing}
+                  setTiming={setTiming}
+                  pending={pending}
+                  setPending={p => {
+                    setPending(p);
+                    setCells([]);
+                  }}
+                  onAction={act}
+                  onClear={() => send({ type: 'clear', creatureId: selected })}
+                  cells={cells}
+                  onCellsDone={() =>
+                    pending?.kind === 'cast' && act({ ...pending.cast, ground: cells[0]!, hexes: cells })
+                  }
+                />
+              ) : (
+                <p>Click one of your creatures to give it orders.</p>
+              )}
+              {inspected && <InspectCard view={view} creature={inspected} />}
+              <h2>Advanced orders</h2>
+              <p className="muted">Coordinate-based editing for {unit?.species ?? 'the selected creature'}.</p>
               {unit && (
                 <p>
                   HP {unit.hp} · Mana {unit.mana} · Move {unit.stats.move}
