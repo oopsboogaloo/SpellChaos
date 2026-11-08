@@ -35,13 +35,21 @@ export function Board({
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     [mode, setMode] = useState('select'),
-    [zoom, setZoom] = useState(0.65),
+    [zoom, setZoom] = useState(1),
     [pan, setPan] = useState({ x: 0, y: 0 }),
-    [message, setMessage] = useState('');
+    [message, setMessage] = useState(''),
+    [pulse, setPulse] = useState(0);
+  // The selected creature gently pulses so it is easy to spot (unless the player prefers reduced motion).
+  useEffect(() => {
+    if (!selected || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = setInterval(() => setPulse(performance.now()), 60);
+    return () => clearInterval(timer);
+  }, [selected]);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef({ multi: false, points: [] as { x: number; y: number }[] });
-  const width = 960,
-    height = 640;
+  // Sized so the whole 30 × 30 board fits at zoom 1.
+  const width = 984,
+    height = 848;
   useEffect(() => {
     const c = canvas.current!,
       ctx = c.getContext('2d')!;
@@ -101,7 +109,10 @@ export function Board({
         colour = index < 0 ? '#9a9a9a' : colours[index % colours.length]!;
       for (const h of c.occupied) hex(h, `${colour}33`, c.id === selected ? '#ffda7e' : `${colour}aa`);
       const p = point(c.centre),
-        r = radius * (0.8 + Math.floor((c.size - 1) / 2) * 1.5);
+        r =
+          radius *
+          (0.8 + Math.floor((c.size - 1) / 2) * 1.5) *
+          (c.id === selected && pulse ? 1 + 0.09 * Math.sin(pulse / 220) : 1);
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
       ctx.fillStyle = c.height === 'air' ? '#1d2b3c' : '#0f1722';
@@ -305,7 +316,7 @@ export function Board({
       }
     }
     ctx.restore();
-  }, [view, selected, path, zoom, pan, marked, selectable, results]);
+  }, [view, selected, path, zoom, pan, marked, selectable, results, pulse]);
   function location(e: React.PointerEvent<HTMLCanvasElement>) {
     const box = e.currentTarget.getBoundingClientRect();
     return { x: ((e.clientX - box.left) * width) / box.width, y: ((e.clientY - box.top) * height) / box.height };
@@ -355,11 +366,11 @@ export function Board({
             {m === 'select' ? 'Select / target' : m === 'path' ? 'Draw path' : 'Pan board'}
           </button>
         ))}
-        <button onClick={() => setZoom(z => Math.min(2, z + 0.15))}>Zoom in</button>
-        <button onClick={() => setZoom(z => Math.max(0.3, z - 0.15))}>Zoom out</button>
+        <button onClick={() => setZoom(z => Math.min(3, z + 0.25))}>Zoom in</button>
+        <button onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}>Zoom out</button>
         <button
           onClick={() => {
-            setZoom(0.65);
+            setZoom(1);
             setPan({ x: 0, y: 0 });
           }}
         >
@@ -371,7 +382,7 @@ export function Board({
         width={width}
         height={height}
         aria-label="Tactical hex arena"
-        style={{ width: '100%', touchAction: 'none', display: 'block' }}
+        style={{ width: '100%', maxWidth: 'calc(82vh * 984 / 848)', touchAction: 'none', display: 'block' }}
         onPointerDown={e => {
           if (e.currentTarget.hasPointerCapture(e.pointerId) === false) {
             try {
@@ -393,7 +404,7 @@ export function Board({
           if (other) {
             const before = Math.hypot(old.x - other.x, old.y - other.y),
               after = Math.hypot(p.x - other.x, p.y - other.y);
-            if (before > 1) setZoom(z => Math.max(0.3, Math.min(2, (z * after) / before)));
+            if (before > 1) setZoom(z => Math.max(0.5, Math.min(3, (z * after) / before)));
           } else if (mode === 'pan') setPan(v => ({ x: v.x + p.x - old.x, y: v.y + p.y - old.y }));
           else if (!gesture.current.multi) gesture.current.points.push(p);
           pointers.current.set(e.pointerId, p);

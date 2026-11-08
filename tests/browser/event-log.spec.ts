@@ -1,10 +1,12 @@
 /// <reference lib="dom" />
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu.js';
 
 test('a resolved turn appears in the filtered event log and earlier turns can be reviewed', async ({ page }) => {
   await page.goto('/');
   const game = page.getByRole('region', { name: 'Local match' });
   await expect(game.getByRole('status')).toContainText('Turn 1');
+  await openMenu(page);
   const log = game.getByRole('region', { name: 'Event log' });
   await expect(log).toContainText('No events yet');
   for (const turn of [1, 2]) {

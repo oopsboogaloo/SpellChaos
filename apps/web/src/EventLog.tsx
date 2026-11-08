@@ -1,20 +1,8 @@
 import { useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 
-/** A projected event, exactly as projectEvents returns it for this player. */
-export type LogEvent = {
-  type: string;
-  turn: number;
-  phase: string;
-  creatureId?: string;
-  targetId?: string;
-  playerId?: string;
-  to?: { q: number; r: number };
-  action?: string;
-  amount?: number;
-  critical?: boolean;
-};
-export type TurnLog = { turn: number; events: LogEvent[] };
+import type { LogEvent, TurnLog } from './summaries.js';
+export type { LogEvent, TurnLog };
 
 // Bookkeeping events that carry no information a player needs to read.
 const QUIET = new Set([

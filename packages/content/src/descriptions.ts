@@ -1,7 +1,7 @@
 /** One or two plain sentences per species, shown when a creature is inspected. */
 export const creatureDescriptions: Record<string, string> = {
   Wizard:
-    'A Wizard is your spellcaster: it fights weakly with a staff and spends mana, which regenerates each turn, on spells. If your wizard is killed, you lose the game.',
+    'A Wizard is a spellcaster: it fights weakly with a staff and spends mana, which regenerates each turn, on spells. A player whose wizard is killed loses the game.',
 
   // Cat
   'Cat familiar':

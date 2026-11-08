@@ -1,18 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
 import type { Order } from '../../../packages/domain/src/state.js';
 import type { CastAction, SpellFamily } from '../../../packages/domain/src/spells.js';
 import { manaCost, successChance, castingTime, spellRange } from '../../../packages/content/src/spells.js';
 import { describeCreature } from '../../../packages/content/src/descriptions.js';
-import { footprint, nearestPair, type Hex } from '../../../packages/geometry/src/hex.js';
+import type { Seen, TurnLog } from './EventLog.js';
+import { creatureName } from './EventLog.js';
 
 type Creature = PlayerView['creatures'][number];
-type Attack = Creature['attacks'][number];
-export type { Pending } from './targeting.js';
-import type { Pending } from './targeting.js';
+export type { Pending, PowerAction } from './targeting.js';
+import type { Pending, PowerAction } from './targeting.js';
 
 export const GROUND_SPELLS = ['Teleport', 'Darkness', 'Tangleweed', 'Wall'];
-export function spellAim(spell: SpellFamily): Exclude<Pending, null | { kind: 'move' | 'attack' }>['aim'] {
+export function spellAim(spell: SpellFamily): Extract<Pending, { kind: 'cast' }>['aim'] {
   if (spell === 'Tangleweed') return 'cells';
   if (spell.startsWith('Summon ') || GROUND_SPELLS.includes(spell)) return 'ground';
   if (spell === 'Reanimate') return 'corpse';
@@ -24,272 +24,374 @@ export function pendingHint(p: Pending): string {
   if (p.kind === 'move') return 'Click a bright hex to move there. The route is planned for you.';
   if (p.kind === 'attack')
     return p.attack.mode === 'area' ? 'Click a bright hex to strike.' : 'Click a highlighted creature to attack.';
+  if (p.kind === 'power')
+    return p.action === 'Haunt' ? 'Click a bright hex to haunt.' : `Click a highlighted creature for ${p.label}.`;
   if (p.aim === 'cells')
     return `Click ${p.cast.level} connected ${p.cast.level === 1 ? 'hex' : 'hexes'} for Tangleweed, then press Done.`;
   if (p.aim === 'ground')
     return p.cast.spell.startsWith('Summon ')
       ? `Click a bright hex to place the ${p.cast.spell.slice(7).toLowerCase()}. It must be empty and within ${spellRange(p.cast)} hexes.`
       : `Click a bright hex for ${p.cast.spell}.`;
-  if (p.aim === 'corpse') return 'Click a corpse to reanimate.';
-  if (p.aim === 'either') return `Click a creature or a hex for ${p.cast.spell}.`;
-  return `Click a creature for ${p.cast.spell}.`;
+  if (p.aim === 'corpse') return 'Click a highlighted corpse to reanimate.';
+  if (p.aim === 'either') return `Click a highlighted creature or hex for ${p.cast.spell}.`;
+  return `Click a highlighted creature for ${p.cast.spell}.`;
 }
 
-/** Plain description of a planned action. */
-export function describeAction(a: Order['early'], unit: Creature | undefined, view: PlayerView): string {
-  if (a === null) return 'nothing';
-  if (typeof a === 'string') return a === 'TotalDefence' ? 'Total Defence' : a;
-  const name = (id: string | null | undefined) => view.creatures.find(c => c.id === id)?.species ?? 'a target';
-  if (a.type === 'Cast')
-    return `cast ${a.spell} (level ${a.level})${a.targetId ? ` on ${name(a.targetId)}` : a.ground ? ` at a hex` : ''}`;
+import { lastTurnSummary, pretty } from './summaries.js';
+export { lastTurnSummary };
+
+/** Short label for a planned action, as shown on its button. */
+export function shortAction(a: Order['early'], unit: Creature | undefined, view: PlayerView): string {
+  if (a === null) return '';
+  if (typeof a === 'string') return pretty(a);
+  const name = (id: string | null | undefined) => view.creatures.find(c => c.id === id)?.species;
+  if (a.type === 'Cast') {
+    const on = a.targetId ? name(a.targetId) : a.ground ? 'hex' : '';
+    return `${a.spell} ${a.level}${on ? ` → ${on}` : ''}`;
+  }
   if (a.type === 'Attack') {
-    const attack = unit?.attacks.find(t => t.id === a.attackId);
-    return `${attack?.name ?? 'attack'}${a.targetIds.length ? ` ${name(a.targetIds[0])}` : ''}`;
+    const attack = unit?.attacks.find(t => t.id === a.attackId)?.name ?? 'Attack';
+    return `${attack}${a.targetIds.length ? ` → ${name(a.targetIds[0]) ?? 'target'}` : a.ground ? ' → hex' : ''}`;
   }
-  return a.type;
+  if ('targetId' in a && a.targetId) return `${pretty(a.type)} → ${name(a.targetId) ?? 'target'}`;
+  return pretty(a.type);
 }
 
-/** Distance from where the creature stands when it attacks to the target, for a reach warning. */
-export function reachNote(unit: Creature, from: Hex, target: Creature, attack: Attack): string {
-  const d = nearestPair(footprint(from, unit.size), target.occupied).distance;
-  if (d > attack.range) return `${attack.name} is out of reach (distance ${d}, reach ${attack.range}).`;
-  if (d < attack.minRange) return `Too close for ${attack.name} (minimum ${attack.minRange}).`;
-  return '';
-}
-/** Reach warnings for the saved order's single-target attacks, from where each one happens. */
-function reachWarnings(unit: Creature, order: Order | undefined, view: PlayerView): string[] {
-  if (!order) return [];
-  const notes: string[] = [];
-  for (const [action, from] of [
-    [order.early, unit.centre],
-    [order.late, order.path.at(-1) ?? unit.centre],
-  ] as const) {
-    if (!action || typeof action !== 'object' || action.type !== 'Attack') continue;
-    const attack = unit.attacks.find(t => t.id === action.attackId),
-      target = view.creatures.find(c => c.id === action.targetIds[0]);
-    const note = attack && target ? reachNote(unit, from, target, attack) : '';
-    if (note) notes.push(note);
-  }
-  return notes;
+/** The top of the screen: who is selected, its stats and what it is. Enemies are shown darker and read-only. */
+export function CreatureHeader({
+  view,
+  creature,
+  onPrev,
+  onNext,
+}: {
+  view: PlayerView;
+  creature: Creature;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const mine = creature.controller === view.self.id,
+    owned = view.players.some(p => p.id === creature.controller),
+    title = mine
+      ? creature.species
+      : `${owned ? 'Enemy' : 'Unbound'} ${creature.species}${creature.illusion ? ' (illusion)' : ''}`;
+  return (
+    <div className={mine ? 'creature-header' : 'creature-header enemy'} aria-label="Selected creature">
+      <div className="creature-title">
+        <h2>{title}</h2>
+        <p className="vitals">
+          {mine ? (
+            <>
+              HP {creature.hp}/{creature.maxHp} · Mana {creature.mana}/{creature.maxMana} · Move {creature.stats.move}
+            </>
+          ) : (
+            <>
+              {creature.health} · Move {creature.stats.move} · Size {creature.size}
+              {creature.attacks.length
+                ? ` · ${creature.attacks.map(a => `${a.name} (reach ${a.range})`).join(', ')}`
+                : ''}
+            </>
+          )}
+          {creature.height === 'air' ? ' · Flying' : ''}
+          {creature.restrained ? ' · Restrained' : ''}
+        </p>
+        <div className="prev-next">
+          <button onClick={onPrev}>Prev</button>
+          <button onClick={onNext}>Next</button>
+        </div>
+      </div>
+      {describeCreature(creature.species) && <p className="description">{describeCreature(creature.species)}</p>}
+    </div>
+  );
 }
 
-export function CommandPanel({
+export function LastTurnRow({
+  view,
+  log,
+  creatureId,
+  seen,
+}: {
+  view: PlayerView;
+  log: TurnLog[];
+  creatureId: string;
+  seen?: Seen;
+}) {
+  const last = log.find(t => t.turn === view.turn - 1);
+  const s = last ? lastTurnSummary(last.events, creatureId, creatureName(view, seen)) : null;
+  return (
+    <div className="turn-row" role="group" aria-label="Last turn">
+      <span className="row-label">Last turn:</span>
+      {!s ? (
+        <span className="slot past wide">—</span>
+      ) : s.summoned ? (
+        <span className="slot past wide">Summoned</span>
+      ) : (
+        <>
+          <span className="slot past">{s.early}</span>
+          <span className="slot past">{s.move}</span>
+          <span className="slot past">{s.late}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+type Slot = 'early' | 'late';
+/** This turn's plan: Action · Move · Action, each set by clicking it. */
+export function ThisTurnRow({
   view,
   unit,
   order,
-  timing,
-  setTiming,
   pending,
   setPending,
   onAction,
-  onClear,
-  cells,
-  onCellsDone,
+  onWholeTurn,
+  onStay,
 }: {
   view: PlayerView;
   unit: Creature;
   order: Order | undefined;
-  timing: 'early' | 'late';
-  setTiming: (t: 'early' | 'late') => void;
   pending: Pending;
-  setPending: (p: Pending) => void;
-  onAction: (a: Order['early']) => void;
-  onClear: () => void;
-  cells: Hex[];
-  onCellsDone: () => void;
+  setPending: (p: Pending, slot?: Slot) => void;
+  onAction: (a: Order['early'], slot: Slot) => void;
+  onWholeTurn: (a: 'TotalDefence') => void;
+  onStay: () => void;
 }) {
-  const [spell, setSpell] = useState<SpellFamily | ''>(''),
+  const [menu, setMenu] = useState<Slot | null>(null),
+    [spells, setSpells] = useState(false),
+    [spell, setSpell] = useState<SpellFamily | null>(null),
     [level, setLevel] = useState(1),
     [variant, setVariant] = useState<CastAction['variant']>('bound');
-  const planning = view.phase === 'planning' && !view.self.locked;
+  useEffect(() => {
+    setMenu(null);
+    setSpells(false);
+    setSpell(null);
+  }, [unit.id]);
+  const close = () => {
+    setMenu(null);
+    setSpells(false);
+    setSpell(null);
+  };
+  const whole = order?.early === 'TotalDefence' || order?.late === 'TotalDefence';
+  const label = (slot: Slot) => shortAction(order?.[slot] ?? null, unit, view) || 'Action';
   const book = unit.spellbook ?? [];
-  const chosen = (spell && book.includes(spell) ? spell : '') as SpellFamily | '';
-  const cast: CastAction | null = chosen
+  const maxLevel = unit.planning?.spellLevelCap ?? 8;
+  const cast: CastAction | null = spell
     ? {
         type: 'Cast',
-        spell: chosen,
-        level,
-        variant: chosen.startsWith('Summon ') ? variant : 'bound',
+        spell,
+        level: Math.min(level, maxLevel),
+        variant: spell.startsWith('Summon ') ? variant : 'bound',
         targetId: null,
         ground: null,
         side: 'left',
       }
     : null;
-  const maxLevel = unit.planning?.spellLevelCap ?? 8;
-  const simple: [string, Order['early']][] = [
-    ['Defend', 'Defend'],
-    ['Total Defence', 'TotalDefence'],
-    ...(timing === 'early' ? ([['Dash', 'Dash']] as [string, Order['early']][]) : []),
+  const powers: { label: string; action: PowerAction | 'Roar' | 'Wail' | 'RootNetwork' | 'Reload'; range: number }[] = [
+    ...(unit.fearAction
+      ? [{ label: unit.fearAction.kind, action: unit.fearAction.kind, range: unit.fearAction.range }]
+      : []),
+    ...(unit.gaze ? [{ label: 'Gaze', action: 'Gaze' as const, range: unit.gaze.range }] : []),
+    ...(unit.spores ? [{ label: 'Spores', action: 'Spores' as const, range: unit.spores.range }] : []),
+    ...(unit.wail ? [{ label: 'Wail', action: 'Wail' as const, range: 0 }] : []),
+    ...(unit.rootNetwork ? [{ label: 'Root network', action: 'RootNetwork' as const, range: 0 }] : []),
+    ...(unit.traits.grappleLimbs ? [{ label: 'Grapple', action: 'Grapple' as const, range: 1 }] : []),
+    ...(unit.canMarkQuarry ? [{ label: 'Mark quarry', action: 'MarkQuarry' as const, range: 99 }] : []),
+    ...(unit.haunt ? [{ label: 'Haunt', action: 'Haunt' as const, range: unit.haunt.range }] : []),
+    ...(unit.reload ? [{ label: 'Reload', action: 'Reload' as const, range: 0 }] : []),
   ];
-  return (
-    <section aria-label="Commands" className="commands">
-      <h2>{unit.species}</h2>
-      <p className="vitals">
-        HP {unit.hp}/{unit.maxHp} · Mana {unit.mana}/{unit.maxMana} · Move {unit.stats.move}
-        {unit.restrained ? ' · Restrained' : ''}
-      </p>
-      {describeCreature(unit.species) && <p className="description">{describeCreature(unit.species)}</p>}
-      <div aria-label="Planned order" className="summary">
-        <p>Move: {order?.path.length ? `${order.path.length} hexes` : 'stay put'}</p>
-        <p>Before moving: {describeAction(order?.early ?? null, unit, view)}</p>
-        <p>After moving: {describeAction(order?.late ?? null, unit, view)}</p>
-        {reachWarnings(unit, order, view).map(w => (
-          <p key={w} className="warning">
-            {w}
-          </p>
-        ))}
-      </div>
-      {planning ? (
-        <>
-          <div className="segmented" role="group" aria-label="When to act">
-            <button aria-pressed={timing === 'early'} onClick={() => setTiming('early')}>
-              Act before moving
-            </button>
-            <button aria-pressed={timing === 'late'} onClick={() => setTiming('late')}>
-              Act after moving
-            </button>
-          </div>
-          <div className="command-buttons">
-            <button aria-pressed={pending?.kind === 'move'} onClick={() => setPending({ kind: 'move' })}>
-              Move
-            </button>
+  function pick(slot: Slot, a: Order['early']) {
+    close();
+    onAction(a, slot);
+  }
+  function actionMenu(slot: Slot) {
+    return (
+      <div className="action-menu" role="menu" aria-label={slot === 'early' ? 'Before moving' : 'After moving'}>
+        <button className="menu-close" aria-label="Close menu" onClick={close}>
+          ✕
+        </button>
+        {!spells && !spell && (
+          <>
+            {book.length > 0 && (
+              <button role="menuitem" onClick={() => setSpells(true)}>
+                Cast spell ▸
+              </button>
+            )}
             {unit.attacks.map(a => (
               <button
                 key={a.id}
-                aria-pressed={pending?.kind === 'attack' && pending.attack.id === a.id}
+                role="menuitem"
+                onClick={() => {
+                  if (a.mode === 'swarm' || a.mode === 'cleave')
+                    return pick(slot, { type: 'Attack', attackId: a.id, targetIds: [], ground: null, side: 'left' });
+                  close();
+                  setPending({ kind: 'attack', attack: a }, slot);
+                }}
+              >
+                Attack ({a.name}){a.mode === 'swarm' || a.mode === 'cleave' ? ' — all around' : ''}
+              </button>
+            ))}
+            {powers.map(p => (
+              <button
+                key={p.action}
+                role="menuitem"
                 onClick={() =>
-                  a.mode === 'swarm' || a.mode === 'cleave'
-                    ? onAction({ type: 'Attack', attackId: a.id, targetIds: [], ground: null, side: 'left' })
-                    : setPending({ kind: 'attack', attack: a })
+                  p.action === 'Roar' || p.action === 'Wail' || p.action === 'RootNetwork' || p.action === 'Reload'
+                    ? pick(slot, { type: p.action })
+                    : (close(), setPending({ kind: 'power', action: p.action, label: p.label, range: p.range }, slot))
                 }
               >
-                {a.mode === 'swarm' || a.mode === 'cleave' ? `${a.name} (all around)` : `Attack: ${a.name}`}
+                {p.label}
               </button>
             ))}
-            {simple.map(([label, action]) => (
-              <button key={label} onClick={() => onAction(action)}>
-                {label}
+            <button role="menuitem" onClick={() => pick(slot, 'Defend')}>
+              Defend
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                close();
+                onWholeTurn('TotalDefence');
+              }}
+            >
+              Total Defence (whole turn)
+            </button>
+            {slot === 'early' && (
+              <button role="menuitem" onClick={() => pick(slot, 'Dash')}>
+                Dash
+              </button>
+            )}
+            {unit.restrained && (
+              <button role="menuitem" onClick={() => pick(slot, 'Escape')}>
+                Escape
+              </button>
+            )}
+            {order?.[slot] != null && (
+              <button role="menuitem" onClick={() => pick(slot, null)}>
+                Nothing
+              </button>
+            )}
+          </>
+        )}
+        {spells && !spell && (
+          <>
+            <button role="menuitem" onClick={() => setSpells(false)}>
+              ◂ Back
+            </button>
+            {book.map(s => (
+              <button
+                key={s}
+                role="menuitem"
+                onClick={() => {
+                  setSpell(s);
+                  setLevel(1);
+                  setSpells(false);
+                }}
+              >
+                {s}
               </button>
             ))}
-            <button onClick={onClear}>Clear orders</button>
-          </div>
-          {book.length > 0 && (
-            <div aria-label="Spells" className="spells">
-              <h3>Spells</h3>
-              <div className="command-buttons">
-                {book.map(s => (
-                  <button
-                    key={s}
-                    aria-pressed={chosen === s}
-                    onClick={() => {
-                      setSpell(s);
-                      setLevel(1);
-                      setPending(null);
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              {cast && (
-                <div className="spell-config">
-                  <label>
-                    Level{' '}
-                    <input
-                      aria-label="Spell level"
-                      type="range"
-                      min="1"
-                      max={maxLevel}
-                      value={level}
-                      onChange={e => setLevel(+e.target.value)}
-                    />{' '}
-                    {level}
-                  </label>
-                  {chosen.startsWith('Summon ') && (
-                    <label>
-                      Variant{' '}
-                      <select
-                        aria-label="Summon variant"
-                        value={variant}
-                        onChange={e => setVariant(e.target.value as CastAction['variant'])}
-                      >
-                        <option value="bound">Bound (full cost)</option>
-                        <option value="unbound">Unbound (half cost, easier, but it will not obey you)</option>
-                        <option value="illusion">Illusion (half cost, always works)</option>
-                      </select>
-                    </label>
-                  )}
-                  <p>
-                    {manaCost(cast)} mana · {castingTime(cast.spell)} · about{' '}
-                    {Math.round(successChance(cast, view.balance * 2))}% chance now
-                    {manaCost(cast) > (unit.mana ?? 0) ? ' · not enough mana' : ''}
-                  </p>
-                  {chosen === 'Wall' ? (
-                    <p>Walls are placed in Advanced orders below for now.</p>
-                  ) : (
-                    <button
-                      aria-pressed={pending?.kind === 'cast'}
-                      onClick={() => setPending({ kind: 'cast', cast, aim: spellAim(cast.spell) })}
-                    >
-                      {spellAim(cast.spell) === 'ground' && cast.spell.startsWith('Summon ')
-                        ? `Choose where to summon`
-                        : spellAim(cast.spell) === 'cells'
-                          ? 'Choose hexes for Tangleweed'
-                          : spellAim(cast.spell) === 'ground'
-                            ? `Choose where to cast ${cast.spell}`
-                            : `Choose target for ${cast.spell}`}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          {pending && (
-            <p className="hint" role="status" aria-label="Board instruction">
-              {pendingHint(pending)}{' '}
-              {pending.kind === 'cast' && pending.aim === 'cells' && (
-                <button disabled={cells.length !== pending.cast.level} onClick={onCellsDone}>
-                  Done ({cells.length}/{pending.cast.level})
-                </button>
-              )}{' '}
-              <button onClick={() => setPending(null)}>Cancel</button>
+          </>
+        )}
+        {cast && (
+          <div className="spell-config">
+            <button role="menuitem" onClick={() => (setSpell(null), setSpells(true))}>
+              ◂ {cast.spell}
+            </button>
+            <label>
+              Level{' '}
+              <input
+                aria-label="Spell level"
+                type="range"
+                min="1"
+                max={maxLevel}
+                value={cast.level}
+                onChange={e => setLevel(+e.target.value)}
+              />{' '}
+              {cast.level}
+            </label>
+            {cast.spell.startsWith('Summon ') && (
+              <label>
+                Variant{' '}
+                <select
+                  aria-label="Summon variant"
+                  value={variant}
+                  onChange={e => setVariant(e.target.value as CastAction['variant'])}
+                >
+                  <option value="bound">Bound (full cost)</option>
+                  <option value="unbound">Unbound (half cost, easier, but it will not obey you)</option>
+                  <option value="illusion">Illusion (half cost, always works)</option>
+                </select>
+              </label>
+            )}
+            <p>
+              {manaCost(cast)} mana · {castingTime(cast.spell)} · about{' '}
+              {Math.round(successChance(cast, view.balance * 2))}% chance now
+              {manaCost(cast) > (unit.mana ?? 0) ? ' · not enough mana' : ''}
             </p>
-          )}
-        </>
-      ) : (
-        <p>Orders are locked. Resolve the turn to see what happens.</p>
-      )}
-    </section>
-  );
-}
-
-/** Read-only card for any creature the player clicks. */
-export function InspectCard({ view, creature }: { view: PlayerView; creature: Creature }) {
-  const owner = view.players.findIndex(p => p.id === creature.controller);
+            {cast.spell === 'Wall' ? (
+              <p>Walls are placed from Advanced orders in the Menu for now.</p>
+            ) : (
+              <button
+                className="primary"
+                onClick={() => {
+                  close();
+                  setPending({ kind: 'cast', cast, aim: spellAim(cast.spell) }, slot);
+                }}
+              >
+                {cast.spell.startsWith('Summon ') ? 'Choose where to summon' : 'Choose target'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+  const moveLabel = order?.path.length ? `Move ${order.path.length}` : 'Move';
   return (
-    <section aria-label="Inspect" className="inspect">
-      <h3>
-        {creature.species}
-        {creature.illusion ? ' (illusion)' : ''}
-      </h3>
-      <p>
-        {creature.controller === view.self.id ? 'Yours' : owner >= 0 ? `Player ${owner + 1}` : 'Unbound'} ·{' '}
-        {creature.health}
-        {creature.height === 'air' ? ' · flying' : ''}
-        {creature.restrained ? ' · restrained' : ''}
-      </p>
-      <p>
-        Size {creature.size} · Move {creature.stats.move} · Dex {creature.stats.dex} · Int {creature.stats.intelligence}
-      </p>
-      {describeCreature(creature.species) && <p className="description">{describeCreature(creature.species)}</p>}
-      <ul>
-        {creature.attacks.map(a => (
-          <li key={a.id}>
-            {a.name}: reach {a.range}
-            {a.minRange ? ` (min ${a.minRange})` : ''}, skill {a.shots[0]?.skill ?? '?'}
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className="turn-row" role="group" aria-label="This turn">
+      <span className="row-label">This turn:</span>
+      {whole ? (
+        <button className="slot wide set" aria-label="Whole turn: Total Defence" onClick={() => setMenu('early')}>
+          Total Defence
+        </button>
+      ) : (
+        <>
+          <span className="slot-wrap">
+            <button
+              className={order?.early ? 'slot set' : 'slot'}
+              aria-label={`Before moving: ${label('early')}`}
+              aria-expanded={menu === 'early'}
+              onClick={() => (menu === 'early' ? close() : (close(), setMenu('early')))}
+            >
+              {label('early')}
+            </button>
+          </span>
+          <button
+            className={order?.path.length ? 'slot set' : 'slot'}
+            aria-label={moveLabel}
+            aria-pressed={pending?.kind === 'move'}
+            onClick={() => (close(), setPending(pending?.kind === 'move' ? null : { kind: 'move' }))}
+          >
+            {moveLabel}
+          </button>
+          <span className="slot-wrap">
+            <button
+              className={order?.late ? 'slot set' : 'slot'}
+              aria-label={`After moving: ${label('late')}`}
+              aria-expanded={menu === 'late'}
+              onClick={() => (menu === 'late' ? close() : (close(), setMenu('late')))}
+            >
+              {label('late')}
+            </button>
+          </span>
+        </>
+      )}
+      {menu && actionMenu(menu)}
+      {pending?.kind === 'move' && order?.path.length ? (
+        <button className="slot" onClick={onStay}>
+          Stay put
+        </button>
+      ) : null}
+    </div>
   );
 }

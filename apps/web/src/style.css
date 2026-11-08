@@ -79,8 +79,11 @@ main {
 }
 .game-layout {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+.game-layout.with-menu {
+  grid-template-columns: minmax(0, 1fr) 340px;
 }
 .board-scroll {
   overflow: auto;
@@ -204,4 +207,210 @@ button[aria-pressed='true'] {
 .last-turn ul {
   margin: 0.25rem 0;
   padding-left: 1.1rem;
+}
+
+/* Main screen: a strip, the selected creature with last and this turn, then the board. */
+.top-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.top-strip .eyebrow {
+  margin: 0;
+}
+.top-strip [role='status'] {
+  margin: 0;
+  color: #9fb0c4;
+  font-size: 0.9rem;
+}
+.top-strip .menu-button {
+  margin-left: auto;
+}
+.command-area {
+  margin: 0.5rem 0 0.75rem;
+}
+.creature-header {
+  border-bottom: 1px solid #e0b44c55;
+  padding-bottom: 0.4rem;
+}
+.creature-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.25rem;
+}
+.creature-title h2 {
+  margin: 0;
+  text-transform: uppercase;
+  color: #f0c560;
+  letter-spacing: 0.04em;
+}
+.creature-title .vitals {
+  margin: 0;
+  color: #f0c560;
+  font-size: 1.05rem;
+}
+.prev-next {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+}
+.creature-header .description {
+  margin: 0.35rem 0 0;
+}
+.creature-header.enemy {
+  background: #1a0f12;
+  border: 1px solid #5a2a2a;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+.creature-header.enemy h2,
+.creature-header.enemy .vitals {
+  color: #c98a7f;
+}
+.creature-header.enemy .description {
+  color: #a8968f;
+}
+.turn-rows {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+.turn-rows .rows {
+  flex: 1;
+  min-width: 0;
+}
+.turn-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+}
+.row-label {
+  width: 5.5rem;
+  color: #f0c560;
+}
+.slot {
+  min-width: 7rem;
+  min-height: 44px;
+  padding: 0.4rem 0.75rem;
+  border: 2px solid #e0b44c;
+  border-radius: 6px;
+  background: transparent;
+  color: #f0e6cc;
+  text-align: center;
+}
+.slot.past {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-width: 1px;
+  border-color: #e0b44c88;
+  color: #cfc8b8;
+  font-size: 0.9rem;
+}
+.slot.wide {
+  min-width: 22rem;
+}
+.slot.set {
+  background: #3a2f1a;
+  font-weight: 600;
+}
+button.slot:hover {
+  background: #4a3b1f;
+}
+.action-menu {
+  position: absolute;
+  top: 100%;
+  left: 6rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 16rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 2.2rem 0.6rem 0.6rem;
+  background: #05070a;
+  border: 2px solid #e0b44c;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px #000a;
+}
+.action-menu [role='menuitem'] {
+  text-align: left;
+  min-height: 40px;
+  background: transparent;
+  border: none;
+  color: #f0c560;
+  font-size: 1.05rem;
+}
+.action-menu [role='menuitem']:hover {
+  background: #2a2214;
+}
+.action-menu .menu-close {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  min-height: 32px;
+}
+.action-menu .spell-config p {
+  font-size: 0.9rem;
+  color: #cfc8b8;
+}
+button.primary {
+  border: 2px solid #e0b44c;
+  background: #3a2f1a;
+  font-weight: 600;
+}
+.end-turn {
+  min-height: 52px;
+  padding: 0 1.5rem;
+}
+.menu-drawer {
+  border-left: 1px solid #3b4b60;
+  padding-left: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+.menu-drawer details {
+  margin: 0.5rem 0;
+}
+@media (max-width: 800px) {
+  .game-layout.with-menu {
+    grid-template-columns: 1fr;
+  }
+  .menu-drawer {
+    border-left: none;
+    padding-left: 0;
+    max-height: none;
+  }
+  .turn-rows {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .row-label {
+    width: 100%;
+  }
+  .slot {
+    min-width: 0;
+    flex: 1;
+  }
+  .slot.wide {
+    min-width: 0;
+  }
+  .action-menu {
+    left: 0;
+    right: 0;
+  }
+}
+@media (max-width: 800px) {
+  .board-tools button {
+    min-height: 36px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.85rem;
+  }
 }

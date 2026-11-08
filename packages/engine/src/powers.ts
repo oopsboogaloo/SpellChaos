@@ -28,7 +28,8 @@ function definition(actor: Creature, action: PowerAction) {
 const enemy = (actor: Creature, target: Creature) =>
   actor.id !== target.id && (actor.controller === null || actor.controller !== target.controller);
 const sporesLiving = (target: Creature) => !target.undead && !target.construct && target.kind !== 'illusion';
-function eligibleTarget(
+/** Whether a power could affect `target` from `origin` (also used as a planning aid). */
+export function eligibleTarget(
   s: GameState,
   actor: Creature,
   target: Creature,
