@@ -60,3 +60,25 @@ it('attack mode highlights only creatures in reach from where the attack happens
   const late = selectable(view, 'wizard-0', order, { kind: 'attack', attack: staff }, 'late')!;
   expect(late.creatures).toContain('wizard-1');
 });
+
+it('after-moving targets use the height the planned flight steps leave the creature at', () => {
+  const s = setup();
+  s.creatures[0]!.height = 'air';
+  s.creatures[0]!.flight = { takeoffCost: 1, landingCost: 1 };
+  const view = projectView(s, 'human'),
+    staff = view.creatures.find(c => c.id === 'wizard-0')!.attacks[0]!;
+  const landing = {
+    creatureId: 'wizard-0',
+    path: [{ q: 6, r: 10 }],
+    flightSteps: [{ index: 0, height: 'ground' as const }],
+    early: null,
+    late: null,
+  };
+  expect(selectable(view, 'wizard-0', landing, { kind: 'attack', attack: staff }, 'late')!.creatures).toContain(
+    'wizard-1',
+  );
+  const staysUp = { ...landing, flightSteps: [] };
+  expect(selectable(view, 'wizard-0', staysUp, { kind: 'attack', attack: staff }, 'late')!.creatures).not.toContain(
+    'wizard-1',
+  );
+});

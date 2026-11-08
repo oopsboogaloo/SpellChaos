@@ -70,7 +70,9 @@ export function selectable(
     result.hexes = reachableCells(known, mover, allowance);
     return result;
   }
-  const from: Creature = { ...actor, centre: actingPosition(actor, order, timing) };
+  // After moving, the creature acts from the end of its path, at the height its planned flight steps leave it.
+  const height = timing === 'late' ? (order?.flightSteps?.at(-1)?.height ?? actor.height) : actor.height;
+  const from: Creature = { ...actor, centre: actingPosition(actor, order, timing), height };
   known.creatures = known.creatures.map(c => (c.id === actor.id ? from : c));
   if (pending.kind === 'attack') {
     const attack = from.attacks.find(a => a.id === pending.attack.id);
