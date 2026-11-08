@@ -63,3 +63,16 @@ variants, ray side and area impact coordinates. Capability-based action choices
 include aid, grappling, mounting, reload and named powers; normal validation remains
 authoritative. Multi-target attacks, Guard-area editing and the remaining movement
 specials still require further UI work.
+
+## Local autosave and recovery
+
+The worker serializes requests and saves every accepted state change to IndexedDB,
+including drafting and atomic resolution steps. A single read/write transaction
+rotates a validated current record into the previous slot and commits the new
+snapshot. Continue validates the current save, then falls back to the previous
+valid checkpoint if necessary. An invalid candidate never replaces the live game.
+Private snapshots remain in the worker/storage; only explicitly requested exports
+cross to the presentation. Save failures leave the live match playable and display
+an export prompt. Browser tests cover refresh continuation, aborted writes,
+corrupt-current fallback and byte-identical resolution checkpoint restoration.
+This is local single-match persistence; timers and replay history remain pending.

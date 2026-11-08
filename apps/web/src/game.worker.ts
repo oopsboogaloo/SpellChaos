@@ -1,3 +1,4 @@
+import {saveLocal,loadLocal} from './autosave.js';
 import {createMatch,applyCommand,applySystemCommand,systemCommand} from '../../../packages/engine/src/index.js';
 import {advanceAtomicStep} from '../../../packages/engine/src/resolver.js';
 import {projectView} from '../../../packages/views/src/index.js';
@@ -7,9 +8,12 @@ import {validateOrder} from '../../../packages/engine/src/orders.js';
 import {encodeSnapshot,restoreSnapshot} from '../../../packages/persistence/src/snapshot.js';
 import type {Order} from '../../../packages/domain/src/state.js';
 let state=createMatch('local',['human','ai-1'],123);
-const send=(extra:object={})=>postMessage({view:projectView(state,'human'),...extra});
+let saveStatus='Local saves stay in this browser.';
+const send=(extra:object={})=>postMessage({view:projectView(state,'human'),saveStatus,...extra});
 function command(type:'LockTurn'|'SetOrder',order?:Order){const base={matchId:state.matchId,playerId:'human',turn:state.turn,commandId:`ui-${state.revision}`,expectedRevision:state.revision};return type==='SetOrder'?applyCommand(state,{...base,type,order:order!}).state:applyCommand(state,{...base,type}).state;}
-onmessage=({data})=>{try{
+async function handle(data:any){try{
+ const before=state;
+ if(data.type==='continue'){const saved=await loadLocal();if(!saved)throw new Error('NO_LOCAL_SAVE');state=saved.state;saveStatus=saved.recovered?'Recovered the previous local checkpoint.':'Continued local match.';send();return;}
  if(data.type==='new')state=createMatch('local',['human',...Array.from({length:Math.max(1,Math.min(7,Number(data.opponents)||1))},(_,i)=>`ai-${i+1}`)],Number(data.seed)||123);
  if(data.type==='order'){
   // Validate only observed facts before the authoritative submission. Never return private rejection details.
@@ -27,5 +31,8 @@ onmessage=({data})=>{try{
  if(data.type==='step'&&!['planning','ended'].includes(state.phase))state=advanceAtomicStep(state).state;
  if(data.type==='load'){const candidate=restoreSnapshot(data.text);projectView(candidate,'human');state=candidate;}
  if(data.type==='save'){send({save:encodeSnapshot(state)});return;}
+ if(state!==before){try{await saveLocal(state);saveStatus='Saved locally.';}catch{saveStatus='Local save failed. Export a private save to keep this match.';}}
  send();
-}catch{send({error:'That request could not be completed. Check your order or save file.'});}};
+}catch{send({error:'That request could not be completed. Check your order or save file.'});}}
+let queue=Promise.resolve();
+onmessage=({data})=>{queue=queue.then(()=>handle(data));};
