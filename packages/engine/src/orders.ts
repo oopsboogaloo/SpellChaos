@@ -34,6 +34,8 @@ export function validateOrder(state: GameState, order: Order, playerId: string):
   if(order.path.length&&carryingLocked(state,c,true))throw new Error('RIDER_IMMOBILE');
   const actions = [order.early, order.late].filter(a => a !== null);
   if (order.late === 'Dash') throw new Error('DASH_EARLY_ONLY');
+  // Owner ruling (8 Nov 2026, #37/#39): Guard watches the movement phase, so a Late Guard could never react.
+  if (order.late && typeof order.late === 'object' && order.late.type === 'Guard') throw new Error('GUARD_EARLY_ONLY');
   if (actions.includes('TotalDefence') && (actions.length !== 1 || order.path.length !== 0)) throw new Error('TOTAL_DEFENCE_WHOLE_TURN');
   if (actions.length > (c.doubleAction && !subdued(c) ? 2 : 1)) throw new Error('ACTION_BUDGET');
   if (subdued(c) && order.path.length && actions.length) throw new Error('SUBDUED_BUDGET');

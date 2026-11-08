@@ -78,12 +78,9 @@ export function stepPower(s:GameState,events:Event[]):boolean {
  const resistance=pending.action.type==='RootNetwork'?'physical':pending.action.type==='Spores'?'con':'int';
  if(roll(s,effectChance(power.potency,resistance==='physical'?2*target.size:resistance==='con'?target.con:target.intelligence))){
   const duration=pending.action.type==='Spores'||pending.action.type==='RootNetwork'?null:pending.action.type==='Gaze'?actor.gaze!.duration:actor.fearAction!.duration;
-  addCondition(s,target,kind,actor.id,power.potency,duration,resistance,false);
-  if(pending.action.type==='RootNetwork'){target.conditions.find(e=>e.kind==='Restrained'&&e.sourceId===actor.id)!.rootNetwork=true;pruneRootNetworks(s);}
-  if(pending.action.type==='Spores'){
-   const sleep=target.conditions.find(e=>e.kind==='Unconscious'&&e.sourceId===actor.id)!;
-   sleep.expiresAfterPhase=s.phase==='early'?{turn:s.turn,phase:'late'}:{turn:s.turn+1,phase:'early'};
-  }
+  const extra=pending.action.type==='RootNetwork'?{rootNetwork:true as const}:pending.action.type==='Spores'?{expiresAfterPhase:s.phase==='early'?{turn:s.turn,phase:'late' as const}:{turn:s.turn+1,phase:'early' as const}}:{};
+  // A longer-lasting existing instance of the same condition is kept instead (owner ruling, #35).
+  if(addCondition(s,target,kind,actor.id,power.potency,duration,resistance,false,extra)&&pending.action.type==='RootNetwork')pruneRootNetworks(s);
   emit(s,events,{type:'PowerApplied',...event});
  }else emit(s,events,{type:'PowerResisted',...event});
  return false;

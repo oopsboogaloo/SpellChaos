@@ -173,6 +173,8 @@ These resolve open details, not changes to approved mechanics.
 | D20 | Spell-origin invalidation | Locked familiar voluntary movement is rejected until completion/cancellation; forced displacement interrupts, as does the specified death/incapacity/control loss. |
 | D21 | Tangleweed escape | Escape action physical resistance againstL; success releases that restraint, subsequent entry may retry subject to once-per-turn attempt limit. |
 | D22 | Reanimated default binding | Binding level equals Reanimate level; later control uses ordinary rules; creature-equivalent level remains original. |
+| D23 | Same condition from several sources | **Owner ruling 8 Nov 2026 (#35):** never doubly affected; re-application from any source keeps only the longest-lasting instance (no fixed end counts as longest; ties keep the existing one). Real and illusion-sourced instances stay separate for reversal. |
+| D24 | Late-phase Guard | **Owner ruling 8 Nov 2026 (#37):** Guard may only be ordered Early; a Late Guard is rejected (`GUARD_EARLY_ONLY`). |
 
 Other unresolved details encountered during implementation must enter a decision record before coding behaviour. Do not silently treat a proposed ruling as a locked rule. In particular, wall/area boundary geometries, grapple reach, spell-origin footprint ray selection and condition duration counting need explicit examples in the plan's acceptance scenarios.
 
