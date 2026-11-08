@@ -34,7 +34,7 @@ export function describeEvent(e: LogEvent, name: (id?: string) => string): strin
     amount = e.amount === undefined ? '' : ` (${e.amount})`;
   switch (e.type) {
     case 'CreatureMoved':
-      return `${who} moves${e.to ? ` to ${e.to.q},${e.to.r}` : ''}`;
+      return `${who} moves`;
     case 'AttackHit':
       return `${who} hits ${whom}${e.critical ? ' — critical!' : ''}`;
     case 'AttackMissed':

@@ -17,7 +17,7 @@ for (const name of ['drag-middle', 'sweep-middle', 'constriction', 'roots-middle
       s = r.state;
       events.push(...r.events);
     }
-    await page.goto('/');
+    await page.goto('/?dev');
     const actual = await page.evaluate(
       async ({ root, initial }) => {
         const persistence = await import(root + '/packages/persistence/src/snapshot.ts');

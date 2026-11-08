@@ -15,7 +15,7 @@ for (const name of ['roar-middle', 'frighten', 'gaze-slow', 'gaze-restraint']) {
       s = r.state;
       events.push(...r.events);
     }
-    await page.goto('/');
+    await page.goto('/?dev');
     const actual = await page.evaluate(
       async ({ root, initial }) => {
         const persistence = await import(root + '/packages/persistence/src/snapshot.ts');

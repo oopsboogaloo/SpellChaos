@@ -127,7 +127,7 @@ export function Game() {
   return (
     <section className="game" aria-label="Local match">
       <header>
-        <p className="eyebrow">SPELL CHAOS · LOCAL MATCH</p>
+        <p className="eyebrow">SPELL CHAOS · LOCAL MATCH · PREVIEW BUILD</p>
         <h1>The arena awaits</h1>
         <p>Plan your creatures’ orders, then lock your turn.</p>
       </header>

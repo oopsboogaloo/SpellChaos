@@ -4,7 +4,7 @@ import { startingPositions } from '../../packages/engine/src/spawn.js';
 
 test('geometry preview changes size and flags clipped footprints on a phone viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/?dev');
   await page.getByRole('combobox', { name: 'Size', exact: true }).selectOption('10');
   await expect(page.getByRole('status')).toHaveText('61 occupied hexes · Legal footprint');
   await page.getByRole('spinbutton', { name: 'Column', exact: true }).fill('0');
@@ -16,7 +16,7 @@ test('geometry preview changes size and flags clipped footprints on a phone view
 });
 
 test('exact boundary rays and seeded starts are identical in browser and Node', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?dev');
   const actual = await page.evaluate(async root => {
     const ray = await import(root + '/packages/geometry/src/ray.ts');
     const spawn = await import(root + '/packages/engine/src/spawn.ts');

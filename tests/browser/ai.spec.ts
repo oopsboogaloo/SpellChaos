@@ -23,7 +23,7 @@ for (const name of ['planning', 'ready', 'unbound-movement', 'unbound-attack', '
       if (transition && s.atomicSteps > before.atomicSteps) events.push(...transition.events);
       fingerprints.push(stateFingerprint(s.state));
     }
-    await page.goto('/');
+    await page.goto('/?dev');
     const actual = await page.evaluate(
       async ({ root, initial }) => {
         const ai = await import(root + '/packages/ai/src/session.ts'),

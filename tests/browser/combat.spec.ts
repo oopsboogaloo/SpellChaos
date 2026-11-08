@@ -12,7 +12,7 @@ test('Node and Chromium reproduce multiattacks, Guard and poison through every s
     state = result.state;
     events.push(...result.events);
   }
-  await page.goto('/');
+  await page.goto('/?dev');
   const actual = await page.evaluate(
     async ({ root, initial }) => {
       const persistence = await import(root + '/packages/persistence/src/snapshot.ts');
