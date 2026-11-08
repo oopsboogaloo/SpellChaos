@@ -26,7 +26,8 @@ export function pendingHint(p: Pending): string {
   if (!p) return '';
   if (p.kind === 'move') return 'Click a hex to move there. The route is planned for you.';
   if (p.kind === 'attack') return p.attack.mode === 'area' ? 'Click the hex to strike.' : 'Click a creature to attack.';
-  if (p.aim === 'cells') return `Click up to ${p.cast.level} connected hexes for Tangleweed, then press Done.`;
+  if (p.aim === 'cells')
+    return `Click ${p.cast.level} connected ${p.cast.level === 1 ? 'hex' : 'hexes'} for Tangleweed, then press Done.`;
   if (p.aim === 'ground') return `Click a hex for ${p.cast.spell}.`;
   if (p.aim === 'corpse') return 'Click a corpse to reanimate.';
   if (p.aim === 'either') return `Click a creature or a hex for ${p.cast.spell}.`;
@@ -47,15 +48,28 @@ export function describeAction(a: Order['early'], unit: Creature | undefined, vi
   return a.type;
 }
 
-function endOfMove(unit: Creature, order: Order | undefined): Hex {
-  return order?.path.at(-1) ?? unit.centre;
-}
-/** Distance from where the creature ends its planned move to the target, for a reach warning. */
-export function reachNote(unit: Creature, order: Order | undefined, target: Creature, attack: Attack): string {
-  const d = nearestPair(footprint(endOfMove(unit, order), unit.size), target.occupied).distance;
-  if (d > attack.range) return `Out of reach from where it ends its move (distance ${d}, reach ${attack.range}).`;
+/** Distance from where the creature stands when it attacks to the target, for a reach warning. */
+export function reachNote(unit: Creature, from: Hex, target: Creature, attack: Attack): string {
+  const d = nearestPair(footprint(from, unit.size), target.occupied).distance;
+  if (d > attack.range) return `${attack.name} is out of reach (distance ${d}, reach ${attack.range}).`;
   if (d < attack.minRange) return `Too close for ${attack.name} (minimum ${attack.minRange}).`;
   return '';
+}
+/** Reach warnings for the saved order's single-target attacks, from where each one happens. */
+function reachWarnings(unit: Creature, order: Order | undefined, view: PlayerView): string[] {
+  if (!order) return [];
+  const notes: string[] = [];
+  for (const [action, from] of [
+    [order.early, unit.centre],
+    [order.late, order.path.at(-1) ?? unit.centre],
+  ] as const) {
+    if (!action || typeof action !== 'object' || action.type !== 'Attack') continue;
+    const attack = unit.attacks.find(t => t.id === action.attackId),
+      target = view.creatures.find(c => c.id === action.targetIds[0]);
+    const note = attack && target ? reachNote(unit, from, target, attack) : '';
+    if (note) notes.push(note);
+  }
+  return notes;
 }
 
 export function CommandPanel({
@@ -117,6 +131,11 @@ export function CommandPanel({
         <p>Move: {order?.path.length ? `${order.path.length} hexes` : 'stay put'}</p>
         <p>Before moving: {describeAction(order?.early ?? null, unit, view)}</p>
         <p>After moving: {describeAction(order?.late ?? null, unit, view)}</p>
+        {reachWarnings(unit, order, view).map(w => (
+          <p key={w} className="warning">
+            {w}
+          </p>
+        ))}
       </div>
       {planning ? (
         <>
@@ -221,8 +240,8 @@ export function CommandPanel({
             <p className="hint" role="status" aria-label="Board instruction">
               {pendingHint(pending)}{' '}
               {pending.kind === 'cast' && pending.aim === 'cells' && (
-                <button disabled={cells.length === 0} onClick={onCellsDone}>
-                  Done ({cells.length})
+                <button disabled={cells.length !== pending.cast.level} onClick={onCellsDone}>
+                  Done ({cells.length}/{pending.cast.level})
                 </button>
               )}{' '}
               <button onClick={() => setPending(null)}>Cancel</button>

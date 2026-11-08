@@ -2,7 +2,7 @@ import { TacticalOrders } from './TacticalOrders.js';
 import { SpellEditor } from './SpellEditor.js';
 import { Board } from './Board.js';
 import { EventLog, type TurnLog } from './EventLog.js';
-import { CommandPanel, InspectCard, reachNote, type Pending } from './CommandPanel.js';
+import { CommandPanel, InspectCard, type Pending } from './CommandPanel.js';
 import type { Hex } from '../../../packages/geometry/src/hex.js';
 import { useEffect, useRef, useState } from 'react';
 import type { PlayerView } from '../../../packages/views/src/index.js';
@@ -153,10 +153,7 @@ export function Game() {
       const a = pending.attack;
       if (a.mode === 'area') return act({ type: 'Attack', attackId: a.id, targetIds: [], ground: h, side: 'left' });
       if (!clicked || clicked.id === unit.id) return setNotice('Click a creature to attack.');
-      const warning = reachNote(unit, savedOrder, clicked, a);
-      act({ type: 'Attack', attackId: a.id, targetIds: [clicked.id], ground: null, side: 'left' });
-      if (warning) setNotice(warning);
-      return;
+      return act({ type: 'Attack', attackId: a.id, targetIds: [clicked.id], ground: null, side: 'left' });
     }
     const cast = pending.cast;
     if (pending.aim === 'cells') {

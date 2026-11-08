@@ -156,9 +156,14 @@ async function handle(data: any) {
         actor = knowledge.creatures.find(c => c.id === data.creatureId);
       if (!actor) throw new Error('NOT_CONTROLLED');
       const base = { creatureId: actor.id, path: [], early: previous?.early ?? null, late: previous?.late ?? null };
+      // An Early Teleport moves the creature first, so the route starts at its destination.
+      const start =
+        base.early && typeof base.early === 'object' && base.early.type === 'Cast' && base.early.spell === 'Teleport'
+          ? base.early.ground
+          : null;
       const route = routeTowards(
         knowledge,
-        actor,
+        start ? { ...actor, centre: start } : actor,
         movementAllowance(actor, base),
         c => distance(c.centre, data.to),
         c => distance(c.centre, data.to) === 0,

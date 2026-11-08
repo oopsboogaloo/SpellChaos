@@ -184,3 +184,6 @@ button[aria-pressed='true'] {
   color: #e5604f;
   font-weight: bold;
 }
+.summary .warning {
+  color: #e0b44c;
+}

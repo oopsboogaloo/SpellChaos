@@ -41,6 +41,8 @@ test('orders can be given entirely by clicking: move, attack, cast and inspect',
   await commands.getByRole('button', { name: /^Attack:/ }).click();
   await clickHex(canvas, 9, 5);
   await expect(summary).toContainText('After moving: Staff Wizard');
+  // The reach warning stays with the saved order.
+  await expect(summary).toContainText('out of reach');
 
   // Cast Magic Bolt before moving by clicking the target.
   await commands.getByRole('button', { name: 'Act before moving' }).click();
