@@ -91,7 +91,7 @@
       "testNames": [
         "restores at every atomic boundary with identical events, random state and outcome",
         "rejects corrupted mid-resolution cursor and unsupported saved actions",
-        "explicitly migrates permanent planning and mid-movement fixtures"
+        "permanent planning and mid-movement fixtures restore and continue"
       ]
     },
     {

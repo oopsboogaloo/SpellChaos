@@ -1,4 +1,3 @@
-import {migrateQuarrySnapshot} from '../packages/persistence/src/migration.js';
 import {expect,it} from 'vitest';
 import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
 import {summonProfile} from '../packages/content/src/summons.js';
@@ -52,11 +51,6 @@ it('rejects malformed quarry references and unsupported planned use on load',()=
  const forged=setup();forged.orders.push({creatureId:'wizard-0',path:[],early:{type:'MarkQuarry',targetId:'prey'},late:null});expect(()=>encodeSnapshot(forged)).toThrow('INVALID_QUARRY_ORDER');
 });
 it.each(['planning','marked','attack'])('permanent %s fixture resumes identically at every atomic boundary',async name=>{
- const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/quarry-v13-${name}.json`,'utf8').trim(),s=migrateQuarrySnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();
+ const {readFileSync}=await import('node:fs');const text=readFileSync(`tests/fixtures/quarry-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);
  const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
-});
-it('schema-12 migration preserves existing on-hit state without granting Marked Quarry',async()=>{
- const {readFileSync}=await import('node:fs');const {migrateOnHitSnapshot}=await import('../packages/persistence/src/migration.js');
- const text=readFileSync('tests/fixtures/onhit-v12-bristles.json','utf8'),old=JSON.parse(text),s=migrateOnHitSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();
- expect(s.creatures).toEqual(old.creatures.map((c:object)=>({...c,reload:null,canMarkQuarry:false,quarryTargetId:null})));expect(s.random).toEqual(old.random);expect(s.pendingAttack).toEqual(old.pendingAttack);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
 });

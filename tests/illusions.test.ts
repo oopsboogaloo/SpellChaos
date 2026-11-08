@@ -1,4 +1,3 @@
-import { migrateIllusionSnapshot } from '../packages/persistence/src/migration.js';
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { readFileSync } from 'node:fs';
@@ -186,9 +185,9 @@ describe('condition and resource provenance',()=>{
 });
 
 describe('illusion privacy and portable continuation',()=>{
- it.each(['planning','attack','before-disbelief','removed'])('preserves the immutable v7 %s fixture and exact continuation',name=>{
-  const text=readFileSync(`tests/fixtures/illusions-v7-${name}.json`,'utf8').trim(),s=migrateIllusionSnapshot(text);
-  expect(()=>restoreSnapshot(text)).toThrow();expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const ready=s.phase==='planning'?start(s):s;
+ it.each(['planning','attack','before-disbelief','removed'])('permanent illusion %s fixture restores with exact continuation',name=>{
+  const text=readFileSync(`tests/fixtures/illusions-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);
+  expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const ready=s.phase==='planning'?start(s):s;
   expect(run(ready,true)).toEqual(run(ready));
  });
  it('preserves permanent wizard elimination after illusion reversal and rejects tampered resurrection',()=>{

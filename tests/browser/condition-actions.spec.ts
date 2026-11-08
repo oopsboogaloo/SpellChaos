@@ -1,4 +1,3 @@
-import {migrateConditionActionsSnapshot} from '../../packages/persistence/src/migration.js';
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {restoreSnapshot,encodeSnapshot} from '../../packages/persistence/src/snapshot.js';
@@ -7,7 +6,7 @@ import {projectView} from '../../packages/views/src/index.js';
 
 for(const name of ['roar-middle','frighten','gaze-slow','gaze-restraint']){
  test(`Node and Chromium agree on ${name} at every saved power boundary`,async({page})=>{
-  const initial=encodeSnapshot(migrateConditionActionsSnapshot(readFileSync(`tests/fixtures/powers-v22-${name}.json`,'utf8')));
+  const initial=encodeSnapshot(restoreSnapshot(readFileSync(`tests/fixtures/powers-${name}.json`,'utf8')));
   let s=restoreSnapshot(initial);const events=[];
   for(let n=0;!['planning','ended'].includes(s.phase);n++){
    if(n>1000)throw new Error('STEP_LIMIT');

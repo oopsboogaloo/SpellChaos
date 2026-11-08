@@ -1,4 +1,3 @@
-import {migrateBallistaSnapshot} from '../packages/persistence/src/migration.js';
 import {it,expect} from 'vitest';
 import {createMatch,createCreature,applyCommand} from '../packages/engine/src/index.js';
 import {summonProfile} from '../packages/content/src/summons.js';
@@ -74,10 +73,6 @@ it('penetration capability is limited to single-shot projectiles in loaded state
  const s=setup();gun(s).attacks[0]!.mode='melee';expect(()=>encodeSnapshot(s)).toThrow('INVALID_PENETRATING_ATTACK');
 });
 it('permanent second-hit fixture resumes exactly and rejects extra or self victims',async()=>{
- const {readFileSync}=await import('node:fs');const text=readFileSync('tests/fixtures/ballista-v16-second-hit.json','utf8').trim(),s=migrateBallistaSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(s.pendingAttack!.areaVictims).toEqual(['first','second']);expect(s.pendingAttack!.victimIndex).toBe(1);expect(run(s,true)).toEqual(run(s));
+ const {readFileSync}=await import('node:fs');const text=readFileSync('tests/fixtures/ballista-second-hit.json','utf8').trim(),s=restoreSnapshot(text);expect(s.pendingAttack!.areaVictims).toEqual(['first','second']);expect(s.pendingAttack!.victimIndex).toBe(1);expect(run(s,true)).toEqual(run(s));
  for(const ids of [['first','second','wizard-0'],['first','ballista']]){const raw=JSON.parse(encodeSnapshot(s));raw.pendingAttack.areaVictims=ids;expect(()=>restoreSnapshot(JSON.stringify(raw))).toThrow('INVALID_OR_UNSUPPORTED_SNAPSHOT');}
-});
-it('schema-15 siege migration preserves attacks and pending impact without granting penetration',async()=>{
- const {readFileSync}=await import('node:fs');const {migrateSiegeSnapshot}=await import('../packages/persistence/src/migration.js');const text=readFileSync('tests/fixtures/siege-v15-impact.json','utf8'),old=JSON.parse(text),s=migrateSiegeSnapshot(text);expect(s.creatures).toEqual(old.creatures);expect(s.pendingAttack).toEqual(old.pendingAttack);expect(s.random).toEqual(old.random);expect(run(s,true)).toEqual(run(s));
- old.creatures.find((c:{id:string})=>c.id==='siege').attacks[0].penetration=2;expect(()=>migrateSiegeSnapshot(JSON.stringify(old))).toThrow();
 });

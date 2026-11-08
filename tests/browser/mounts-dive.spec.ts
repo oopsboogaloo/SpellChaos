@@ -1,4 +1,3 @@
-import {migrateRosterSnapshot} from '../../packages/persistence/src/migration.js';
 import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import type {Event} from '../../packages/engine/src/events.js';
@@ -10,7 +9,7 @@ import {projectView,projectEvents} from '../../packages/views/src/index.js';
 
 for(const name of ['carried-flight','dive-between-strikes','rider-guard','death-dismount','mounted-sling','full-roster','review-held-dismount','review-hazard-mount']){
  test(`Node and Chromium agree on ${name} at every saved boundary`,async({page})=>{
-  const initial=encodeSnapshot(migrateRosterSnapshot(readFileSync(`tests/fixtures/mounts-v26-${name}.json`,'utf8')));
+  const initial=encodeSnapshot(restoreSnapshot(readFileSync(`tests/fixtures/mounts-${name}.json`,'utf8')));
   let s=restoreSnapshot(initial);if(s.phase==='planning')s=startScenarioTurn(s);
   const events:Event[]=[],fingerprints:string[]=[],permitted:ReturnType<typeof projectEvents>[][]=[];
   for(let n=0;!['planning','ended'].includes(s.phase);n++){

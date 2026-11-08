@@ -16,8 +16,6 @@ import { placement, stepLegality, traceProjectile } from '../packages/geometry/s
 import { footprint } from '../packages/geometry/src/hex.js';
 import { edge } from '../packages/geometry/src/walls.js';
 import { encodeSnapshot, restoreSnapshot, canonical } from '../packages/persistence/src/snapshot.js';
-import { migrateEnvironmentSnapshot, migrateSwarmSnapshot } from '../packages/persistence/src/migration.js';
-import { stateSchema as legacySchema } from '../packages/domain/src/legacy-v5.js';
 import { projectView } from '../packages/views/src/index.js';
 import type { Creature, GameState, Order } from '../packages/domain/src/state.js';
 import type { AttackAction } from '../packages/domain/src/combat.js';
@@ -218,8 +216,8 @@ describe('swarm content, casting and persistence',()=>{
    }
   }),{seed:6004,numRuns:60});
  });
- it.each(['planning','movement','attack','blocked-growth'])('explicitly migrates the immutable v6 %s fixture and continues identically',name=>{
-  const text=readFileSync(`tests/fixtures/swarms-v6-${name}.json`,'utf8').trim();expect(()=>restoreSnapshot(text)).toThrow();const s=migrateSwarmSnapshot(text);
+ it.each(['planning','movement','attack','blocked-growth'])('permanent swarm %s fixture restores and continues identically',name=>{
+  const text=readFileSync(`tests/fixtures/swarms-${name}.json`,'utf8').trim();const s=restoreSnapshot(text);
   expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);const ready=s.phase==='planning'?start(s):s;
   expect(run(ready,true)).toEqual(run(ready));
  });
@@ -258,10 +256,4 @@ describe('swarm content, casting and persistence',()=>{
   bad.creatures[2].originalSize=2;expect(()=>restoreSnapshot(JSON.stringify(bad))).toThrow();bad.creatures[2].originalSize=6;bad.creatures[2].maxHp=30;
   expect(()=>restoreSnapshot(JSON.stringify(bad))).toThrow();expect(encodeSnapshot(s)).toBe(original);
  });
- it('explicitly migrates v5 without rewriting the frozen fixture or consuming randomness',()=>{
-  const text=readFileSync('tests/fixtures/reanimation-v5-casting.json','utf8').trim(),old=legacySchema.parse(JSON.parse(text));
-  expect(canonical(old)).toBe(text);expect(()=>restoreSnapshot(text)).toThrow();
-  const s=migrateEnvironmentSnapshot(text);expect(s.schemaVersion).toBe(27);expect(s.random).toEqual(old.random);
-  expect(s.creatures.map(c=>c.originalSize)).toEqual(old.creatures.map(c=>c.size));expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
-});

@@ -1,4 +1,3 @@
-import { migrateCombatSnapshot } from '../packages/persistence/src/migration.js';
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { createMatch, createCreature, applyCommand, applySystemCommand, systemCommand, type Event } from '../packages/engine/src/index.js';
@@ -235,19 +234,19 @@ describe('conditions and lifecycle',()=>{
 });
 
 describe('combat save and privacy regressions',()=>{
- it('explicitly migrates permanent combat fixtures and continues identically',async()=>{
+ it('permanent combat fixtures restore and continue identically',async()=>{
   const {readFileSync}=await import('node:fs');
-  for(const file of ['combat-v3-multiattack','combat-v3-guard','combat-v3-end-damage']){
-   const text=readFileSync(`tests/fixtures/${file}.json`,'utf8').trim(),state=migrateCombatSnapshot(text);
-   expect(()=>restoreSnapshot(text)).toThrow();
+  for(const file of ['combat-multiattack','combat-guard','combat-end-damage']){
+   const text=readFileSync(`tests/fixtures/${file}.json`,'utf8').trim(),state=restoreSnapshot(text);
+   
    expect(restoreSnapshot(encodeSnapshot(state))).toEqual(state);expect(run(state,true)).toEqual(run(state));
   }
  });
  it('rejects unknown attack/condition/hold references and corrupt pending positions',async()=>{
   const {readFileSync}=await import('node:fs');
-  const text=readFileSync('tests/fixtures/combat-v3-multiattack.json','utf8');
+  const text=readFileSync('tests/fixtures/combat-multiattack.json','utf8');
   for(const mutate of [(s:GameState)=>{s.pendingAttack!.shotIndex=100;},(s:GameState)=>{s.pendingAttack!.attackerId='missing';},(s:GameState)=>{s.pendingAttack!.areaVictims=['missing'];},(s:GameState)=>{s.holds=[{grapplerId:'wizard-0',targetId:'wizard-1',limb:99}];},(s:GameState)=>{s.phase='planning';}]){
-   const s=migrateCombatSnapshot(text);mutate(s);expect(()=>restoreSnapshot(JSON.stringify(s))).toThrow('INVALID_OR_UNSUPPORTED_SNAPSHOT');
+   const s=restoreSnapshot(text);mutate(s);expect(()=>restoreSnapshot(JSON.stringify(s))).toThrow('INVALID_OR_UNSUPPORTED_SNAPSHOT');
   }
  });
  it('exposes public health bands but only owner HP and damage totals',async()=>{

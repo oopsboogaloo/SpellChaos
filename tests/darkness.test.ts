@@ -9,7 +9,6 @@ import { darkAt,sight,visibleTo } from '../packages/engine/src/visibility.js';
 import { emit,type Event } from '../packages/engine/src/events.js';
 import { projectView,projectEvents } from '../packages/views/src/index.js';
 import { encodeSnapshot,restoreSnapshot } from '../packages/persistence/src/snapshot.js';
-import { migrateIllusionSnapshot,migrateDarknessSnapshot } from '../packages/persistence/src/migration.js';
 import { advanceAtomicStep } from '../packages/engine/src/resolver.js';
 import { startScenarioTurn } from '../packages/scenario/src/casting.js';
 import { manaCost,spellRange,castingTime,alignment } from '../packages/content/src/spells.js';
@@ -85,10 +84,7 @@ describe('Darkness saves and continuation',()=>{
   const s=fresh();cloud(s);const original=encodeSnapshot(s);
   for(const mutate of [(t:GameState)=>{t.darkness[0]!.casterId='missing';},(t:GameState)=>{t.darkness[0]!.endsTurn=999;},(t:GameState)=>{t.darkness[0]!.centre=h(-99,0);},(t:GameState)=>{t.darkness.push({...t.darkness[0]!});}]){const t=structuredClone(s);mutate(t);expect(()=>restoreSnapshot(JSON.stringify(t))).toThrow();}expect(encodeSnapshot(s)).toBe(original);
  });
- it('explicitly migrates v7 without changing RNG or pending attacks',()=>{
-  const text=readFileSync('tests/fixtures/illusions-v7-attack.json','utf8'),old=JSON.parse(text);expect(()=>restoreSnapshot(text)).toThrow();const s=migrateIllusionSnapshot(text);expect(s.random).toEqual(old.random);expect(s.pendingAttack).toEqual(old.pendingAttack);expect(s.damageLedger).toEqual(old.damageLedger);expect(s.darkness).toEqual([]);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
  });
-});
 
 describe('Darkness interaction regressions',()=>{
  it('invalidates a preplanned ranged target but permits an arcing area at remembered ground',()=>{
@@ -112,8 +108,8 @@ describe('Darkness interaction regressions',()=>{
  });
 });
 
- it.each(['planning','casting','active'])('retains the immutable v8 %s fixture and resumes every boundary exactly',name=>{
-  const text=readFileSync(`tests/fixtures/darkness-v8-${name}.json`,'utf8').trim(),s=migrateDarknessSnapshot(text);expect(()=>restoreSnapshot(text)).toThrow();expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
+ it.each(['planning','casting','active'])('permanent Darkness %s fixture resumes every boundary exactly',name=>{
+  const text=readFileSync(`tests/fixtures/darkness-${name}.json`,'utf8').trim(),s=restoreSnapshot(text);expect(restoreSnapshot(encodeSnapshot(s))).toEqual(s);
   const ready=s.phase==='planning'?startScenarioTurn(s):s;expect(run(ready,true)).toEqual(run(ready));
  });
  it('blocks Magic Attack family spread into Darkness',()=>{

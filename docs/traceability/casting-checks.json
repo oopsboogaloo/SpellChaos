@@ -285,11 +285,9 @@
     {
       "id": "CAST-032",
       "requirement": "explicitly migrates legacy combat saves without silently changing their version",
-      "status": "implemented",
+      "status": "withdrawn: pre-release saves have no migrations (owner decision 2026-11-07)",
       "testFile": "tests/casting.test.ts",
-      "testNames": [
-        "explicitly migrates legacy combat saves without silently changing their version"
-      ]
+      "testNames": []
     },
     {
       "id": "CAST-033",
@@ -473,11 +471,11 @@
     },
     {
       "id": "CAST-053",
-      "requirement": "allocates summoned creature IDs without colliding with existing scenario or migrated IDs",
+      "requirement": "allocates summoned creature IDs without colliding with existing scenario IDs",
       "status": "implemented",
       "testFile": "tests/casting.test.ts",
       "testNames": [
-        "allocates summoned creature IDs without colliding with existing scenario or migrated IDs"
+        "allocates summoned creature IDs without colliding with existing scenario IDs"
       ]
     },
     {

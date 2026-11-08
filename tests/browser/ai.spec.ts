@@ -8,7 +8,7 @@ import type {Event} from '../../packages/engine/src/events.js';
 for(const name of ['planning','ready','unbound-movement','unbound-attack','limited','complete-match']){
  test(`Node and Chromium resume the ${name} AI session at every published boundary`,async({page})=>{
   test.setTimeout(60000);
-  const initial=readFileSync(`tests/fixtures/ai-v27-${name}.json`,'utf8');let s=restoreMatchSession(initial);const fingerprints:string[]=[],events:Event[]=[];
+  const initial=readFileSync(`tests/fixtures/ai-${name}.json`,'utf8');let s=restoreMatchSession(initial);const fingerprints:string[]=[],events:Event[]=[];
   for(let n=0;!s.outcome;n++){
    if(n>10000)throw Error('STEP_LIMIT');
    const before=s,transition=['early','movement','late','end'].includes(s.state.phase)&&s.atomicSteps<s.options.maxAtomicSteps?advanceAtomicStep(s.state):null;
