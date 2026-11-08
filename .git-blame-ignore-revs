@@ -1,0 +1,2 @@
+# Mechanical reformat with Prettier; skip in git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs)
+91f52430032250f9193080a83bfd97fade2e517e
