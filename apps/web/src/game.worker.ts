@@ -19,7 +19,12 @@ async function handle(data:any){try{
   // Validate only observed facts before the authoritative submission. Never return private rejection details.
   const previous=state.orders.find(o=>o.creatureId===data.order.creatureId);
   const order=data.phase==='early'||data.phase==='late'?{...previous,...data.order,early:data.phase==='early'?data.order.early:previous?.early??null,late:data.phase==='late'?data.order.late:previous?.late??null}:data.order;
-  validateOrder(knowledgeState(projectView(state,'human')),order,'human');
+  const view=projectView(state,'human'),knowledge=knowledgeState(view);
+  knowledge.holds=structuredClone(view.holds);
+  // Projected restraint includes visible holds; let the hold model validate Drag.
+  // Other unobserved restraint remains subject to authoritative validation.
+  if(order.dragTargetId)for(const c of knowledge.creatures)if((c.id===order.creatureId||c.id===order.dragTargetId)&&view.holds.some(h=>h.grapplerId===order.creatureId&&h.targetId===order.dragTargetId))c.restrained=false;
+  validateOrder(knowledge,order,'human');
   state=command('SetOrder',order);
  }
  if(data.type==='clear')state=applyCommand(state,{matchId:state.matchId,playerId:'human',turn:state.turn,commandId:`ui-${state.revision}`,expectedRevision:state.revision,type:'ClearOrder',creatureId:data.creatureId}).state;
