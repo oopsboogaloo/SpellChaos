@@ -279,6 +279,10 @@ export const rawStateSchema = z.strictObject({
     .max(8),
   creatures: z.array(creatureSchema),
   orders: z.array(orderSchema),
+  // D26 (#18): ReleaseHold / CancelCast are private planned intents applied at StartResolution.
+  intents: z.array(
+    z.strictObject({ creatureId: id, kind: z.enum(['ReleaseHold', 'CancelCast']), targetId: id.nullable() }),
+  ),
   dashed: z.array(id),
   reservations: z.array(z.strictObject({ orderId: id, creatureId: id, amount: uint.max(100) })),
   cursor: z.strictObject({
@@ -329,6 +333,11 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
     creatures = state.creatures.map(c => c.id);
   if (!unique(players) || players.includes('$system')) invalid('INVALID_PLAYERS');
   if (!unique(creatures)) invalid('DUPLICATE_CREATURE');
+  if (
+    state.intents.some(i => !creatures.includes(i.creatureId)) ||
+    (state.intents.length > 0 && !['planning', 'ready'].includes(state.phase))
+  )
+    invalid('INVALID_INTENT');
   for (const c of state.creatures) {
     if (
       (c.blinkUsedTurn !== undefined && (!c.blink || c.blinkUsedTurn > state.turn)) ||
@@ -713,7 +722,7 @@ export const stateSchema = rawStateSchema.superRefine((state, ctx) => {
   for (const c of state.creatures) {
     if (
       c.attacks.some(
-        a => a.mode === 'cleave' && (a.minRange !== 1 || a.range !== 1 || a.shots.length !== 1 || !a.targetTeams),
+        a => a.mode === 'cleave' && (a.minRange !== 0 || a.range !== 1 || a.shots.length !== 1 || !a.targetTeams),
       )
     )
       invalid('INVALID_CLEAVE_ATTACK');

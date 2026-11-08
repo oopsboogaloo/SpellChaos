@@ -232,7 +232,7 @@ add(
       ...melee('Tail Sweep', 8, 5),
       id: 'tail-sweep',
       mode: 'cleave',
-      minRange: 1,
+      minRange: 0,
       targetTeams: 'all',
       areaDamage: true,
     },
@@ -593,7 +593,7 @@ add(
   8,
   'The Walking Forest',
   [8, 7, 1, 2, 8],
-  [{ ...melee('Branches', 8, 6), mode: 'cleave', minRange: 1, targetTeams: 'enemies' }],
+  [{ ...melee('Branches', 8, 6), mode: 'cleave', minRange: 0, targetTeams: 'enemies' }],
   plant({
     rootNetwork: { range: 1, potency: 8 },
     rangedCover: { range: 2 },

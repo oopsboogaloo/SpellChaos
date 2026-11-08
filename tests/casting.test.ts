@@ -391,10 +391,13 @@ describe('timing and concentration', () => {
     const mana = s.creatures[0]!.mana,
       cmd = command(s, 'a', { type: 'CancelCast', creatureId: 'wizard-0' });
     s = applyCommand(s, cmd).state;
+    // D26: the cancellation is a private intent until the turn resolves.
+    expect(s.casts).toHaveLength(1);
+    expect(applyCommand(s, cmd).state).toEqual(s);
+    s = start(s);
     expect(s.casts).toEqual([]);
     expect(s.creatures[0]!.mana).toBe(mana);
     expect(s.balanceUnits).toBe(1);
-    expect(applyCommand(s, cmd).state).toEqual(s);
   });
 });
 

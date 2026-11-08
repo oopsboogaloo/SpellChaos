@@ -154,6 +154,7 @@ export function createMatch(matchId: string, playerIds: string[], seed: number):
     autonomous: [],
     actedThisPhase: [],
     orders: [],
+    intents: [],
     dashed: [],
     reservations: [],
     cursor: { entries: [], index: 0, pathIndex: 0, initialized: false, activePath: null, lastRestingCentre: null },
@@ -241,15 +242,25 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
       c.mana,
     );
     // Private draft changes are acknowledged but never emitted as opponent-visible events.
-  } else if (command.type === 'CancelCast') {
-    const cast = next.casts.find(c => c.casterId === command.creatureId);
-    if (cast) interruptCast(next, cast.id, events, 'cancelled');
-  } else if (command.type === 'ReleaseHold') {
-    next.holds = next.holds.filter(
-      h => h.grapplerId !== command.creatureId || (command.targetId !== null && h.targetId !== command.targetId),
+  } else if (command.type === 'CancelCast' || command.type === 'ReleaseHold') {
+    // D26 (#18): recorded privately now, applied at StartResolution, so opponents cannot react during planning.
+    const intent = {
+      creatureId: command.creatureId,
+      kind: command.type,
+      targetId: command.type === 'ReleaseHold' ? command.targetId : null,
+    };
+    next.intents = next.intents.filter(
+      i =>
+        !(
+          i.creatureId === intent.creatureId &&
+          i.kind === intent.kind &&
+          (i.kind === 'CancelCast' || i.targetId === intent.targetId)
+        ),
     );
+    next.intents.push(intent);
   } else if (command.type === 'ClearOrder') {
     next.orders = next.orders.filter(o => o.creatureId !== command.creatureId);
+    next.intents = next.intents.filter(i => i.creatureId !== command.creatureId);
     next.reservations = next.reservations.filter(r => r.orderId !== command.creatureId);
   } else if (command.type === 'AdvanceAiStream') {
     next.random.ai = command.after;
@@ -269,6 +280,7 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
       }
       p.missedTurns++;
       next.orders = next.orders.filter(o => next.creatures.find(c => c.id === o.creatureId)?.controller !== p.id);
+      next.intents = next.intents.filter(i => next.creatures.find(c => c.id === i.creatureId)?.controller !== p.id);
       next.reservations = next.reservations.filter(
         r => next.creatures.find(c => c.id === r.creatureId)?.controller !== p.id,
       );
@@ -279,6 +291,16 @@ function apply(state: GameState, input: unknown, system: boolean): Transition {
     next.phase = 'ready';
     checkVictory(next, events);
   } else {
+    for (const intent of next.intents) {
+      if (intent.kind === 'CancelCast') {
+        const cast = next.casts.find(c => c.casterId === intent.creatureId);
+        if (cast) interruptCast(next, cast.id, events, 'cancelled');
+      } else
+        next.holds = next.holds.filter(
+          h => h.grapplerId !== intent.creatureId || (intent.targetId !== null && h.targetId !== intent.targetId),
+        );
+    }
+    next.intents = [];
     prepareUnboundOrders(next);
     for (const c of next.creatures.filter(c => c.alive))
       if (!next.orders.some(o => o.creatureId === c.id)) next.orders.push(defaultOrder(c.id));

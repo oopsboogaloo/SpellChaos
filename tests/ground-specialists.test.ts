@@ -316,7 +316,8 @@ it('Tail Sweep hits every adjacent ally and enemy once with exact continuation',
   expect(a.state.creatures.find(c => c.id === 'z-ally')!.hp).toBe(15);
   expect(a.events.filter(e => e.type === 'AttackHit' && e.creatureId === 'actor')).toHaveLength(2);
 });
-it('Sweep excludes air, distant and covered bodies and uses one roll per creature', () => {
+// D25 (owner ruling 8 Nov 2026, #36): a sweep hits a swarm overlapping the attacker.
+it('Sweep hits an overlapping swarm, excludes air and distant bodies, and uses one roll per creature', () => {
   const s = setup('serpent');
   target(s).height = 'air';
   target(s).centre = h(10, 6);
@@ -328,8 +329,9 @@ it('Sweep excludes air, distant and covered bodies and uses one roll per creatur
   const events = attack(s, strike('tail-sweep', []));
   expect(target(s).hp).toBe(20);
   expect(s.creatures.find(c => c.id === 'large')!.hp).toBe(10);
-  expect(s.creatures.find(c => c.id === 'covered')!.hp).toBe(10);
+  expect(s.creatures.find(c => c.id === 'covered')!.hp).toBeLessThan(10);
   expect(events.filter(e => e.type === 'AttackHit' && e.targetId === 'large')).toHaveLength(1);
+  expect(events.filter(e => e.type === 'AttackHit' && e.targetId === 'covered')).toHaveLength(1);
 });
 it('Sweep applies area physical rules to a swarm, while Branches remain discrete attacks', () => {
   for (const name of ['serpent', 'forest'] as const) {

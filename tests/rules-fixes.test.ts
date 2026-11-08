@@ -141,3 +141,26 @@ it('#38: every grapple attempt reports exactly one outcome, and a too-large targ
     if (reported[0] === 'HoldFormed') expect(s.holds).toHaveLength(1);
   }
 });
+
+it('#36 (D25): Walking Forest Branches hit a snake swarm overlapping the Forest', async () => {
+  const { beginAttack, stepAttack } = await import('../packages/engine/src/combat.js');
+  const { summonProfile } = await import('../packages/content/src/summons.js');
+  const s = match();
+  s.phase = 'early';
+  s.creatures.push(createCreature('forest', 'a', h(12), summonProfile('Summon Plant', 8)!));
+  s.creatures.push(
+    createCreature('swarm', 'b', h(12), { ...summonProfile('Summon Serpent', 3)!, incapacitated: true }),
+  );
+  const forest = s.creatures.find(c => c.id === 'forest')!,
+    events: Event[] = [];
+  beginAttack(
+    s,
+    forest,
+    { type: 'Attack', attackId: forest.attacks[0]!.id, targetIds: [], ground: null, side: 'left' },
+    'action',
+    events,
+  );
+  while (s.pendingAttack) stepAttack(s, events);
+  expect(events.some(e => e.type === 'AttackHit' && e.targetId === 'swarm')).toBe(true);
+  expect(s.creatures.find(c => c.id === 'swarm')!.hp).toBeLessThan(16);
+});
