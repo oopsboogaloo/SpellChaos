@@ -1,0 +1,11 @@
+{
+  "stage": 9,
+  "status": "partial",
+  "checks": [
+    {"id":"UI-TACTICAL-001","requirement":"Use ordinary commands for multi-target, ground, structure and Guard orders","testFile":"tests/browser/tactical-orders.spec.ts","cases":["multi","structure","guard"]},
+    {"id":"UI-TACTICAL-002","requirement":"Explicit Blink, Drag and flight path options survive private export","testFile":"tests/browser/tactical-orders.spec.ts","cases":["blink","drag","flight"]},
+    {"id":"UI-TACTICAL-003","requirement":"Rejected movement edits retain accepted orders","testFile":"tests/browser/tactical-orders.spec.ts","cases":["blink"]},
+    {"id":"UI-TACTICAL-004","requirement":"Hold information is limited to visible interactions involving owned units","testFile":"tests/tactical-view.test.ts"}
+  ],
+  "remaining": ["Targeting previews and inspection","Editor hydration and richer pointer targeting","Filtered event log and replay seeking","Planning timers","Full-match responsive and physical-input acceptance"]
+}

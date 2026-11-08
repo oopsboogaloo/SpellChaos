@@ -76,3 +76,24 @@ cross to the presentation. Save failures leave the live match playable and displ
 an export prompt. Browser tests cover refresh continuation, aborted writes,
 corrupt-current fallback and byte-identical resolution checkpoint restoration.
 This is local single-match persistence; timers and replay history remain pending.
+
+## Tactical combat and movement checkpoint
+
+The tactical-order panel submits ordinary full orders for ordered multiattack
+slots, ground impacts, visible Wall/Tangleweed structures, Guard targets/areas,
+Blink path indices, Drag targets and flight take-off/landing transitions. It keeps
+the other saved phase and leaves legality to worker/engine validation. Normal
+movement explicitly clears prior special movement options. Flight transitions use
+repeated path coordinates and one-based step labels mapped to engine indices.
+
+Drag planning now receives only visible hold interactions involving an owned unit.
+A private-state regression checks unrelated and invisible holds are excluded. The
+worker's knowledge-state check represents those visible holds; authoritative
+validation still enforces restraints unavailable to the projection. AI policy and
+engine rules are unchanged. Six browser scenarios verify actual exported orders
+for Blink, flight, Drag, multiattack, Guard and structure attacks.
+
+Stage 9 remains partial: improve targeting previews/inspection and saved-editor
+hydration, provide filtered logs/replay and planning timers, and finish full-match,
+physical-input and visual acceptance. Terrain and movement controls still use
+coordinate entry as an accessible alternative to board interactions.
