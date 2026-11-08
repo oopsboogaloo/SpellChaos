@@ -64,3 +64,19 @@ it('reports hits, misses and damage dealt per target, and damage taken by source
   expect(s.late).toBe('Hit Wizard (enemy) (1 missed)');
   expect(s.took).toBe('Took 6 damage: Shepherd 3, Walking mushroom 2, poison 1');
 });
+
+it('does not count retaliation damage from the same creature as damage from its hit', () => {
+  const s = lastTurnSummary(
+    [
+      e('AttackHit', 'early', { targetId: 'w2' }),
+      e('DamageApplied', 'early', { creatureId: 'w2', sourceId: 'w1', amount: 3 }),
+      // w2 strikes back and w1's bristles reflect 2 damage onto w2.
+      e('AttackHit', 'early', { creatureId: 'w2', targetId: 'w1' }),
+      e('DamageApplied', 'early', { creatureId: 'w1', sourceId: 'w2', amount: 4 }),
+      e('DamageApplied', 'early', { creatureId: 'w2', sourceId: 'w1', amount: 2 }),
+    ],
+    'w1',
+    name,
+  );
+  expect(s.early).toBe('Hit Wizard (3 dmg)');
+});

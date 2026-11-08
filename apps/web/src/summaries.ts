@@ -57,9 +57,15 @@ export function lastTurnSummary(
         .map(t => {
           const hits = strikes.filter(e => e.targetId === t && e.type === 'AttackHit'),
             misses = strikes.filter(e => e.targetId === t && e.type === 'AttackMissed').length,
-            dealt = events.filter(
-              e => e.type === 'DamageApplied' && e.creatureId === t && e.sourceId === id && e.phase === phase,
-            ),
+            // Each hit's damage is the first damage event that follows it for that target from this attacker,
+            // so retaliation such as bristles (also sourced from this creature) is not counted as the hit.
+            dealt = hits
+              .map(hit =>
+                events
+                  .slice(events.indexOf(hit) + 1)
+                  .find(e => e.type === 'DamageApplied' && e.creatureId === t && e.sourceId === id),
+              )
+              .filter((e): e is LogEvent => !!e),
             amount = dealt.reduce((n, e) => n + (e.amount ?? 0), 0),
             known = dealt.some(e => e.amount !== undefined);
           if (!hits.length) return `Missed ${name(t)}${misses > 1 ? ` ×${misses}` : ''}`;
