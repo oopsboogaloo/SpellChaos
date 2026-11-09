@@ -1,3 +1,4 @@
+import { effectChance } from '../../engine/src/damage.js';
 import { clearProjectile } from '../../geometry/src/walls.js';
 import type { PlayerView } from '../../views/src/index.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
@@ -5,6 +6,7 @@ import type { AttackAction, AttackDefinition } from '../../domain/src/combat.js'
 import type { CastAction } from '../../domain/src/spells.js';
 import { knowledgeState, type SeenCreature } from './knowledge.js';
 import { routeTowards } from '../../engine/src/navigation.js';
+import { meleeHeightAllowed } from '../../domain/src/combat.js';
 import { bodyFootprint } from '../../engine/src/bodies.js';
 import { arenaOf, defaultOrder, movementAllowance, validateOrder } from '../../engine/src/orders.js';
 import { placement, traceProjectile } from '../../geometry/src/occupancy.js';
@@ -47,7 +49,7 @@ function reaches(s: GameState, c: Creature, t: Creature, a: AttackDefinition) {
   return (
     p.distance >= a.minRange &&
     p.distance <= a.range &&
-    (!isMelee(a) || c.height === t.height) &&
+    (!isMelee(a) || meleeHeightAllowed(c, t)) &&
     sight(s, c, p.from, p.to, 'left') &&
     (!isMelee(a) || clearProjectile(p.from, p.to, 'left', s.walls))
   );
@@ -96,6 +98,8 @@ export function planWizardTurn(view: PlayerView, seed: number, options: PolicyOp
     .sort((a, b) => Number(wizardIds.has(b.id)) - Number(wizardIds.has(a.id)) || (a.id < b.id ? -1 : 1));
   const enemies = s.creatures.filter(c => c.alive && c.controller !== view.self.id);
   const targetBonus = (t: Creature) => (wizardIds.has(t.id) ? 10 : 2);
+  // Chance (0–1) that a power of this potency beats the target's resistance.
+  const works = (potency: number, resistance: number) => effectChance(potency, resistance) / 100;
   for (const seen of owned) {
     if (!seen.planning?.ready) continue;
     if (!spend()) break;
@@ -280,12 +284,22 @@ export function planWizardTurn(view: PlayerView, seed: number, options: PolicyOp
           targets.filter(t => t.size < c.size && t.height === 'ground' && distance(world, body, t) <= 1).length * 4,
         );
       for (const t of targets) {
-        if (c.gaze && distance(world, body, t) <= c.gaze.range)
-          offer({ type: 'Gaze', targetId: t.id }, 4 + targetBonus(t));
-        if (c.fearAction?.kind === 'Frighten' && distance(world, body, t) <= 1)
-          offer({ type: 'Frighten', targetId: t.id }, 4 + targetBonus(t));
-        if (c.spores && !t.undead && !t.construct && distance(world, body, t) <= 1)
-          offer({ type: 'Spores', targetId: t.id }, 5 + targetBonus(t));
+        // A power is worth its chance of working against the target's resistance times what the effect is
+        // worth, so the AI attacks when that is better, and never re-gazes a target already held (#60).
+        if (c.gaze && !t.restrained && distance(world, body, t) <= c.gaze.range)
+          offer({ type: 'Gaze', targetId: t.id }, works(c.gaze.potency, t.intelligence) * (3 + targetBonus(t)));
+        if (
+          c.fearAction?.kind === 'Frighten' &&
+          t.intelligence > 0 &&
+          !t.construct &&
+          distance(world, body, t) <= c.fearAction.range
+        )
+          offer(
+            { type: 'Frighten', targetId: t.id },
+            works(c.fearAction.potency, t.intelligence) * (2 + targetBonus(t)),
+          );
+        if (c.spores && !t.undead && !t.construct && !t.plant && distance(world, body, t) <= c.spores.range)
+          offer({ type: 'Spores', targetId: t.id }, works(c.spores.potency, t.con) * (5 + targetBonus(t)));
         if (c.canMarkQuarry && c.quarryTargetId !== t.id)
           offer({ type: 'MarkQuarry', targetId: t.id }, distance(world, body, t) <= 2 ? 5 : 1);
       }

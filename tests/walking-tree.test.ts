@@ -110,13 +110,11 @@ it('a miss cannot push', () => {
   expect(events.some(e => e.type === 'AttackMissed')).toBe(true);
   expect(target(s).centre).toEqual(h(9));
 });
-it('an out-of-reach or other-height target cannot be hit or pushed', () => {
+it('an out-of-reach target cannot be hit or pushed', () => {
+  // An airborne target is now in reach of ground melee, at disadvantage (owner ruling 9 Nov 2026, #61).
   for (const mutate of [
     (s: GameState) => {
       target(s).centre = h(10);
-    },
-    (s: GameState) => {
-      target(s).height = 'air';
     },
   ]) {
     const s = setup();

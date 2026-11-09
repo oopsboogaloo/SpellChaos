@@ -9,7 +9,7 @@ import { escapeWeed, damageWeed } from './tangleweed.js';
 import { sight, darkRay, visibleTo, targetVisible, clearNearestPair } from './visibility.js';
 import { isLethal } from './illusions.js';
 import { concentration, forceMove } from './casting.js';
-import { validAttackTargets } from '../../domain/src/combat.js';
+import { validAttackTargets, meleeHeightAllowed } from '../../domain/src/combat.js';
 import type { Creature, GameState, Order } from '../../domain/src/state.js';
 import type { AttackAction, AttackDefinition } from '../../domain/src/combat.js';
 import {
@@ -110,7 +110,7 @@ export function validateCombatAction(s: GameState, c: Creature, a: CombatAction)
 /** The first minimum-distance pair through which the attack is legal on the planned side, or null (#20). */
 function reachPair(s: GameState, a: Creature, b: Creature, attack: AttackDefinition, side: 'left' | 'right' = 'left') {
   const d = pair(s, a, b).distance;
-  if (!b.alive || d > attack.range || d < attack.minRange || (melee(attack) && a.height !== b.height)) return null;
+  if (!b.alive || d > attack.range || d < attack.minRange || (melee(attack) && !meleeHeightAllowed(a, b))) return null;
   return clearNearestPair(
     bodyFootprint(s, a),
     bodyFootprint(s, b),
@@ -227,7 +227,8 @@ export function hitModifiers(
       !a.ignoresDarknessDisadvantage &&
       (a.darknessSightRange === 0 || p.distance > a.darknessSightRange) &&
       darkRay(s, p.from, p.to, side);
-  return [advantage, defended || threatened || has(a, 'Fear') || obscured || hasRangedCover(s, a, b, attack)];
+  const upward = melee(attack) && a.height === 'ground' && b.height === 'air';
+  return [advantage, defended || threatened || upward || has(a, 'Fear') || obscured || hasRangedCover(s, a, b, attack)];
 }
 /** Guard follows the triggering creature until commitment, then locks an area
  * impact to its nearest occupied hex. The pending action serialises that point. */
