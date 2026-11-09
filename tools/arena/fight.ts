@@ -50,19 +50,26 @@ export function fight(a: Fighter, b: Fighter, seed: number, turnCap = 40): Fight
     createCreature('B', 'b', { q: 18, r: 15 }, { ...summonProfile(b.spell, b.level)!, bindingLevel: b.level }),
   ];
   const events: Event[] = [];
-  let turns = 0;
-  for (; turns < turnCap; turns++) {
+  // The first knockout ends the fight, checked after every atomic step, so later regeneration or
+  // ongoing damage cannot undo it.
+  let turns = 0,
+    knockout: 'a' | 'b' | 'draw' | null = null;
+  const check = () => {
     const [ca, cb] = ['A', 'B'].map(id => s.creatures.find(c => c.id === id));
-    if (down(ca) || down(cb)) break;
+    if (down(ca) || down(cb)) knockout = down(ca) && down(cb) ? 'draw' : down(ca) ? 'b' : 'a';
+  };
+  for (; turns < turnCap && !knockout; turns++) {
     s = submitAiTurn(s, ['a', 'b']).state;
     const started = applySystemCommand(s, systemCommand(s, 'StartResolution', `start-${s.turn}`));
     s = started.state;
     events.push(...started.events);
-    for (let n = 0; !['planning', 'ended'].includes(s.phase); n++) {
+    check();
+    for (let n = 0; !knockout && !['planning', 'ended'].includes(s.phase); n++) {
       if (n > 20000) throw new Error('STEP_LIMIT');
       const r = advanceAtomicStep(s);
       s = r.state;
       events.push(...r.events);
+      check();
     }
   }
   const side = (id: string, other: string): Side => {
@@ -81,7 +88,6 @@ export function fight(a: Fighter, b: Fighter, seed: number, turnCap = 40): Fight
       maxHp: c?.maxHp ?? 0,
     };
   };
-  const [ca, cb] = ['A', 'B'].map(id => s.creatures.find(c => c.id === id));
-  const winner = down(ca) && !down(cb) ? 'b' : down(cb) && !down(ca) ? 'a' : 'draw';
+  const winner = knockout ?? 'draw';
   return { a: a.key, b: b.key, seed, winner, turns, sides: { a: side('A', 'B'), b: side('B', 'A') } };
 }
