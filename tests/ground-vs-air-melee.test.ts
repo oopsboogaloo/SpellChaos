@@ -16,11 +16,13 @@ function pair(attacker: 'ground' | 'air', target: 'ground' | 'air') {
   return { s, a, b, staff: a.attacks[0]! };
 }
 
-it('the height rule: same height, or ground striking air', () => {
-  expect(meleeHeightAllowed({ height: 'ground' }, { height: 'ground' })).toBe(true);
-  expect(meleeHeightAllowed({ height: 'air' }, { height: 'air' })).toBe(true);
-  expect(meleeHeightAllowed({ height: 'ground' }, { height: 'air' })).toBe(true);
-  expect(meleeHeightAllowed({ height: 'air' }, { height: 'ground' })).toBe(false);
+it('the height rule: same height, or ground striking adjacent air', () => {
+  expect(meleeHeightAllowed({ height: 'ground' }, { height: 'ground' }, 2)).toBe(true);
+  expect(meleeHeightAllowed({ height: 'air' }, { height: 'air' }, 2)).toBe(true);
+  expect(meleeHeightAllowed({ height: 'ground' }, { height: 'air' }, 1)).toBe(true);
+  // Only adjacent: a reach-2 branch cannot strike a flyer two hexes away.
+  expect(meleeHeightAllowed({ height: 'ground' }, { height: 'air' }, 2)).toBe(false);
+  expect(meleeHeightAllowed({ height: 'air' }, { height: 'ground' }, 1)).toBe(false);
 });
 
 it('ground melee reaches an adjacent flyer at disadvantage; same-height melee has no such penalty', () => {

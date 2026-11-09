@@ -49,7 +49,7 @@ function reaches(s: GameState, c: Creature, t: Creature, a: AttackDefinition) {
   return (
     p.distance >= a.minRange &&
     p.distance <= a.range &&
-    (!isMelee(a) || meleeHeightAllowed(c, t)) &&
+    (!isMelee(a) || meleeHeightAllowed(c, t, p.distance)) &&
     sight(s, c, p.from, p.to, 'left') &&
     (!isMelee(a) || clearProjectile(p.from, p.to, 'left', s.walls))
   );

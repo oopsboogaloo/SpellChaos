@@ -110,7 +110,8 @@ export function validateCombatAction(s: GameState, c: Creature, a: CombatAction)
 /** The first minimum-distance pair through which the attack is legal on the planned side, or null (#20). */
 function reachPair(s: GameState, a: Creature, b: Creature, attack: AttackDefinition, side: 'left' | 'right' = 'left') {
   const d = pair(s, a, b).distance;
-  if (!b.alive || d > attack.range || d < attack.minRange || (melee(attack) && !meleeHeightAllowed(a, b))) return null;
+  if (!b.alive || d > attack.range || d < attack.minRange || (melee(attack) && !meleeHeightAllowed(a, b, d)))
+    return null;
   return clearNearestPair(
     bodyFootprint(s, a),
     bodyFootprint(s, b),
