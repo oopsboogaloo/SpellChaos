@@ -173,3 +173,13 @@ export const damageRecordSchema = z.strictObject({
   amount: z.number().int().min(1),
   remaining: z.number().int().min(0),
 });
+
+/** Melee needs a shared height, except that a creature on the ground may strike an adjacent airborne one, at
+ * disadvantage (owner ruling 9 Nov 2026, #61). An airborne creature still melees only airborne targets. */
+export function meleeHeightAllowed(
+  a: { height: 'ground' | 'air' },
+  b: { height: 'ground' | 'air' },
+  distance: number,
+): boolean {
+  return a.height === b.height || (a.height === 'ground' && b.height === 'air' && distance <= 1);
+}

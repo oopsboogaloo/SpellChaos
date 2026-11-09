@@ -58,6 +58,7 @@ it('Treant reaches two hexes from its footprint and restores every atomic step',
   expect(a.state.creatures.find(c => c.id === 'target')!.hp).toBe(34);
   expect(tree(a.state).hp).toBe(22);
 });
+// 'height': ground melee reaches only an adjacent flyer (D27), and this target is two hexes away.
 it.each(['wall', 'range', 'height'])('Treant reach respects %s restrictions', kind => {
   const s = setup();
   if (kind === 'wall')

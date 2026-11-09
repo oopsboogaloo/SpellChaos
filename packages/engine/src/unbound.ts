@@ -8,6 +8,7 @@ import { perceives, sight } from './visibility.js';
 import { randomBelow } from './random.js';
 import { defaultOrder, effectiveMove } from './orders.js';
 import { routeTowards } from './navigation.js';
+import { meleeHeightAllowed } from '../../domain/src/combat.js';
 const pair = (s: GameState, a: Creature, b: Creature) => nearestPair(bodyFootprint(s, a), bodyFootprint(s, b));
 function reaches(s: GameState, c: Creature, t: Creature, a: AttackDefinition): boolean {
   const p = pair(s, c, t),
@@ -15,7 +16,7 @@ function reaches(s: GameState, c: Creature, t: Creature, a: AttackDefinition): b
   return (
     p.distance >= a.minRange &&
     p.distance <= a.range &&
-    (!melee || c.height === t.height) &&
+    (!melee || meleeHeightAllowed(c, t, p.distance)) &&
     (sight(s, c, p.from, p.to, 'left') || (p.distance <= 1 && clearProjectile(p.from, p.to, 'left', s.walls))) &&
     (!melee || clearProjectile(p.from, p.to, 'left', s.walls))
   );

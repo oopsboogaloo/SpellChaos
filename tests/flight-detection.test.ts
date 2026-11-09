@@ -213,14 +213,20 @@ it('landing revalidates a newly occupied footprint after path preparation', () =
   expect(actor(a.state).height).toBe('air');
   expect(a.events.some(e => e.type === 'MovementBlocked')).toBe(true);
 });
-it('landing enters ground melee Guard reach and take-off enters airborne Guard reach', () => {
+it('arriving next to a ground Guard while flying, and taking off into airborne Guard reach, both trigger it', () => {
+  // Ground melee reaches an adjacent flyer (owner ruling 9 Nov 2026, #61), so a flyer is already in a ground
+  // Guard's reach when it arrives, before any landing.
   for (const height of ['ground', 'air'] as const) {
     let s = setup('wisp');
     actor(s).height = height === 'air' ? 'ground' : 'air';
+    if (height === 'ground') actor(s).centre = h(6);
     target(s).height = height;
     target(s).centre = h(9);
     s = order(s, 'target', { type: 'Guard', attackId: 'staff', targetId: 'actor', area: [] });
-    s = order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height }] });
+    s =
+      height === 'ground'
+        ? order(s, 'actor', null, null, [h(7), h(8)])
+        : order(s, 'actor', null, null, [h(8)], { flightSteps: [{ index: 0, height }] });
     const ready = startScenarioTurn(s),
       a = run(ready),
       b = run(ready, true);

@@ -317,7 +317,7 @@ it('Tail Sweep hits every adjacent ally and enemy once with exact continuation',
   expect(a.events.filter(e => e.type === 'AttackHit' && e.creatureId === 'actor')).toHaveLength(2);
 });
 // D25 (owner ruling 8 Nov 2026, #36): a sweep hits a swarm overlapping the attacker.
-it('Sweep hits an overlapping swarm, excludes air and distant bodies, and uses one roll per creature', () => {
+it('Sweep hits an overlapping swarm and an adjacent flyer, excludes distant bodies, and uses one roll per creature', () => {
   const s = setup('serpent');
   target(s).height = 'air';
   target(s).centre = h(10, 6);
@@ -327,7 +327,9 @@ it('Sweep hits an overlapping swarm, excludes air and distant bodies, and uses o
     createCreature('covered', 'b', h(10), { swarm: true, originalSize: 1, size: 1, con: 10, incapacitated: true }),
   );
   const events = attack(s, strike('tail-sweep', []));
-  expect(target(s).hp).toBe(20);
+  // Ground melee reaches an adjacent flyer, at disadvantage (owner ruling 9 Nov 2026, #61).
+  expect(events.filter(e => ['AttackHit', 'AttackMissed'].includes(e.type) && e.targetId === 'target')).toHaveLength(1);
+  expect(events.some(e => e.targetId === 'distant')).toBe(false);
   expect(s.creatures.find(c => c.id === 'large')!.hp).toBe(10);
   expect(s.creatures.find(c => c.id === 'covered')!.hp).toBeLessThan(10);
   expect(events.filter(e => e.type === 'AttackHit' && e.targetId === 'large')).toHaveLength(1);

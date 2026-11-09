@@ -1,5 +1,18 @@
 # Arena findings, 9 November 2026
 
+## Update: after #60 and #61
+
+The current `report.md` is a fresh run made after two fixes: the AI now weighs powers against attacking (#60), and ground melee can strike an adjacent flyer at disadvantage (D27, #61). Changes in score:
+
+- **Ghost:** 36% → 72%, and the **Basilisk** 7% → 43%. They now attack (8.4 and 4.1 attacks a fight, up from 0).
+- **Cheap flyers drop sharply:** the Dragonet familiar 66% → 20%, the Wisp 61% → 17% and the Amphiptere 65% → 50%. The Gryphon stays at 67%.
+- **Spirits are now even stronger:** the Pale Monarch 98%, the Dread revenant 95%, the Wraith 88% and the Spectre 81%. They no longer lose to the Wisp, and physical damage still barely hurts them. This is the main open balance question.
+- **Siege engines** are unchanged at 27–42%, so the low rate of fire still needs looking at.
+- **The Walking mushroom** is still at the bottom (3%).
+
+The notes below describe the first run, before those fixes.
+
+
 Notes on the first arena run (`report.md`, `matrix.csv`). A fight ends at the first knockout, checked after every engine step, so regeneration cannot undo a loss. Rerunning with that fix moved the numbers by about one fight in a hundred. The run covered 18,060 one-on-one fights, 20 per pair, among the 43 summonable creatures. Re-run with:
 
 ```sh
